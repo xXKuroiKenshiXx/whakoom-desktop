@@ -32,4 +32,5 @@ pub mod statistics;
 pub mod updater;
 pub mod wishlist;
 
+pub mod missing;
 pub mod money;

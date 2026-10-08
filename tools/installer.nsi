@@ -6,7 +6,7 @@ Unicode true
 !define BUILD_DIR "..\target\release"
 !endif
 !ifndef OUTPUT
-!define OUTPUT "..\dist\Whakoom-Desktop-3.0.0-setup.exe"
+!define OUTPUT "..\dist\Whakoom-Desktop-3.1.0-setup.exe"
 !endif
 Name "Whakoom Desktop"
 OutFile "${OUTPUT}"
@@ -46,7 +46,7 @@ Section "Whakoom Desktop"
   CreateShortcut "$SMPROGRAMS\Whakoom Desktop\Desinstalar.lnk" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "Software\WhakoomDesktop" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WhakoomDesktop" "DisplayName" "Whakoom Desktop"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WhakoomDesktop" "DisplayVersion" "3.0.0"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WhakoomDesktop" "DisplayVersion" "3.1.0"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WhakoomDesktop" "DisplayIcon" "$INSTDIR\whakoom-desktop.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WhakoomDesktop" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WhakoomDesktop" "NoModify" 1

@@ -579,7 +579,7 @@
     "View collection",
     "Ver coleção",
     "Открыть коллекцию",
-    "查看收藏集"
+    "查看系列"
   ],
   "Añadir a favoritos": [
     "Add to favorites",
@@ -1032,10 +1032,10 @@
     "您的公开头像"
   ],
   "Cambiar foto de perfil": [
-    "Change profile picture",
+    "Change profile photo",
     "Alterar foto de perfil",
     "Изменить фото профиля",
-    "更换头像"
+    "更改头像"
   ],
   "Biografía": [
     "Biography",
@@ -1772,7 +1772,7 @@
   "PNG, JPEG o WebP · hasta 5 MiB": [
     "PNG, JPEG or WebP · up to 5 MiB",
     "PNG, JPEG ou WebP · até 5 MiB",
-    "PNG, JPEG или WebP · до 5 MiB",
+    "PNG, JPEG или WebP · до 5 МиБ",
     "PNG、JPEG 或 WebP · 最大 5 MiB"
   ],
   "Contraer menú": [
@@ -2626,5 +2626,95 @@
     "Leve",
     "Низкое",
     "轻量"
+  ],
+  "Tomos faltantes": [
+    "Missing volumes",
+    "Volumes em falta",
+    "Недостающие тома",
+    "缺少的卷"
+  ],
+  "Tengo": [
+    "Owned",
+    "Tenho",
+    "Есть",
+    "已拥有"
+  ],
+  "Faltan": [
+    "Missing",
+    "Faltam",
+    "Не хватает",
+    "缺少"
+  ],
+  "Me falta": [
+    "Missing",
+    "Falta",
+    "Не хватает",
+    "尚未拥有"
+  ],
+  "faltantes": [
+    "missing",
+    "em falta",
+    "не хватает",
+    "缺少"
+  ],
+  "Cambiar foto, nombre público y biografía": [
+    "Change photo, display name and bio",
+    "Alterar foto, nome público e biografia",
+    "Изменить фото, публичное имя и биографию",
+    "更改头像、公开昵称和简介"
+  ],
+  "Foto, nombre público y biografía": [
+    "Photo, display name and bio",
+    "Foto, nome público e biografia",
+    "Фото, публичное имя и биография",
+    "头像、公开昵称和简介"
+  ],
+  "Consultando tus colecciones…": [
+    "Loading your collections…",
+    "Consultando suas coleções…",
+    "Загрузка ваших коллекций…",
+    "正在加载你的系列…"
+  ],
+  "Consultando la colección completa…": [
+    "Loading the complete collection…",
+    "Consultando a coleção completa…",
+    "Загрузка всей коллекции…",
+    "正在加载完整系列…"
+  ],
+  "Sin conexión: se muestran las colecciones completas guardadas.": [
+    "Offline: showing saved complete collections.",
+    "Sem conexão: mostrando as coleções completas salvas.",
+    "Офлайн: показаны сохранённые полные коллекции.",
+    "离线：显示已保存的完整系列。"
+  ],
+  "Conectá tu cuenta para consultar los tomos que te faltan.": [
+    "Connect your account to check missing volumes.",
+    "Conecte sua conta para consultar volumes em falta.",
+    "Подключите аккаунт, чтобы найти недостающие тома.",
+    "连接账号以查看缺少的卷。"
+  ],
+  "Algunas colecciones no pudieron actualizarse": [
+    "Some collections could not be updated",
+    "Algumas coleções não puderam ser atualizadas",
+    "Некоторые коллекции не удалось обновить",
+    "部分系列无法更新"
+  ],
+  "{0} colecciones completas consultadas": [
+    "{0} complete collections checked",
+    "{0} coleções completas consultadas",
+    "Проверено полных коллекций: {0}",
+    "已查询 {0} 个完整系列"
+  ],
+  "No hay tomos faltantes en las colecciones completas consultadas.": [
+    "No missing volumes in the complete collections checked.",
+    "Não há volumes em falta nas coleções completas consultadas.",
+    "В проверенных полных коллекциях нет недостающих томов.",
+    "已查询的完整系列没有缺少的卷。"
+  ],
+  "Tomos publicados que faltan en las ediciones que coleccionás. Abrí una colección para ver Todos, Tengo y Faltan.": [
+    "Published volumes missing from the editions you collect. Open a collection to see All, Owned and Missing.",
+    "Volumes publicados em falta nas edições que você coleciona. Abra uma coleção para ver Todos, Tenho e Faltam.",
+    "Недостающие опубликованные тома ваших изданий. Откройте коллекцию: Все, Есть и Не хватает.",
+    "你收藏的版本中缺少的已出版卷。打开系列可查看全部、已拥有和缺少。"
   ]
 }

@@ -6,17 +6,19 @@ Cliente de escritorio **no oficial** de [Whakoom](https://www.whakoom.com), escr
 
 La captura usa títulos públicos y una biblioteca de ejemplo; no contiene una sesión real.
 
-## Descargar 3.0.0
+Mi biblioteca incluye **Tomos faltantes** y cada edición permite alternar entre **Todos, Tengo y Faltan**. La cuenta tiene sus secciones arriba y un diálogo para editar foto, nombre público y biografía.
 
-[Descargas y notas de la versión](https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/tag/v3.0.0)
+## Descargar 3.1.0
+
+[Descargas y notas de la versión](https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/tag/v3.1.0)
 
 | Sistema | Archivo | Requisitos |
 | --- | --- | --- |
-| Windows | `Whakoom-Desktop-3.0.0-setup.exe` | Windows 10/11, x64 |
-| Windows portable | `Whakoom-Desktop-3.0.0.exe` o ZIP | Mismos requisitos; no requiere instalación |
-| Linux | `Whakoom-Desktop-3.0.0-x86_64.AppImage` | x86_64, glibc 2.39 o posterior, OpenGL, X11/Wayland |
+| Windows | `Whakoom-Desktop-3.1.0-setup.exe` | Windows 10/11, x64 |
+| Windows portable | `Whakoom-Desktop-3.1.0.exe` o ZIP | Mismos requisitos; no requiere instalación |
+| Linux | `Whakoom-Desktop-3.1.0-x86_64.AppImage` | x86_64, glibc 2.39 o posterior, OpenGL, X11/Wayland |
 
-En Linux: `chmod +x Whakoom-Desktop-3.0.0-x86_64.AppImage` y ejecutá el archivo. Si FUSE no está disponible, usá `./Whakoom-Desktop-3.0.0-x86_64.AppImage --appimage-extract-and-run`. Para recordar la sesión necesitás un servicio Secret Service desbloqueado, como GNOME Keyring o KWallet compatible. La verificación adicional mediante navegador integrado está disponible únicamente en Windows y requiere WebView2; el inicio con credenciales usa HTTPS en ambos sistemas.
+En Linux: `chmod +x Whakoom-Desktop-3.1.0-x86_64.AppImage` y ejecutá el archivo. Si FUSE no está disponible, usá `./Whakoom-Desktop-3.1.0-x86_64.AppImage --appimage-extract-and-run`. Para recordar la sesión necesitás un servicio Secret Service desbloqueado, como GNOME Keyring o KWallet compatible. La verificación adicional mediante navegador integrado está disponible únicamente en Windows y requiere WebView2; el inicio con credenciales usa HTTPS en ambos sistemas.
 
 Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA256SUMS.txt` de la misma publicación. Portable significa que no necesita instalador: los datos siguen en la carpeta de usuario, separados del ejecutable.
 
@@ -110,3 +112,7 @@ Empaquetado: `tools/package.ps1` genera el portable Windows; `makensis tools/ins
 Código bajo [MIT](LICENSE). La marca Whakoom, portadas, avatares y contenido de terceros pertenecen a sus titulares. La licencia del código no concede derechos sobre esos recursos.
 
 Las fuentes incluyen licencias propias, detalladas en [avisos de terceros](THIRD_PARTY_NOTICES.md).
+
+![Tomos faltantes de una colección de ejemplo](assets/missing-volumes.png)
+
+![Cuenta y navegación de perfil](assets/account.png)

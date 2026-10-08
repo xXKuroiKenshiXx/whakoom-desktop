@@ -1,5 +1,141 @@
 use whakoom_desktop::api::Api;
 fn main() {
+    if std::env::args().any(|a| a == "--cache-preview-edition") {
+        let result = (|| -> Result<(), String> {
+            if std::env::var_os("WHAKOOM_DESKTOP_DATA_DIR").is_none() {
+                return Err("Requiere carpeta aislada".into());
+            }
+            let path = std::env::args()
+                .skip_while(|a| a != "--public-fixture")
+                .nth(1)
+                .ok_or("Falta fixture público")?;
+            let (_, volumes): (whakoom_desktop::api::Item, Vec<whakoom_desktop::api::Item>) =
+                serde_json::from_slice(&std::fs::read(path).map_err(|e| e.to_string())?)
+                    .map_err(|e| e.to_string())?;
+            let client = whakoom_desktop::covers::CoverClient::new()?;
+            for item in volumes {
+                client.get(&item.cover, false)?;
+            }
+            println!("Portadas públicas guardadas en la carpeta aislada");
+            Ok(())
+        })();
+        if let Err(e) = result {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if std::env::args().any(|a| a == "--verify-310") {
+        let result = (|| -> Result<(), String> {
+            use std::collections::BTreeSet;
+            use whakoom_desktop::{api, missing, sync};
+            let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;
+            let connector = Api::with_user_agent(saved.cookie, &saved.user_agent)?;
+            let edition = api::Item {key: "edicion627715".into(), title: "A Silent Voice - Complete Collector’s Edition".into(), url: "https://www.whakoom.com/ediciones/627715/a_silent_voice_-_complete_collectors_edition-hardcover".into(), ..Default::default()};
+            let all = sync::pages(|p| connector.edition(&edition, p), || false)?;
+            if all.is_empty() {
+                return Err("Edición sin tomos".into());
+            }
+            for (path, mode) in [("todos", 0), ("tengo", 1), ("faltan", 2)] {
+                let html = connector.html(&format!("{}/{path}", edition.url))?;
+                let document = scraper::Html::parse_document(&html);
+                let selector = scraper::Selector::parse("ul.v2-cover-list").unwrap();
+                let fragment: String = document.select(&selector).map(|e| e.html()).collect();
+                let expected: BTreeSet<_> = api::parse_items(&fragment)
+                    .into_iter()
+                    .map(|i| i.key)
+                    .collect();
+                let actual: BTreeSet<_> = all
+                    .iter()
+                    .filter(|i| mode == 0 || (mode == 1 && i.owned) || (mode == 2 && !i.owned))
+                    .map(|i| i.key.clone())
+                    .collect();
+                if expected != actual {
+                    return Err(format!("El servicio no coincide con /{path}"));
+                }
+                println!("/{path}: {} tomos, coincide con la web", actual.len());
+            }
+            let detail = connector.full_detail(&all[0])?;
+            if detail.edition.as_ref().map(|e| &e.key) != Some(&edition.key) {
+                return Err("Edición del tomo incorrecta".into());
+            }
+            let mut received = false;
+            let errors = connector.missing_editions(
+                &[missing::Candidate {
+                    representative: all[0].clone(),
+                    edition: Some(edition.clone()),
+                }],
+                || false,
+                |e, volumes| {
+                    received = e.key == edition.key && volumes.len() == all.len();
+                },
+            );
+            if !errors.is_empty() || !received {
+                return Err("No se pudo verificar la carga completa de faltantes".into());
+            }
+            if let Some(destination) = std::env::args()
+                .skip_while(|a| a != "--public-fixture")
+                .nth(1)
+            {
+                let public: Vec<_> = all
+                    .into_iter()
+                    .map(|mut i| {
+                        i.owned = false;
+                        i
+                    })
+                    .collect();
+                whakoom_desktop::storage::atomic_write(
+                    &std::path::PathBuf::from(destination),
+                    &serde_json::to_vec(&(edition, public)).map_err(|e| e.to_string())?,
+                )?;
+            }
+            println!("Edición exacta y paginación verificados; ninguna escritura online");
+            Ok(())
+        })();
+        if let Err(e) = result {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if std::env::args().any(|a| a == "--probe-310") {
+        let result = (|| -> Result<(), String> {
+            let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;
+            let api = Api::with_user_agent(saved.cookie, &saved.user_agent)?;
+            let destination = std::env::args()
+                .skip_while(|a| a != "--probe-dir")
+                .nth(1)
+                .map(std::path::PathBuf::from)
+                .ok_or("Falta carpeta privada de diagnóstico")?;
+            let own = format!(
+                "{}/wanted",
+                whakoom_desktop::social::user_path(&saved.username)?
+            );
+            let edition =
+                "/ediciones/627715/a_silent_voice_-_complete_collectors_edition-hardcover";
+            for (name, path) in [
+                ("own-wanted", own),
+                ("public-wanted", "/lucasver/wanted".into()),
+                ("buscados", "/buscados".into()),
+                ("edition-all", format!("{edition}/todos")),
+                ("edition-owned", format!("{edition}/tengo")),
+                ("edition-missing", format!("{edition}/faltan")),
+            ] {
+                let html = api.html(&path)?;
+                whakoom_desktop::storage::atomic_write(
+                    &destination.join(format!("{name}.html")),
+                    html.as_bytes(),
+                )?;
+                println!("{name}: página consultada sin escrituras online");
+            }
+            Ok(())
+        })();
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if std::env::args().any(|a| a == "--exercise-updater-install") {
         let result = (|| -> Result<(), String> {
             use sha2::Digest;

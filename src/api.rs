@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use std::{collections::HashSet, io::Read, time::Duration};
 
 pub const BASE: &str = "https://www.whakoom.com";
-pub const USER_AGENT: &str = "WhakoomDesktop/3.0.0 (unofficial desktop client)";
+pub const USER_AGENT: &str = "WhakoomDesktop/3.1.0 (unofficial desktop client)";
 const MAX_BODY: u64 = 4 * 1024 * 1024;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -174,7 +174,9 @@ pub fn parse_items(html: &str) -> Vec<Item> {
             let owned = a
                 .ancestors()
                 .filter_map(ElementRef::wrap)
-                .any(|e| e.value().classes().any(|c| c == "got-it"));
+                .any(|e| e.value().classes().any(|c| c == "got-it"))
+                || result
+                    .is_some_and(|r| r.select(&sel("button.rem[data-item-id]")).next().is_some());
             Some(Item {
                 key,
                 title,
@@ -1075,7 +1077,7 @@ impl Api {
             .map_err(|_| "ID de edición inválido")?;
         let data = self.post(
             "/pwkws.asmx/EditionComicsPage",
-            json!({"e":id,"p":page,"m":0,"o":0}),
+            json!({"e":id,"p":page,"m":1,"o":0}),
         )?;
         let html = data
             .get("Html")

@@ -1,5 +1,13 @@
 # Cambios
 
+## 3.1.0
+
+- Cuenta: navegación superior con iconos; Perfil muestra sólo el resumen de tu cuenta. Foto, nombre público y biografía se editan en un diálogo separado después de los controles de desconexión.
+- Mi biblioteca incorpora Tomos faltantes para las ediciones que coleccionás. Sugiere el siguiente tomo publicado y permite consultar los huecos anteriores.
+- Todas las ediciones tienen filtros Todos, Tengo y Faltan con contadores y estado visible por tomo. Se abre la edición exacta desde la biblioteca y las sugerencias.
+- Carga automática de todas las páginas en segundo plano, sin bloquear la navegación. La última colección completa permanece en caché si la consulta se interrumpe.
+- Lectura compatible con los indicadores actuales de propiedad de Whakoom y nuevos controles traducidos a los cinco idiomas.
+
 ## 3.0.0
 
 - Usuarios como sección propia del catálogo, con iconos nuevos para catálogo y listas.

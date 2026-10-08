@@ -1,6 +1,17 @@
-# Validación de 3.0.0
+# Validación de 3.1.0
 
 Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y rutas comprobadas; no constituyen una garantía de ausencia de errores.
+
+## Comprobaciones de 3.1.0
+
+124 pruebas aprobadas en Windows x64/MSVC y 124 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. Capturas nativas del perfil, popup y faltantes, incluidas ventanas pequeñas; AppImage ejecutada en X11 con Xvfb y renderizado software. El ejecutable extraído del instalador coincide por SHA-256 con el binario final.
+
+- Consulta autenticada de sólo lectura de la edición 627715: el servicio `EditionComicsPage` con modo 1 y las páginas `/todos`, `/tengo` y `/faltan` coinciden (2 tomos, 1 adquirido y 1 faltante en la cuenta consultada). La ficha del tomo identifica la misma edición. No se efectuaron altas, bajas ni cambios de perfil durante esta comprobación.
+- Tomos faltantes considera sólo colecciones completas, separa ediciones conocidas y conserva cambios locales pendientes de confirmación. Sugiere el siguiente tomo publicado o un hueco anterior; no inventa números de tomos.
+- Filtros de edición: paginación automática, deduplicación y conservación de la última caché completa durante cargas parciales. Respuestas atrasadas o de otra cuenta no se incorporan a la biblioteca.
+- Cuenta: navegación sobre el resumen; edición del perfil mediante modal, cierre con Escape y conservación del borrador cuando termina la subida de una foto. La edición continúa usando los formularios autenticados y su verificación CSRF.
+- Pruebas de interfaz comprueban navegación real por clics, geometría de las tarjetas y filtros sin alterar notas o propiedad. Los controles nuevos tienen traducciones en los cinco idiomas.
+- RustSec: 0 vulnerabilidades registradas en la revisión; permanecen los tres avisos informativos documentados. La consulta de paquetes retirados del registro sufrió tiempos de espera y no pudo verificarse por completo.
 
 ## Comprobaciones de 3.0.0
 

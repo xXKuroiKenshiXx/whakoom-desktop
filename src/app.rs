@@ -3,7 +3,9 @@ mod collection_ui;
 mod cover_viewer;
 mod help_ui;
 mod manga_ui;
+mod missing_ui;
 mod onboarding;
+mod profile_editor;
 mod profile_ui;
 mod reviews_ui;
 mod settings_ui;
@@ -30,7 +32,7 @@ use whakoom_desktop::{
     discover, discussion, help, holographic,
     i18n::{self, tr},
     icons::{self, Icon},
-    lists, manga_site, money, profile_sections, rating, reactions, reviews,
+    lists, manga_site, missing, money, profile_sections, rating, reactions, reviews,
     series::{self, Series},
     session, shops, social, statistics,
     storage::{self, Library, Preferences, Stats, Writer},
@@ -136,7 +138,9 @@ enum Job {
     News(String, bool),
     Search(String, u32),
     Detail(Item),
-    Edition(Item, u32),
+    Edition(Item, u32, Arc<AtomicBool>),
+    ResolveCollection(Item),
+    Missing(Vec<missing::Candidate>, String, u64, Arc<AtomicBool>),
     AddEdition(Item, String),
     Restore(session::Session),
     Credentials(String, Zeroizing<String>),
@@ -172,6 +176,10 @@ enum Data {
     Photo(String, String, String, String),
     Cache(Result<whakoom_desktop::covers::CacheInfo, String>, bool),
     Page(Page, bool, bool),
+    EditionPage(Item, Page, bool),
+    Collection(Box<Detail>),
+    MissingEdition(String, u64, Item, Vec<Item>),
+    MissingDone(String, u64, Vec<String>),
     Detail(Box<Detail>),
     Login(social::User),
     Logout(Option<String>),
@@ -186,7 +194,7 @@ enum Data {
     ProfileSection(String, profile_sections::Section, profile_sections::Content),
     Users(Vec<social::User>, Option<u32>),
     Account(String, account::Page),
-    AccountSaved(String, account::Page, social::User),
+    AccountSaved(String, account::Page, social::User, bool),
     Reviews(String, discussion::Discussion),
     Activity(String, Result<Vec<social::Activity>, String>),
     ReviewDraft(String, String, Result<reviews::Draft, String>),
@@ -384,6 +392,100 @@ fn worker(
             }
         };
         while let Ok((id, job)) = rx.recv() {
+            let job = match job {
+                Job::Missing(candidates, owner, epoch, cancelled) => {
+                    let api = api.clone();
+                    let events = etx.clone();
+                    let context = ctx.clone();
+                    std::thread::spawn(move || {
+                        let errors = api.missing_editions(
+                            &candidates,
+                            || cancelled.load(Ordering::Relaxed),
+                            |edition, volumes| {
+                                let _ = events.send(Event {
+                                    id: 0,
+                                    data: Ok(Data::MissingEdition(
+                                        owner.clone(),
+                                        epoch,
+                                        edition,
+                                        volumes,
+                                    )),
+                                });
+                                context.request_repaint();
+                            },
+                        );
+                        let _ = events.send(Event {
+                            id: 0,
+                            data: Ok(Data::MissingDone(owner, epoch, errors)),
+                        });
+                        context.request_repaint();
+                    });
+                    continue;
+                }
+                Job::Edition(item, start, cancelled) => {
+                    let api = api.clone();
+                    let events = etx.clone();
+                    let context = ctx.clone();
+                    std::thread::spawn(move || {
+                        let mut next = start;
+                        let mut seen = HashSet::new();
+                        for _ in 0..1250 {
+                            if cancelled.load(Ordering::Relaxed) {
+                                return;
+                            }
+                            let result = api.edition(&item, next).and_then(|page| {
+                                let before = seen.len();
+                                for i in &page.items {
+                                    seen.insert(i.key.clone());
+                                }
+                                if !page.items.is_empty() && seen.len() == before {
+                                    return Err(
+                                        "Whakoom repitió una página de esta colección".into()
+                                    );
+                                }
+                                if page.next.is_some_and(|p| p <= next) {
+                                    return Err("La paginación de la colección no avanzó".into());
+                                }
+                                Ok(page)
+                            });
+                            match result {
+                                Ok(page) => {
+                                    let after = page.next;
+                                    let _ = events.send(Event {
+                                        id,
+                                        data: Ok(Data::EditionPage(
+                                            item.clone(),
+                                            page,
+                                            next == start,
+                                        )),
+                                    });
+                                    context.request_repaint();
+                                    if let Some(p) = after {
+                                        next = p;
+                                    } else {
+                                        return;
+                                    }
+                                }
+                                Err(error) => {
+                                    let _ = events.send(Event {
+                                        id,
+                                        data: Err(error),
+                                    });
+                                    context.request_repaint();
+                                    return;
+                                }
+                            }
+                        }
+                        let _ = events.send(Event {
+                            id,
+                            data: Err("Se alcanzó el límite de páginas de la colección".into()),
+                        });
+                        context.request_repaint();
+                    });
+                    continue;
+                }
+                job => job,
+            };
             if let Job::OptimizeCache(policy) = job {
                 let events = etx.clone();
                 let context = ctx.clone();
@@ -523,7 +625,10 @@ fn worker(
                     .map(|(id, data)| Data::Photo(owner, key, id, data)),
                 Job::Search(q, p) => api.search(&q, p).map(|p| Data::Page(p, false, true)),
                 Job::Detail(i) => api.full_detail(&i).map(|d| Data::Detail(Box::new(d))),
-                Job::Edition(i, p) => api.edition(&i, p).map(|p| Data::Page(p, false, true)),
+                Job::Edition(..) | Job::Missing(..) => unreachable!("background job"),
+                Job::ResolveCollection(item) => api
+                    .full_detail(&item)
+                    .map(|d| Data::Collection(Box::new(d))),
                 Job::AddEdition(item, owner) => catalog::all_volumes(
                     |page| {
                         let _ = etx.send(Event {
@@ -621,14 +726,14 @@ fn worker(
                     let identity = api.identity()?;
                     api.persist_account_session(&identity.username)?;
                     let profile = api.user_profile(&identity.username).unwrap_or(identity);
-                    Ok(Data::AccountSaved(owner, page, profile))
+                    Ok(Data::AccountSaved(owner, page, profile, false))
                 })(),
                 Job::Avatar(path, owner) => (|| {
                     let page = api.upload_avatar(&path)?;
                     let identity = api.identity()?;
                     api.persist_account_session(&identity.username)?;
                     let profile = api.user_profile(&identity.username).unwrap_or(identity);
-                    Ok(Data::AccountSaved(owner, page, profile))
+                    Ok(Data::AccountSaved(owner, page, profile, true))
                 })(),
                 Job::Unblock(id, owner) => api.unblock(&id).map(|p| Data::Account(owner, p)),
                 Job::CancelSubscription(owner) => {
@@ -716,6 +821,7 @@ struct App {
     found_users: Vec<social::User>,
     account_page: account::Page,
     account_loaded: bool,
+    profile_editor: bool,
     confirm_cancellation: bool,
     next_activity: Instant,
     activity_pending: bool,
@@ -742,6 +848,13 @@ struct App {
     items: Vec<Item>,
     groups: Vec<Series>,
     selected_series: Option<Series>,
+    library_missing: bool,
+    missing_pending: bool,
+    missing_epoch: u64,
+    missing_cancel: Arc<AtomicBool>,
+    missing_errors: Vec<String>,
+    edition_filter: missing::Filter,
+    edition_cancel: Arc<AtomicBool>,
     remove_series: Option<Series>,
     transition_start: Instant,
     transition_direction: f32,
@@ -924,6 +1037,7 @@ impl App {
             found_users: Vec::new(),
             account_page: account::Page::default(),
             account_loaded: false,
+            profile_editor: false,
             confirm_cancellation: false,
             next_activity: Instant::now(),
             activity_pending: false,
@@ -950,6 +1064,13 @@ impl App {
             items: vec![],
             groups: vec![],
             selected_series: None,
+            library_missing: false,
+            missing_pending: false,
+            missing_epoch: 0,
+            missing_cancel: Arc::new(AtomicBool::new(false)),
+            missing_errors: vec![],
+            edition_filter: Default::default(),
+            edition_cancel: Arc::new(AtomicBool::new(false)),
             remove_series: None,
             transition_start: Instant::now(),
             transition_direction: 1.,
@@ -1155,6 +1276,23 @@ impl App {
         {
             app.cover_viewer = Some(item);
         }
+        if std::env::args().any(|a| a == "--preview-missing") {
+            app.generation += 1;
+            app.busy = false;
+            app.error.clear();
+            app.tab = Tab::Library;
+            app.library_missing = true;
+        }
+        if std::env::args().any(|a| a == "--preview-profile-editor") {
+            app.profile_editor = true;
+        }
+        if let Some(filter) = arg("--preview-edition-filter") {
+            app.edition_filter = match filter.to_string_lossy().as_ref() {
+                "owned" => missing::Filter::Owned,
+                "missing" => missing::Filter::Missing,
+                _ => missing::Filter::All,
+            };
+        }
         app
     }
     fn remove_series_dialog(&mut self, ctx: &egui::Context) {
@@ -1252,6 +1390,12 @@ impl App {
         }
     }
     fn select(&mut self, tab: Tab) {
+        self.profile_editor = false;
+        self.edition_cancel.store(true, Ordering::Relaxed);
+        self.missing_cancel.store(true, Ordering::Relaxed);
+        self.missing_pending = false;
+        self.missing_epoch += 1;
+        self.library_missing = false;
         self.begin_transition(1.);
         self.generation += 1;
         self.busy = false;
@@ -1502,6 +1646,15 @@ impl App {
         series::ease_out(t)
     }
     fn enter_series(&mut self, group: Series) {
+        if let Some(edition) = missing::edition_for(&self.library, &group.volumes) {
+            if !self.library.editions.contains_key(&edition.key) {
+                self.library.cache_edition(&edition, &group.volumes, false);
+            }
+            self.selected_series = None;
+            self.detail = None;
+            self.open_item(edition);
+            return;
+        }
         self.generation += 1;
         self.busy = false;
         self.query.clear();
@@ -1532,6 +1685,15 @@ impl App {
         self.detail = None;
         self.local_items();
         self.begin_transition(1.);
+        if !self.prefs.offline
+            && let Some(item) = self
+                .selected_series
+                .as_ref()
+                .and_then(|g| g.volumes.first())
+                .cloned()
+        {
+            self.send(Job::ResolveCollection(item));
+        }
     }
     fn leave_series(&mut self) {
         self.selected_series = None;
@@ -1556,7 +1718,9 @@ impl App {
         self.append = page > 1;
         if let Some(i) = self.edition.clone() {
             if !self.prefs.offline {
-                self.send(Job::Edition(i, page));
+                self.edition_cancel.store(true, Ordering::Relaxed);
+                self.edition_cancel = Arc::new(AtomicBool::new(false));
+                self.send(Job::Edition(i, page, self.edition_cancel.clone()));
             } else if let Some(saved) = self.library.editions.get(&i.key) {
                 self.items = saved.volumes.clone();
                 self.next = None;
@@ -1610,6 +1774,10 @@ impl App {
             return;
         }
         if self.tab.local() {
+            if self.tab == Tab::Library && self.library_missing {
+                self.start_missing();
+                return;
+            }
             self.local_items();
             if matches!(self.tab, Tab::Library | Tab::Wanted) {
                 self.pull_account();
@@ -1685,6 +1853,60 @@ impl App {
         while let Ok(event) = self.rx.try_recv() {
             let relevant = event.id == self.generation || event.id == 0;
             match event.data {
+                Ok(Data::MissingEdition(owner, epoch, edition, volumes))
+                    if owner == self.library.owner && epoch == self.missing_epoch =>
+                {
+                    self.library.cache_edition(&edition, &volumes, true);
+                    self.save_library();
+                }
+                Ok(Data::MissingDone(owner, epoch, errors))
+                    if owner == self.library.owner && epoch == self.missing_epoch =>
+                {
+                    self.missing_pending = false;
+                    self.missing_errors = errors;
+                }
+                Ok(Data::Collection(detail)) if relevant && self.selected_series.is_some() => {
+                    self.busy = false;
+                    if let Some(edition) = detail.edition.clone() {
+                        self.hydrate(&detail);
+                        self.selected_series = None;
+                        self.open_item(edition);
+                    } else {
+                        self.error =
+                            "No se pudo identificar la edición para consultar todos sus tomos"
+                                .into();
+                    }
+                }
+                Ok(Data::EditionPage(edition, page, first))
+                    if relevant && self.edition.as_ref().is_some_and(|e| e.key == edition.key) =>
+                {
+                    if first {
+                        self.items = page.items;
+                    } else {
+                        let mut seen: HashSet<_> =
+                            self.items.iter().map(|i| i.key.clone()).collect();
+                        self.items.extend(
+                            page.items
+                                .into_iter()
+                                .filter(|i| seen.insert(i.key.clone())),
+                        );
+                    }
+                    self.next = None;
+                    self.busy = page.next.is_some();
+                    if !self.busy {
+                        self.library.cache_edition(&edition, &self.items, true);
+                        self.save_library();
+                    }
+                    self.status = format!(
+                        "{} tomos · {}",
+                        self.items.len(),
+                        if self.busy {
+                            "consultando la colección completa…"
+                        } else {
+                            "actualizado desde Whakoom"
+                        }
+                    );
+                }
                 Ok(Data::Manga(result)) if relevant => {
                     self.busy = false;
                     self.manga_loading = false;
@@ -1715,6 +1937,9 @@ impl App {
                         self.stats = self.library.stats();
                         if self.tab.local() && self.edition.is_none() {
                             self.local_items();
+                            if self.tab == Tab::Library && self.library_missing {
+                                self.start_missing();
+                            }
                         }
                         self.status = format!(
                             "Cuenta actualizada · {} tomos · {} cambios pendientes",
@@ -1979,7 +2204,9 @@ impl App {
                     self.account_loaded = true;
                     self.busy = false;
                 }
-                Ok(Data::AccountSaved(owner, page, profile)) if owner == self.library.owner => {
+                Ok(Data::AccountSaved(owner, mut page, profile, avatar))
+                    if owner == self.library.owner =>
+                {
                     // Keep local notes, goals and pending edits when the user renames their online account.
                     if profile.username != self.library.owner {
                         self.flush_library();
@@ -1989,8 +2216,18 @@ impl App {
                     self.library.account = Some(profile);
                     self.save_library();
                     if self.tab == Tab::Account && page.section == self.account_page.section {
+                        if avatar && self.profile_editor {
+                            for field in ["name", "bio"] {
+                                if let Some(value) = self.account_page.values.get(field) {
+                                    page.values.insert(field.into(), value.clone());
+                                }
+                            }
+                        }
                         self.account_page = page;
                         self.account_loaded = true;
+                        if !avatar {
+                            self.profile_editor = false;
+                        }
                     }
                     if relevant {
                         self.busy = false;
@@ -2401,6 +2638,9 @@ impl App {
         self.library.recent.visit(&item);
         self.save_library();
         if item.key.starts_with("edicion") {
+            self.detail = None;
+            self.selected_series = None;
+            self.edition_filter = Default::default();
             self.begin_transition(1.);
             self.items = self
                 .library
@@ -2454,6 +2694,7 @@ impl App {
         self.generation += 1;
         self.busy = self.syncing;
         self.edition = None;
+        self.edition_cancel.store(true, Ordering::Relaxed);
         self.begin_transition(-1.);
         self.refresh(1);
     }
@@ -3070,7 +3311,11 @@ impl App {
             self.users_ui(ui);
             return;
         }
-        if self.tab == Tab::Library && self.selected_series.is_none() {
+        if self.tab == Tab::Library && self.selected_series.is_none() && self.edition.is_none() {
+            if self.library_missing {
+                self.missing_ui(ui);
+                return;
+            }
             ui.horizontal_wrapped(|ui| {
                 for (label, value) in [
                     ("Tomos", self.items.len()),
@@ -3091,6 +3336,15 @@ impl App {
                 }
             });
             ui.add_space(14.);
+            let response = icons::action(ui, Icon::Book, "Tomos faltantes", p);
+            #[cfg(test)]
+            self.ui_rects.insert("missing-open".into(), response.rect);
+            if response.clicked() {
+                self.library_missing = true;
+                self.query.clear();
+                self.start_missing();
+            }
+            ui.add_space(12.);
         }
         if self.tab != Tab::Catalog || self.edition.is_some() {
             ui.horizontal(|ui| {
@@ -3102,7 +3356,7 @@ impl App {
             ui.add_space(10.);
             self.toolbar(ui);
         }
-        if self.tab == Tab::Library {
+        if self.tab == Tab::Library && self.edition.is_none() {
             self.library_filters(ui);
         }
 
@@ -3121,6 +3375,7 @@ impl App {
         ui.add_space(18.);
         self.edition_actions(ui);
         if self.edition.is_some() {
+            self.edition_filters_ui(ui);
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.edition_reviews, false, tr("Tomos"));
                 ui.selectable_value(&mut self.edition_reviews, true, tr("Opiniones"));
@@ -3185,7 +3440,11 @@ impl App {
                                 icons::action(
                                     ui,
                                     Icon::Arrow,
-                                    if self.tab == Tab::Favorites {
+                                    if self.tab == Tab::Library && self.library_missing {
+                                        "Tomos faltantes"
+                                    } else if self.tab == Tab::Library {
+                                        "Mi biblioteca"
+                                    } else if self.tab == Tab::Favorites {
                                         "Favoritos"
                                     } else {
                                         "Catálogo"
@@ -3241,7 +3500,10 @@ impl App {
                         self.users_ui(ui);
                         return;
                     }
-                    if self.tab == Tab::Library && self.selected_series.is_none() {
+                    if self.tab == Tab::Library
+                        && self.selected_series.is_none()
+                        && self.edition.is_none()
+                    {
                         for (label, series) in [("Series", true), ("Tomos", false)] {
                             if ui
                                 .selectable_label(self.prefs.series_view == series, tr(label))
@@ -3438,6 +3700,15 @@ impl App {
             });
         }
         self.card_rating(&mut child, item, group);
+        if self.edition.is_some() {
+            let owned = missing::owned(&self.library, item);
+            child.label(
+                RichText::new(tr(if owned { "Lo tengo" } else { "Me falta" }))
+                    .size(12.)
+                    .strong()
+                    .color(if owned { p.green } else { p.accent }),
+            );
+        }
         let response = ui.interact(slot, id, egui::Sense::click());
 
         response
@@ -3499,6 +3770,13 @@ impl App {
                     ui.label(RichText::new(&item.issue).size(12.).color(p.accent));
                 }
                 self.card_rating(ui, item, group);
+                if self.edition.is_some() {
+                    let owned = missing::owned(&self.library, item);
+                    ui.label(
+                        RichText::new(tr(if owned { "Lo tengo" } else { "Me falta" }))
+                            .color(if owned { p.green } else { p.accent }),
+                    );
+                }
             });
         });
         let response = ui.interact(rect, id, egui::Sense::click());
@@ -3510,9 +3788,17 @@ impl App {
         self.catalog_history(ui);
         #[cfg(test)]
         self.card_rects.clear();
-        let grouped =
-            self.tab == Tab::Library && self.prefs.series_view && self.selected_series.is_none();
+        let grouped = self.tab == Tab::Library
+            && self.prefs.series_view
+            && self.selected_series.is_none()
+            && self.edition.is_none();
         let visible: Vec<usize> = (0..self.items.len())
+            .filter(|index| {
+                self.edition.is_none()
+                    || self
+                        .edition_filter
+                        .accepts(&self.library, &self.items[*index])
+            })
             .filter(|index| {
                 !self.news_owned_only
                     || self.tab != Tab::News
@@ -3594,7 +3880,12 @@ impl App {
             let columns = ((ui.available_width() + 12.) / (width + 12.))
                 .floor()
                 .max(1.) as usize;
-            let height = (width - 24.) * 1.43 + if grouped { 177. } else { 153. };
+            let height = (width - 24.) * 1.43
+                + if grouped || self.edition.is_some() {
+                    177.
+                } else {
+                    153.
+                };
             item_rows(
                 ui,
                 scroll,
@@ -4263,11 +4554,20 @@ impl App {
         let mut page = std::mem::take(&mut self.account_page);
         let mut next_section = None;
         let mut submit = false;
-        let mut avatar = None;
         let mut unblock = None;
         let mut cancel_subscription = false;
         egui::ScrollArea::vertical().id_salt("account-page").max_height((ui.available_height()-64.).max(100.)).show(ui, |ui| {
             ui.spacing_mut().interact_size.y = 38.;
+            ui.horizontal_wrapped(|ui| {
+                for section in account::Section::ALL {
+                    let mut palette=p;
+                    if page.section==section {palette.surface=p.selected;palette.text=p.accent;palette.muted=p.accent;}
+                    let button=icons::action(ui,Self::account_section_icon(section),section.title(),palette).on_hover_cursor(egui::CursorIcon::PointingHand);
+                    #[cfg(test)] self.ui_rects.insert(format!("account-section-{section:?}"),button.rect);
+                    if button.clicked() && page.section!=section {next_section=Some(section);}
+                }
+            });ui.add_space(20.);
+            if page.section==account::Section::Profile {
             self.setting_card(ui, Icon::User, "Tu cuenta de Whakoom", |app, ui| {
                 if let Some(user) = app.library.account.clone() {
                     ui.horizontal(|ui| {
@@ -4276,6 +4576,7 @@ impl App {
                         ui.vertical(|ui| {
                             ui.label(RichText::new(if user.name.is_empty() { &user.username } else { &user.name }).size(22.).strong());
                             ui.label(RichText::new(format!("@{}", user.username)).color(p.muted));
+                            if !user.bio.is_empty(){ui.label(&user.bio);}
                             ui.label(RichText::new(if app.verified { "Sesión conectada" } else { "Sesión sin verificar" }).color(p.green));
                         });
                     });
@@ -4289,6 +4590,11 @@ impl App {
                             app.send(Job::ForgetCookies);
                         }
                     });
+                    ui.add_space(10.);
+                    let edit=ui.add_enabled_ui(app.verified&&!app.prefs.offline,|ui|icons::action(ui,Icon::User,"Cambiar foto, nombre público y biografía",p)).inner;
+                    #[cfg(test)] app.ui_rects.insert("profile-edit-open".into(),edit.rect);
+                    if edit.clicked(){app.profile_editor=true;}
+
                 } else {
                     ui.label(tr("Conectá tu cuenta para administrar tu perfil y tus preferencias."));
                 }
@@ -4304,16 +4610,11 @@ impl App {
                     });
                     if icons::action(ui, Icon::Refresh, "Reintentar pendientes", p).clicked() { app.retry_sync(); }
                 }
+                #[cfg(test)] app.ui_rects.insert("account-summary".into(),ui.min_rect());
             });
+            }
             if !self.verified { return; }
-            ui.horizontal_wrapped(|ui| {
-                for section in account::Section::ALL {
-                    let mut palette = p;
-                    if page.section == section { palette.surface = p.selected; palette.text = p.accent; palette.muted = p.accent; }
-                    if icons::action(ui, Self::account_section_icon(section), section.title(), palette).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() && page.section != section { next_section = Some(section); }
-                }
-            });
-            ui.add_space(16.);
+            if page.section==account::Section::Profile {return;}
             if !self.account_loaded {
                 ui.label(if self.prefs.offline { "Conectate para consultar la configuración de tu cuenta." } else { "Consultando tus preferencias en Whakoom…" });
                 return;
@@ -4322,23 +4623,7 @@ impl App {
             self.setting_card(ui, icon, page.section.title(), |app, ui| {
                 ui.add_enabled_ui(!app.busy && !app.prefs.offline, |ui| {
                     match page.section {
-                        account::Section::Profile => {
-                            ui.horizontal(|ui| {
-                                let (rect, _) = ui.allocate_exact_size(Vec2::splat(88.), egui::Sense::hover());
-                                app.avatar_at(ui, &page.avatar, rect);
-                                ui.vertical(|ui| {
-                                    ui.label(tr("Tu imagen pública"));
-                                    if ui.button(tr("Cambiar foto de perfil")).clicked() {
-                                        avatar = rfd::FileDialog::new().add_filter("Imagen", &["png","jpg","jpeg","webp"]).pick_file();
-                                    }
-                                    ui.label(RichText::new(tr("PNG, JPEG o WebP · hasta 5 MiB")).small().color(p.muted));
-                                });
-                            });
-                            ui.add_space(18.);
-                            Self::account_field(ui, &mut page, "name", "Nombre público", false);
-                            ui.label(tr("Biografía"));
-                            ui.add(egui::TextEdit::multiline(page.values.entry("bio".into()).or_default()).desired_rows(5).desired_width(f32::INFINITY));
-                        }
+                        account::Section::Profile => {}
                         account::Section::Account => {
                             Self::account_field(ui, &mut page, "nickname", "Nombre de usuario", false);
                             Self::account_field(ui, &mut page, "email", "Correo electrónico", false);
@@ -4426,7 +4711,13 @@ impl App {
                 });
             });
         });
-        if self.verified && self.account_loaded && page.section != account::Section::Blocked {
+        if self.verified
+            && self.account_loaded
+            && !matches!(
+                page.section,
+                account::Section::Blocked | account::Section::Profile
+            )
+        {
             ui.add_space(12.);
             let response = ui.add_enabled(
                 !self.busy && !self.prefs.offline,
@@ -4459,9 +4750,6 @@ impl App {
                 Err(error) => self.error = error,
             }
         }
-        if let Some(path) = avatar {
-            self.send(Job::Avatar(path, owner.clone()));
-        }
         if let Some(id) = unblock {
             self.send(Job::Unblock(id, owner.clone()));
         }
@@ -4469,6 +4757,7 @@ impl App {
             self.send(Job::CancelSubscription(owner.clone()));
         }
         if let Some(section) = next_section {
+            self.profile_editor = false;
             page = account::Page {
                 section,
                 ..Default::default()
@@ -5137,9 +5426,9 @@ impl eframe::App for App {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(
                             RichText::new(tr(if self.prefs.offline {
-                                "SIN CONEXIÓN · Whakoom Desktop 3.0.0"
+                                "SIN CONEXIÓN · Whakoom Desktop 3.1.0"
                             } else {
-                                "Whakoom Desktop 3.0.0"
+                                "Whakoom Desktop 3.1.0"
                             }))
                             .size(11.)
                             .color(p.muted),
@@ -5151,6 +5440,7 @@ impl eframe::App for App {
         self.body(ui);
         self.cover_viewer_ui(&ctx);
         self.shop_dialog(&ctx);
+        self.profile_editor_dialog(&ctx);
         if self.onboarding.is_some() {
             self.onboarding_ui(&ctx);
         } else {
@@ -5181,7 +5471,7 @@ pub fn run() -> eframe::Result {
     {
         viewport = viewport.with_inner_size([width.clamp(760., 2560.), height.clamp(520., 1440.)]);
     }
-    if preview {
+    if preview && !std::env::args().any(|a| a == "--preview-visible") {
         viewport = viewport.with_position([20000., 20000.]).with_active(false);
     }
     eframe::run_native(
@@ -5227,6 +5517,224 @@ fn item_rows(
 
 #[cfg(test)]
 mod ui_tests {
+    #[test]
+    fn account_navigation_precedes_summary_and_editor_is_separate() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        let (tx, _jobs) = mpsc::channel();
+        app.tx = tx;
+        app.tab = Tab::Account;
+        app.verified = true;
+        app.prefs.offline = false;
+        app.prefs.animations = false;
+        app.account_loaded = true;
+        app.library.account = Some(social::User {
+            username: app.library.owner.clone(),
+            name: "Lector ejemplo".into(),
+            ..Default::default()
+        });
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        assert!(
+            app.ui_rects["account-section-Profile"].bottom()
+                < app.ui_rects["account-summary"].top()
+        );
+        assert!(!app.ui_rects.contains_key("account-save"));
+        let pos = app.ui_rects["profile-edit-open"].center();
+        click(&mut app, &ctx, pos);
+        assert!(app.profile_editor);
+        frame(&mut app, &ctx, vec![]);
+        assert!(app.ui_rects.contains_key("profile-editor-save"));
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+        );
+        assert!(!app.profile_editor);
+        frame(&mut app, &ctx, vec![]);
+        let pos = app.ui_rects["account-section-Account"].center();
+        click(&mut app, &ctx, pos);
+        app.ui_rects.clear();
+        frame(&mut app, &ctx, vec![]);
+        assert!(app.account_page.section == account::Section::Account);
+        assert!(!app.ui_rects.contains_key("account-summary"));
+    }
+    #[test]
+    fn avatar_reply_preserves_profile_draft_and_save_closes_editor() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        app.tab = Tab::Account;
+        app.profile_editor = true;
+        app.account_page
+            .values
+            .insert("name".into(), "Nuevo nombre".into());
+        app.account_page
+            .values
+            .insert("bio".into(), "Borrador".into());
+        let (tx, rx) = mpsc::channel();
+        app.rx = rx;
+        let user = social::User {
+            username: app.library.owner.clone(),
+            ..Default::default()
+        };
+        tx.send(Event {
+            id: app.generation,
+            data: Ok(Data::AccountSaved(
+                app.library.owner.clone(),
+                account::Page::default(),
+                user.clone(),
+                true,
+            )),
+        })
+        .unwrap();
+        app.poll(&ctx);
+        assert!(app.profile_editor);
+        assert_eq!(app.account_page.values["name"], "Nuevo nombre");
+        assert_eq!(app.account_page.values["bio"], "Borrador");
+        tx.send(Event {
+            id: app.generation,
+            data: Ok(Data::AccountSaved(
+                app.library.owner.clone(),
+                account::Page::default(),
+                user,
+                false,
+            )),
+        })
+        .unwrap();
+        app.poll(&ctx);
+        assert!(!app.profile_editor);
+    }
+    #[test]
+    fn missing_cards_open_exact_editions_and_filters_preserve_cache() {
+        let ctx = egui::Context::default();
+        let mut l = library();
+        let mut volumes: Vec<_> = l.entries.values().map(|e| e.item.clone()).collect();
+        let extra = Item {
+            key: "comicMISSING".into(),
+            title: "Serie de prueba".into(),
+            issue: "#11".into(),
+            url: "https://www.whakoom.com/comics/MISSING/serie/11".into(),
+            ..Default::default()
+        };
+        volumes.push(extra.clone());
+        l.cache_edition(&edition_item(), &volumes, true);
+        let before = serde_json::to_vec(&l.entries).unwrap();
+        let mut app = App::new(&eframe::CreationContext::_new_kittest(ctx.clone()), Some(l));
+        app.tab = Tab::Library;
+        app.library_missing = true;
+        app.prefs.animations = false;
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let pos = app.ui_rects["missing-edicion123"].center();
+        assert!(
+            app.ui_rects["missing-edicion123"].top()
+                > app.ui_rects["missing-cover-edicion123"].bottom()
+        );
+        assert!(app.ui_rects["missing-edicion123"].width() < 235.);
+        click(&mut app, &ctx, pos);
+        assert_eq!(app.edition.as_ref().unwrap().key, edition_item().key);
+        assert!(app.selected_series.is_none());
+        assert_eq!(app.items.len(), 4);
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let pos = app.ui_rects["edition-filter-Missing"].center();
+        click(&mut app, &ctx, pos);
+        app.card_rects.clear();
+        frame(&mut app, &ctx, vec![]);
+        assert_eq!(app.edition_filter, missing::Filter::Missing);
+        assert_eq!(app.card_rects.len(), 1);
+        assert!(app.card_rects.contains_key(&extra.key));
+        assert_eq!(app.library.editions[&edition_item().key].volumes.len(), 4);
+        app.leave_edition();
+        assert!(app.library_missing);
+        assert_eq!(serde_json::to_vec(&app.library.entries).unwrap(), before);
+    }
+    #[test]
+    fn edition_pages_append_and_foreign_or_stale_missing_results_are_ignored() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        let volumes: Vec<_> = app
+            .library
+            .entries
+            .values()
+            .map(|e| e.item.clone())
+            .collect();
+        app.open_item(edition_item());
+        let (tx, rx) = mpsc::channel();
+        app.rx = rx;
+        tx.send(Event {
+            id: app.generation,
+            data: Ok(Data::EditionPage(
+                edition_item(),
+                Page {
+                    items: volumes[..2].to_vec(),
+                    next: Some(2),
+                },
+                true,
+            )),
+        })
+        .unwrap();
+        app.poll(&ctx);
+        assert!(app.busy);
+        tx.send(Event {
+            id: app.generation,
+            data: Ok(Data::EditionPage(
+                edition_item(),
+                Page {
+                    items: volumes[1..].to_vec(),
+                    next: None,
+                },
+                false,
+            )),
+        })
+        .unwrap();
+        app.poll(&ctx);
+        assert!(!app.busy);
+        assert_eq!(app.items.len(), 3);
+        assert!(app.library.editions[&edition_item().key].complete);
+        let mut foreign = edition_item();
+        foreign.key = "edicionFOREIGN".into();
+        tx.send(Event {
+            id: 0,
+            data: Ok(Data::MissingEdition(
+                "another-account".into(),
+                app.missing_epoch,
+                foreign.clone(),
+                volumes.clone(),
+            )),
+        })
+        .unwrap();
+        tx.send(Event {
+            id: 0,
+            data: Ok(Data::MissingEdition(
+                app.library.owner.clone(),
+                app.missing_epoch + 1,
+                foreign.clone(),
+                volumes,
+            )),
+        })
+        .unwrap();
+        app.poll(&ctx);
+        assert!(!app.library.editions.contains_key(&foreign.key));
+    }
     #[test]
     fn catalog_users_has_its_own_button_and_dispatches_only_user_search() {
         let ctx = egui::Context::default();
@@ -6095,7 +6603,7 @@ mod ui_tests {
             };
             assert_eq!(requested.key, item.key);
             assert!(!app.metadata_fetched.contains(&item.key));
-            assert!(matches!(rx.try_recv().unwrap().1, Job::Edition(_, 1)));
+            assert!(matches!(rx.try_recv().unwrap().1, Job::Edition(_, 1, _)));
             app.metadata_pending.remove(&item.key);
             app.busy = false;
             app.edition = None;

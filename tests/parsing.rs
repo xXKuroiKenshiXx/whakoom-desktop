@@ -2,6 +2,15 @@ use serde_json::json;
 use whakoom_desktop::api::*;
 
 #[test]
+fn edition_cards_read_ownership_from_the_volume_button_only() {
+    let html = r#"<button class='rem-all'>Quitar serie</button><ul class='v2-cover-list'><li><a href='/comics/aa/ejemplo/1'><img src='https://i1.whakoom.com/small/a.jpg'><strong>Ejemplo</strong><span class='issue-number'>#1</span></a><button class='rem' data-item-id='aa'>Lo tengo</button></li><li class='get-it'><a href='/comics/bb/ejemplo/2'><img src='https://i1.whakoom.com/small/b.jpg'><strong>Ejemplo</strong><span class='issue-number'>#2</span></a><button class='add' data-item-id='bb'>Lo tengo</button></li></ul>"#;
+    let items = parse_items(html);
+    assert_eq!(items.len(), 2);
+    assert!(items[0].owned);
+    assert!(!items[1].owned);
+}
+
+#[test]
 fn current_public_news_has_real_ids_and_decoded_text() {
     let items = parse_items(include_str!("fixtures/news-2026-10.html"));
     assert_eq!(items.len(), 10);
