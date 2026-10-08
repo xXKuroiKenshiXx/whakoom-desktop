@@ -30,5 +30,5 @@ dist/tooling/linuxdeploy.AppImage --appimage-extract-and-run \
   --appdir "$appdir" --executable "$target/release/whakoom-desktop" \
   --desktop-file tools/whakoom-desktop.desktop --icon-file assets/whakoom-desktop.png
 ARCH=x86_64 dist/tooling/appimagetool.AppImage --appimage-extract-and-run \
-  --runtime-file "$root/dist/tooling/runtime-x86_64" "$appdir" "$root/dist/Whakoom-Desktop-1.0-x86_64.AppImage"
-sha256sum dist/Whakoom-Desktop-1.0-x86_64.AppImage
+  --runtime-file "$root/dist/tooling/runtime-x86_64" "$appdir" "$root/dist/Whakoom-Desktop-2.0-x86_64.AppImage"
+sha256sum dist/Whakoom-Desktop-2.0-x86_64.AppImage

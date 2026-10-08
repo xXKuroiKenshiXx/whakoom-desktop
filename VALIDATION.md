@@ -1,11 +1,18 @@
-# Validación de 1.0
+# Validación de 2.0.0
 
 Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y rutas comprobadas; no constituyen una garantía de ausencia de errores.
 
 ## Comprobaciones automatizadas
 
-93 pruebas aprobadas en Windows x64/MSVC y 93 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
+100 pruebas aprobadas en Windows x64/MSVC y 100 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
 
+- Visor: clic sobre imagen separado de la navegación a ficha/serie; Escape cierra el visor conservando la sección. Capturas nativas de zoom en Windows y AppImage Linux.
+- Carrusel: un contacto y ventana de 760 px mantienen el movimiento y los límites de la sección; los controles de animación conservan su comportamiento.
+- Opiniones: contratos actuales de tomos y series, Unicode y límite UTF-16, persistencia del pendiente y actualización de su valoración durante reintentos.
+- Metadatos: ISBN múltiple, cantidad de propietarios y votos son datos distintos; ausencia de información no se convierte en una cifra inventada.
+- Estadísticas: lectura de gráficos autorizados, rechazo del informe restringido, fechas reales de compra y sustitución mensual sin duplicar las lecturas locales.
+- Zendesk: enlaces restringidos, lectura del campo real `details`, texto sin ejecución de HTML, categorías/publicaciones/respuestas contrastadas con la API pública.
+- Consultas autenticadas de sólo lectura a fichas y formularios de opinión; estadísticas originales restringidas para la cuenta de prueba. No se publicaron opiniones ni reportes para comprobarlas.
 - Formato, pruebas de todos los targets y Clippy con advertencias como errores en Windows y Linux.
 - Navegación desde Notificaciones durante una actualización de colección, orden de la barra lateral y liberación del estado de sincronización ante un error tardío.
 - Carruseles infinitos de Amigos y Seguidores: avance con pocos contactos, vuelta al inicio sin invertir el sentido, un único contacto y desactivación de animaciones.
@@ -26,14 +33,16 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 
 ## Ejecución y paquetes
 
-- Windows: interfaz nativa, instalador por usuario y ejecutable portable. Instalación en una carpeta temporal, identidad del binario instalado, apertura y desinstalación comprobadas.
-- Linux: ejecución en Ubuntu 24.04 dentro de WSL con Xvfb y renderizado software X11. La AppImage actual abrió el asistente inicial de calidad; el catálogo integrado, la biblioteca y Ajustes en chino se comprobaron en las revisiones anteriores. Wayland y otras distribuciones no se probaron de forma interactiva.
+- Windows: interfaz nativa y ejecutable 2.0 comprobados con capturas de catálogo, estadísticas, ficha, visor, asistente de calidad y ayuda pública. El instalador se compiló con NSIS y su ejecutable extraído coincide por SHA-256 con el binario final; la instalación/desinstalación en una carpeta temporal fue comprobada en 1.0.
+- Linux: ejecución en Ubuntu 24.04 dentro de WSL con Xvfb y renderizado software X11. La AppImage 2.0.0 abrió el catálogo reorganizado y el visor de portada; asistente de calidad, biblioteca y Ajustes en chino se comprobaron en las revisiones anteriores. Wayland y otras distribuciones no se probaron de forma interactiva.
 - Secret Service: una sesión ficticia se guardó, recuperó y borró en un llavero aislado. La fecha de lectura utiliza la zona horaria del sistema.
 - Conector Linux: sesión real transferida únicamente por stdin, sin archivo ni argumentos con credenciales; lectura de colección, amigos y siete secciones de cuenta.
 - Capturas Windows: biblioteca y ficha con sinopsis de color, controles de colección y separación de portada. Notas largas quedan dentro de un área con scroll.
 - Dependencias de empaquetado AppImage verificadas por SHA-256. Los binarios no tienen firma comercial.
 
 ## Límites de la verificación
+
+Los formularios de ayuda Windows requieren WebView2 y una sesión oficial de Zendesk; en Linux abren el navegador. El envío final de reportes/comentarios no se ejercitó con mensajes de prueba. Las opiniones tienen pruebas de contrato y lectura real del formulario; su publicación no se ejercitó para evitar modificar la cuenta.
 
 Los formularios de cuenta tienen pruebas aisladas y consultas reales de lectura. No se cambian contraseñas, pagos, suscripciones ni privacidad para probarlos. No se eliminan colecciones reales como prueba de las bajas. La verificación social consulta personas seguidas y actividad pública; no presupone un historial completo.
 

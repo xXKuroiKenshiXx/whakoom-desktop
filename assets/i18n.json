@@ -2110,5 +2110,269 @@
     "Não foi possível atualizar a coleção; suas alterações continuam salvas",
     "Не удалось обновить коллекцию; изменения сохранены",
     "无法更新藏书；你的更改仍已保存"
+  ],
+  "Ayuda": [
+    "Help",
+    "Ajuda",
+    "Помощь",
+    "帮助"
+  ],
+  "La comunidad y el centro de ayuda de Whakoom.": [
+    "Whakoom community and help center.",
+    "A comunidade e a central de ajuda do Whakoom.",
+    "Сообщество и центр помощи Whakoom.",
+    "Whakoom 社区和帮助中心。"
+  ],
+  "Acercar": [
+    "Zoom in",
+    "Ampliar",
+    "Увеличить",
+    "放大"
+  ],
+  "Alejar": [
+    "Zoom out",
+    "Reduzir",
+    "Уменьшить",
+    "缩小"
+  ],
+  "Ampliar portada": [
+    "Enlarge cover",
+    "Ampliar capa",
+    "Увеличить обложку",
+    "放大封面"
+  ],
+  "Restablecer zoom": [
+    "Reset zoom",
+    "Redefinir zoom",
+    "Сбросить масштаб",
+    "重置缩放"
+  ],
+  "Rueda para ampliar · arrastrá para mover · Esc para cerrar": [
+    "Scroll to zoom · drag to move · Esc to close",
+    "Role para ampliar · arraste para mover · Esc para fechar",
+    "Колесо: масштаб · перетаскивание: перемещение · Esc: закрыть",
+    "滚轮缩放 · 拖动移动 · Esc 关闭"
+  ],
+  "Año": [
+    "Year",
+    "Ano",
+    "Год",
+    "年份"
+  ],
+  "Compras": [
+    "Purchases",
+    "Compras",
+    "Покупки",
+    "购买"
+  ],
+  "Comprados en el año": [
+    "Bought this year",
+    "Comprados no ano",
+    "Куплено за год",
+    "本年购买"
+  ],
+  "Lecturas en el año": [
+    "Read this year",
+    "Leituras no ano",
+    "Прочитано за год",
+    "本年阅读"
+  ],
+  "Tus ritmos de compra y lectura": [
+    "Your buying and reading habits",
+    "Seus ritmos de compra e leitura",
+    "Ваши покупки и чтение",
+    "购买和阅读习惯"
+  ],
+  "Gasto del año (manual)": [
+    "Yearly spending (manual)",
+    "Gasto do ano (manual)",
+    "Расходы за год (вручную)",
+    "年度支出（手动记录）"
+  ],
+  "Fecha de compra": [
+    "Purchase date",
+    "Data da compra",
+    "Дата покупки",
+    "购买日期"
+  ],
+  "{0} compras más que lecturas": [
+    "{0} more purchases than readings",
+    "{0} compras a mais que leituras",
+    "Покупок больше, чем прочтений, на {0}",
+    "购买比阅读多 {0} 本"
+  ],
+  "{0} lecturas más que compras": [
+    "{0} more readings than purchases",
+    "{0} leituras a mais que compras",
+    "Прочтений больше, чем покупок, на {0}",
+    "阅读比购买多 {0} 本"
+  ],
+  "Mes {0}: {1} compras · {2} lecturas": [
+    "Month {0}: {1} purchases · {2} readings",
+    "Mês {0}: {1} compras · {2} leituras",
+    "Месяц {0}: покупок {1} · прочтений {2}",
+    "{0} 月：购买 {1} 本 · 阅读 {2} 本"
+  ],
+  "{0} tomos sin fecha de compra · {1} leídos sin fecha. Completá las fechas en sus fichas para incluirlos.": [
+    "{0} volumes without purchase dates · {1} read without dates. Add dates in their details to include them.",
+    "{0} volumes sem data de compra · {1} lidos sem data. Preencha as datas nas fichas para incluí-los.",
+    "Томов без даты покупки: {0} · прочитанных без даты: {1}. Укажите даты в карточках, чтобы учесть их.",
+    "{0} 本未记录购买日期 · {1} 本已读但未记录日期。在详情中补充日期即可计入。"
+  ],
+  "La fecha de importación no se cuenta como una compra. Las relecturas con fecha cuentan como nuevas lecturas.": [
+    "Import dates do not count as purchases. Dated rereads count as new readings.",
+    "A data de importação não conta como compra. Releituras com data contam como novas leituras.",
+    "Дата импорта не считается покупкой. Повторное чтение с датой учитывается как новое прочтение.",
+    "导入日期不算购买日期。有日期的重读计为新的阅读。"
+  ],
+  "Lecturas mensuales conectadas con Whakoom": [
+    "Monthly readings connected to Whakoom",
+    "Leituras mensais conectadas ao Whakoom",
+    "Чтение по месяцам из Whakoom",
+    "已连接 Whakoom 月度阅读数据"
+  ],
+  "{0} personas lo tienen": [
+    "{0} people own it",
+    "{0} pessoas têm",
+    "Есть у {0} человек",
+    "{0} 人拥有"
+  ],
+  "Ejemplo de nitidez · la imagen original puede variar": [
+    "Sharpness example · original images may vary",
+    "Exemplo de nitidez · a imagem original pode variar",
+    "Пример чёткости · исходные изображения могут отличаться",
+    "清晰度示例 · 原图可能不同"
+  ],
+  "Escribir o editar mi opinión": [
+    "Write or edit my review",
+    "Escrever ou editar minha opinião",
+    "Написать или изменить отзыв",
+    "撰写或编辑我的评价"
+  ],
+  "Conectá tu cuenta para publicar una opinión.": [
+    "Connect your account to publish a review.",
+    "Conecte sua conta para publicar uma opinião.",
+    "Войдите в аккаунт, чтобы опубликовать отзыв.",
+    "登录账号以发布评价。"
+  ],
+  "Tu opinión pública en Whakoom": [
+    "Your public review on Whakoom",
+    "Sua opinião pública no Whakoom",
+    "Ваш публичный отзыв в Whakoom",
+    "你在 Whakoom 上的公开评价"
+  ],
+  "Consultando tu opinión actual…": [
+    "Loading your current review…",
+    "Consultando sua opinião atual…",
+    "Загрузка вашего отзыва…",
+    "正在加载现有评价…"
+  ],
+  "Qué te pareció esta lectura…": [
+    "What did you think of this read…",
+    "O que você achou desta leitura…",
+    "Что вы думаете об этой книге…",
+    "你觉得这本书怎么样…"
+  ],
+  "Publicar opinión": [
+    "Publish review",
+    "Publicar opinião",
+    "Опубликовать отзыв",
+    "发布评价"
+  ],
+  "Esta opinión se publicará en tu cuenta y será visible para otras personas. Sin conexión queda pendiente de enviar.": [
+    "This review will be published on your account and visible to others. Offline, it waits to be sent.",
+    "Esta opinião será publicada na sua conta e ficará visível a outras pessoas. Sem conexão, ficará pendente de envio.",
+    "Отзыв будет опубликован в вашем аккаунте и виден другим. Без сети он будет ждать отправки.",
+    "评价将发布到你的账号并对他人可见。离线时会等待发送。"
+  ],
+  "Categorías": [
+    "Categories",
+    "Categorias",
+    "Категории",
+    "分类"
+  ],
+  "Anterior": [
+    "Previous",
+    "Anterior",
+    "Назад",
+    "上一页"
+  ],
+  "Centro de ayuda de Whakoom": [
+    "Whakoom help center",
+    "Central de ajuda do Whakoom",
+    "Центр помощи Whakoom",
+    "Whakoom 帮助中心"
+  ],
+  "Reportar un problema a Whakoom": [
+    "Report a problem to Whakoom",
+    "Relatar um problema ao Whakoom",
+    "Сообщить о проблеме в Whakoom",
+    "向 Whakoom 报告问题"
+  ],
+  "Proponer una idea": [
+    "Suggest an idea",
+    "Propor uma ideia",
+    "Предложить идею",
+    "提出建议"
+  ],
+  "Las publicaciones y respuestas usan la cuenta del centro de ayuda de Whakoom (Zendesk), que puede pedirte iniciar sesión.": [
+    "Posts and replies use your Whakoom help center account (Zendesk), which may ask you to sign in.",
+    "Publicações e respostas usam a conta da central de ajuda do Whakoom (Zendesk), que pode pedir seu login.",
+    "Публикации и ответы используют аккаунт центра помощи Whakoom (Zendesk); может потребоваться вход.",
+    "发帖和回复使用 Whakoom 帮助中心（Zendesk）账号，可能需要登录。"
+  ],
+  "En Linux, los formularios oficiales se abren en tu navegador.": [
+    "On Linux, official forms open in your browser.",
+    "No Linux, os formulários oficiais abrem no navegador.",
+    "В Linux официальные формы открываются в браузере.",
+    "在 Linux 上，官方表单会在浏览器中打开。"
+  ],
+  "Responder en el formulario oficial": [
+    "Reply in the official form",
+    "Responder no formulário oficial",
+    "Ответить в официальной форме",
+    "在官方表单中回复"
+  ],
+  "Ver todas las respuestas": [
+    "View all replies",
+    "Ver todas as respostas",
+    "Все ответы",
+    "查看所有回复"
+  ],
+  "Volver a la aplicación": [
+    "Return to the app",
+    "Voltar ao aplicativo",
+    "Вернуться в приложение",
+    "返回应用"
+  ],
+  "Formulario oficial · tu sesión del centro de ayuda es independiente": [
+    "Official form · your help center session is separate",
+    "Formulário oficial · sua sessão da central de ajuda é independente",
+    "Официальная форма · отдельная сессия центра помощи",
+    "官方表单 · 帮助中心会话独立"
+  ],
+  "{0} respuestas": [
+    "{0} replies",
+    "{0} respostas",
+    "Ответов: {0}",
+    "{0} 条回复"
+  ],
+  "Buscá un título o entrá en Explorar para descubrir cómics. Tus visitas recientes aparecerán acá.": [
+    "Search for a title or open Explore to discover comics. Your recently visited titles will appear here.",
+    "Busque um título ou abra Explorar para descobrir quadrinhos. Suas visitas recentes aparecerão aqui.",
+    "Найдите название или откройте обзор комиксов. Недавно просмотренные издания появятся здесь.",
+    "搜索书名或进入探索以发现漫画。最近浏览的作品将显示在此处。"
+  ],
+  "Añadí un tomo desde su ficha. Tu colección se actualiza al entrar si tenés una sesión conectada.": [
+    "Add a volume from its details. Your collection refreshes on entry when you are signed in.",
+    "Adicione um volume pela ficha. Sua coleção atualiza ao entrar se houver uma sessão conectada.",
+    "Добавьте том из его карточки. При входе в раздел коллекция обновляется, если вы авторизованы.",
+    "在详情中添加单册。登录后进入本区会自动更新收藏。"
+  ],
+  "Whakoom no ofrece estadísticas de lectura para esta cuenta; las estadísticas locales siguen disponibles.": [
+    "Whakoom does not provide reading statistics for this account. Your local records are shown.",
+    "O Whakoom não fornece estatísticas de leitura para esta conta. Seus registros locais são exibidos.",
+    "Whakoom не предоставляет статистику чтения этому аккаунту. Показаны локальные записи.",
+    "Whakoom 未为此账号提供阅读统计。当前显示本地记录。"
   ]
 }

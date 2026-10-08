@@ -153,11 +153,7 @@ impl App {
             self.setting_card(&mut columns[count - 1], Icon::Grid, "Visualización y memoria", |app, ui| {
                 let cache = &mut app.prefs.cover_cache;
                 ui.label(RichText::new(tr("Resolución")).strong());
-                egui::ComboBox::from_id_salt("thumbnail-quality").selected_text(tr(cache.quality.label())).show_ui(ui, |ui| {
-                    for quality in [whakoom_desktop::covers::Quality::Low, whakoom_desktop::covers::Quality::Balanced, whakoom_desktop::covers::Quality::High] {
-                        ui.selectable_value(&mut cache.quality, quality, tr(quality.label()));
-                    }
-                });
+                onboarding::quality_choices(ui, &mut cache.quality);
                 ui.label(RichText::new(tr("Mayor resolución usa más memoria. La nitidez depende de la imagen original de Whakoom.")).size(11.).color(p.muted));
                 ui.add_space(16.);
                 ui.label(RichText::new(tr("Miniaturas en memoria")).strong());

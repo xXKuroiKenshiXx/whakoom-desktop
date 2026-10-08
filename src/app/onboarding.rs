@@ -49,9 +49,7 @@ impl App {
                     ui.radio_value(&mut wizard.policy.enabled, false, tr("Descargar de nuevo al abrir la app"));
                     ui.label(RichText::new(tr("No se guardan en disco. Se reutilizan en memoria mientras la app está abierta y necesitan conexión.")).size(13.).color(p.muted));
                 } else {
-                    for quality in [whakoom_desktop::covers::Quality::High, whakoom_desktop::covers::Quality::Balanced, whakoom_desktop::covers::Quality::Low] {
-                        ui.radio_value(&mut wizard.policy.quality, quality, tr(quality.label()));
-                    }
+                    quality_choices(ui, &mut wizard.policy.quality);
                     ui.add_space(12.);
                     ui.label(RichText::new(tr("A mayor calidad, mejor se ven las portadas, pero tardan más en descargarse y usan más espacio y memoria. Primero mostramos una miniatura rápida; después mejora la nitidez.")).size(13.).color(p.muted));
                 }
@@ -84,6 +82,72 @@ impl App {
             self.onboarding = Some(wizard);
         }
     }
+}
+
+pub(super) fn quality_choices(ui: &mut egui::Ui, selected: &mut whakoom_desktop::covers::Quality) {
+    use whakoom_desktop::covers::Quality;
+    let id = egui::Id::new("quality-examples");
+    let textures = ui
+        .ctx()
+        .data_mut(|data| data.get_temp::<Vec<egui::TextureHandle>>(id))
+        .unwrap_or_else(|| {
+            let original =
+                image::load_from_memory(include_bytes!("../../assets/quality-sample.jpg"))
+                    .expect("portada de ejemplo incluida");
+            let images: Vec<_> = [Quality::High, Quality::Balanced, Quality::Low]
+                .into_iter()
+                .map(|quality| {
+                    let image = original
+                        .thumbnail(quality.width(), quality.width() * 3 / 2)
+                        .to_rgba8();
+                    ui.ctx().load_texture(
+                        format!("quality-example-{quality:?}"),
+                        egui::ColorImage::from_rgba_unmultiplied(
+                            [image.width() as usize, image.height() as usize],
+                            image.as_raw(),
+                        ),
+                        egui::TextureOptions::LINEAR,
+                    )
+                })
+                .collect();
+            ui.ctx()
+                .data_mut(|data| data.insert_temp(id, images.clone()));
+            images
+        });
+    ui.columns(3, |columns| {
+        for ((column, quality), texture) in columns
+            .iter_mut()
+            .zip([Quality::High, Quality::Balanced, Quality::Low])
+            .zip(&textures)
+        {
+            column.vertical_centered(|ui| {
+                let width = ui.available_width().min(98.);
+                let response = ui.add(
+                    egui::Image::new(texture)
+                        .fit_to_exact_size(Vec2::new(width, width * 1.43))
+                        .corner_radius(8)
+                        .sense(egui::Sense::click()),
+                );
+                if response.clicked() {
+                    *selected = quality;
+                }
+                if *selected == quality {
+                    ui.painter().rect_stroke(
+                        response.rect.expand(2.),
+                        8,
+                        egui::Stroke::new(2., ui.visuals().selection.stroke.color),
+                        egui::StrokeKind::Outside,
+                    );
+                }
+                ui.radio_value(selected, quality, tr(quality.label()));
+            });
+        }
+    });
+    ui.label(
+        RichText::new(tr("Ejemplo de nitidez · la imagen original puede variar"))
+            .size(11.)
+            .color(ui.visuals().weak_text_color()),
+    );
 }
 
 #[cfg(test)]

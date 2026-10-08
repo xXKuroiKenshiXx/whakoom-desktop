@@ -1,8 +1,20 @@
 # Cambios
 
+## 2.0.0
+
+- Visor de portada con zoom, arrastre, Escape y descarga independiente en alta calidad.
+- Catálogo reorganizado: navegación, búsqueda e historial separados; iconos accesibles para refrescar y alternar vista.
+- Deseados unifica la lista antes duplicada en Buscados y se actualiza al entrar.
+- Opiniones públicas de tomos y series: consulta de la opinión actual, edición, envío persistente y confirmación del servidor. Una valoración nueva actualiza los reintentos de la opinión.
+- Estadísticas anuales de compras y lecturas, gráfico mensual, fecha de compra en las fichas y exportación CSV. Lecturas originales cuando la cuenta concede acceso.
+- Comunidad de ayuda pública con categorías, publicaciones y respuestas; reportes e ideas mediante formularios oficiales en una sesión separada.
+- ISBN y cantidad de propietarios en fichas; Leído activo en verde y reacciones locales compactas al pie del comentario.
+- Ejemplos de calidad de portadas en Almacenamiento y en el asistente; carruseles adaptados al ancho de ventana, incluso con un contacto.
+- Textos nuevos traducidos a inglés, portugués, ruso y chino. No se cambian las dependencias ni la ubicación de datos existentes.
+
 ## 1.0.0
 
-Versión en iteración; se actualizan los mismos archivos sin generar otra versión.
+Primera versión; recibió las iteraciones siguientes antes de pasar a 2.0.0 por solicitud del usuario.
 
 - Inicio guiado con fondo atenuado: elegir caché y calidad, avanzar y volver; alta calidad por defecto. Se puede repetir desde Almacenamiento.
 - Carruseles infinitos de Amigos y Seguidores, también con pocos contactos; pausa al interactuar y animaciones desactivables.

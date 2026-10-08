@@ -25,6 +25,7 @@ pub enum Icon {
     ThumbDown,
     Compass,
     List,
+    Help,
 }
 pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
     let s = Stroke::new(1.6, c);
@@ -33,6 +34,16 @@ pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
         p.line_segment([at(a.0, a.1), at(b.0, b.1)], s);
     };
     match icon {
+        Icon::Help => {
+            p.circle_stroke(r.center(), r.width() * 0.44, s);
+            p.text(
+                r.center(),
+                egui::Align2::CENTER_CENTER,
+                "?",
+                egui::FontId::proportional(r.width() * 0.8),
+                c,
+            );
+        }
         Icon::List => {
             for y in [0.25, 0.5, 0.75] {
                 p.circle_filled(at(0.15, y), r.width() * 0.05, c);
@@ -334,13 +345,95 @@ pub fn button(
 
 pub fn view_toggle(ui: &mut egui::Ui, list: bool, p: crate::theme::Palette) -> egui::Response {
     let label = crate::i18n::tr(if list { "Ver portadas" } else { "Ver lista" });
-    let response = action(ui, if list { Icon::List } else { Icon::Grid }, "", p);
+    let response = symbol(
+        ui,
+        if list { Icon::List } else { Icon::Grid },
+        &label,
+        false,
+        p,
+        42.,
+    );
     response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), &label)
     });
     response
         .on_hover_cursor(egui::CursorIcon::PointingHand)
         .on_hover_text(label)
+}
+
+pub fn symbol(
+    ui: &mut egui::Ui,
+    icon: Icon,
+    label: &str,
+    selected: bool,
+    p: crate::theme::Palette,
+    size: f32,
+) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), egui::Sense::click());
+    let hover = ui.ctx().animate_bool_with_time(
+        response.id.with("hover"),
+        response.hovered(),
+        ui.style().animation_time,
+    );
+    ui.painter().rect_filled(
+        rect,
+        10,
+        p.surface
+            .lerp_to_gamma(p.selected, if selected { 1. } else { hover }),
+    );
+    paint(
+        ui.painter(),
+        egui::Rect::from_center_size(rect.center(), Vec2::splat(size * 0.5)),
+        icon,
+        if selected {
+            p.accent
+        } else {
+            p.muted.lerp_to_gamma(p.accent, hover)
+        },
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label)
+    });
+    response
+        .on_hover_cursor(egui::CursorIcon::PointingHand)
+        .on_hover_text(label)
+}
+pub fn refresh(ui: &mut egui::Ui, p: crate::theme::Palette) -> egui::Response {
+    symbol(
+        ui,
+        Icon::Refresh,
+        &crate::i18n::tr("Actualizar"),
+        false,
+        p,
+        42.,
+    )
+}
+pub fn reaction(
+    ui: &mut egui::Ui,
+    icon: Icon,
+    selected: bool,
+    label: &str,
+    mut p: crate::theme::Palette,
+) -> egui::Response {
+    if selected && icon == Icon::Heart {
+        p.accent = if p.bg.r() > 100 {
+            Color32::from_rgb(177, 35, 69)
+        } else {
+            Color32::from_rgb(255, 130, 154)
+        };
+    }
+    symbol(
+        ui,
+        if icon == Icon::Heart && selected {
+            Icon::HeartFilled
+        } else {
+            icon
+        },
+        &crate::i18n::tr(label),
+        selected,
+        p,
+        30.,
+    )
 }
 
 pub fn action(
@@ -400,12 +493,19 @@ pub fn toggle(
         response.mark_changed();
     }
     let heart = *value && icon == Icon::Heart;
+    let read = *value && icon == Icon::Read;
     let light = p.bg.r() > 100;
     let color = if heart {
         if light {
             Color32::from_rgb(177, 35, 69)
         } else {
             Color32::from_rgb(255, 130, 154)
+        }
+    } else if read {
+        if light {
+            Color32::from_rgb(21, 111, 61)
+        } else {
+            Color32::from_rgb(105, 221, 155)
         }
     } else if *value {
         p.accent
@@ -420,6 +520,12 @@ pub fn toggle(
                 Color32::from_rgb(255, 228, 235)
             } else {
                 Color32::from_rgb(73, 29, 44)
+            }
+        } else if read {
+            if light {
+                Color32::from_rgb(223, 246, 232)
+            } else {
+                Color32::from_rgb(25, 62, 43)
             }
         } else if *value || response.hovered() {
             p.selected

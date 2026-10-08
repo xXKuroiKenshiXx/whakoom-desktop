@@ -8,7 +8,7 @@ Comparación con los beneficios anunciados en [Whakoom Pro](https://www.whakoom.
 | Calendario de novedades | Novedades permite elegir mes/año, consultar próximos lanzamientos y filtrar por títulos de las series que tenés. El filtro usa el catálogo disponible; no descarga un historial editorial completo. |
 | Añadir colecciones completas | Añadir y quitar series con comprobación del resultado online y reintentos. |
 | Lecturas y relecturas | Fecha de lectura, historial local de relecturas editable y estadísticas por mes. La fecha actual se sincroniza cuando la cuenta lo permite. |
-| Estadísticas y filtros | Colección, pendientes, lecturas, relecturas, editoriales, etiquetas, objetivos e importes manuales. Filtros por editorial, lectura y valoración; búsqueda por notas, ubicación y conservación. |
+| Estadísticas y filtros | Colección, pendientes, lecturas, relecturas, editoriales, etiquetas, objetivos e importes manuales. Comparación anual de compras y lecturas por mes: las compras requieren una fecha explícita; las estadísticas originales se integran sólo si el servidor concede acceso. Filtros por editorial, lectura y valoración; búsqueda por notas, ubicación y conservación. |
 | Orden de lectura | Cola local reordenable con flechas y progreso de las series que tenés. |
 | Notas, ubicación y conservación | Notas con emojis y campos locales de ubicación y estado. Las notas online dependen del permiso del servidor. |
 | Insignia Pro online | Sólo Whakoom puede concederla con su suscripción. Desktop no simula esa condición. |

@@ -7,6 +7,7 @@ pub enum Change {
     Read { read: bool, date: String },
     Rating(u8),
     Notes(String),
+    Review(crate::reviews::Draft),
     EditionFavorite(bool),
     EditionOwned(bool),
 }
@@ -18,6 +19,7 @@ impl Change {
             Self::Read { .. } => "read",
             Self::Rating(_) => "rating",
             Self::Notes(_) => "notes",
+            Self::Review(_) => "review",
             Self::EditionFavorite(_) => "favorite",
             Self::EditionOwned(_) => "edition-owned",
         }
@@ -40,6 +42,15 @@ impl Pending {
     }
 }
 pub fn enqueue(library: &mut Library, item: &Item, change: Change) {
+    if matches!(change, Change::Review(_)) {
+        library.outbox.remove(&format!("{}:rating", item.key));
+    }
+    if let Change::Rating(rating) = &change
+        && let Some(pending) = library.outbox.get_mut(&format!("{}:review", item.key))
+        && let Change::Review(draft) = &mut pending.change
+    {
+        draft.rating = *rating;
+    }
     // Editing one volume supersedes the bulk intent for that volume. Expand the
     // rest into durable individual intents so a later bulk retry cannot undo it.
     if matches!(change, Change::Owned(_)) {
@@ -81,6 +92,7 @@ pub fn enqueue(library: &mut Library, item: &Item, change: Change) {
     };
     library.outbox.insert(pending.key(), pending);
 }
+
 pub fn confirm(library: &mut Library, pending: &Pending) {
     if library
         .outbox
@@ -266,5 +278,38 @@ pub fn resume_edition_batch(
             "Whakoom todavía no confirmó los tomos pendientes; se reintentará automáticamente"
                 .into(),
         )
+    }
+}
+
+#[cfg(test)]
+mod review_tests {
+    use super::*;
+    #[test]
+    fn public_review_is_durable_and_later_rating_cannot_be_overwritten_by_its_retry() {
+        let mut library = Library::default();
+        let item = Item {
+            key: "comicABC".into(),
+            url: "https://www.whakoom.com/comics/ABC/demo".into(),
+            ..Default::default()
+        };
+        enqueue(&mut library, &item, Change::Rating(2));
+        enqueue(
+            &mut library,
+            &item,
+            Change::Review(crate::reviews::Draft {
+                body: "Me encantó".into(),
+                rating: 4,
+            }),
+        );
+        assert!(!library.outbox.contains_key("comicABC:rating"));
+        enqueue(&mut library, &item, Change::Rating(5));
+        let restored: Library =
+            serde_json::from_slice(&serde_json::to_vec(&library).unwrap()).unwrap();
+        let Change::Review(draft) = &restored.outbox["comicABC:review"].change else {
+            panic!("Missing draft");
+        };
+        assert_eq!(draft.rating, 5);
+        assert_eq!(draft.body, "Me encantó");
+        restored.validate().unwrap();
     }
 }

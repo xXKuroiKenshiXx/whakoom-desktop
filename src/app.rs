@@ -1,7 +1,11 @@
 mod catalog_ui;
 mod collection_ui;
+mod cover_viewer;
+mod help_ui;
 mod onboarding;
+mod reviews_ui;
 mod settings_ui;
+mod statistics_ui;
 use eframe::egui::{self, RichText, Vec2};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -20,12 +24,12 @@ use whakoom_desktop::{
     api::{Api, Detail, Item, Page},
     brand, calendar, catalog,
     covers::CoverClient,
-    discover, discussion, holographic,
+    discover, discussion, help, holographic,
     i18n::{self, tr},
     icons::{self, Icon},
-    lists, rating, reactions,
+    lists, rating, reactions, reviews,
     series::{self, Series},
-    session, social,
+    session, social, statistics,
     storage::{self, Library, Preferences, Stats, Writer},
     sync,
     theme::{self, Palette},
@@ -45,6 +49,7 @@ enum Tab {
     Profile,
     Account,
     Notifications,
+    Help,
 }
 impl Tab {
     fn title(self) -> &'static str {
@@ -61,6 +66,7 @@ impl Tab {
             Self::Profile => "Mi perfil",
             Self::Account => "Cuenta",
             Self::Notifications => "Notificaciones",
+            Self::Help => "Ayuda",
         }
     }
     fn icon(self) -> Icon {
@@ -76,6 +82,7 @@ impl Tab {
             Self::Friends => Icon::Users,
             Self::Profile | Self::Account => Icon::User,
             Self::Notifications => Icon::Bell,
+            Self::Help => Icon::Help,
         }
     }
     fn local(self) -> bool {
@@ -98,7 +105,6 @@ enum CatalogMode {
     Search,
     Explore,
     Lists,
-    Wanted,
 }
 #[derive(Clone, Copy, Default, PartialEq)]
 enum SettingsSection {
@@ -141,6 +147,9 @@ enum Job {
     Activity(String),
     Cache(whakoom_desktop::covers::CachePolicy, bool),
     OptimizeCache(whakoom_desktop::covers::CachePolicy),
+    ReviewDraft(Box<Detail>, String),
+    OnlineStats(String),
+    Help(help::Request, bool),
 }
 enum Data {
     Lists(String, lists::ListPage),
@@ -165,17 +174,22 @@ enum Data {
     AccountSaved(String, account::Page, social::User),
     Reviews(String, discussion::Discussion),
     Activity(String, Result<Vec<social::Activity>, String>),
+    ReviewDraft(String, String, Result<reviews::Draft, String>),
+    OnlineStats(String, Result<statistics::OnlineReadings, String>),
+    Help(Result<help::Page, String>),
 }
 struct Event {
     id: u64,
     data: Result<Data, String>,
 }
 struct CoverJob {
+    viewer: bool,
     url: String,
     offline: bool,
     policy: whakoom_desktop::covers::CachePolicy,
 }
 struct CoverEvent {
+    viewer: bool,
     complete: bool,
     quality: whakoom_desktop::covers::Quality,
     url: String,
@@ -201,7 +215,9 @@ fn cover_workers(
                     break;
                 };
                 let result = match &client {
-                    Ok(client) if preview => client.preview(&job.url, job.offline, &job.policy),
+                    Ok(client) if preview && !job.viewer => {
+                        client.preview(&job.url, job.offline, &job.policy)
+                    }
                     Ok(client) => client
                         .get_with_policy(&job.url, job.offline, &job.policy)
                         .map(|image| (image, true)),
@@ -210,6 +226,7 @@ fn cover_workers(
                 let complete = result.as_ref().is_ok_and(|(_, complete)| *complete);
                 if events
                     .send(CoverEvent {
+                        viewer: job.viewer,
                         url: job.url,
                         quality: job.policy.quality,
                         complete,
@@ -596,6 +613,13 @@ fn worker(
                             .err(),
                     ))
                 }
+                Job::ReviewDraft(detail, owner) => Ok(Data::ReviewDraft(
+                    owner,
+                    detail.item.key.clone(),
+                    api.personal_review(&detail),
+                )),
+                Job::OnlineStats(owner) => Ok(Data::OnlineStats(owner, api.reading_statistics())),
+                Job::Help(request, offline) => Ok(Data::Help(help::fetch(request, offline))),
                 Job::Reviews(item, numeric_id, page) => api
                     .discussion_page(&item, numeric_id, page)
                     .map(|d| Data::Reviews(item.key, d)),
@@ -618,6 +642,27 @@ struct App {
     rx: mpsc::Receiver<Event>,
     cancel: Arc<AtomicBool>,
     generation: u64,
+    cover_viewer: Option<Item>,
+    viewer_zoom: f32,
+    viewer_pan: Vec2,
+    viewer_pending: Option<String>,
+    viewer_failed: bool,
+    viewer_texture: Option<(String, egui::TextureHandle)>,
+    review_editor: Option<(String, reviews::Draft)>,
+    review_loading: bool,
+    review_error: String,
+    stats_year: i32,
+    online_stats_pending: bool,
+    stats_status: String,
+    help_request: help::Request,
+    help_page: help::Page,
+    help_error: String,
+    #[cfg(windows)]
+    support_requested: Option<String>,
+    #[cfg(windows)]
+    support_view: Option<wry::WebView>,
+    #[cfg(windows)]
+    support_context: Option<wry::WebContext>,
     busy: bool,
     syncing: bool,
     pushing: bool,
@@ -791,6 +836,27 @@ impl App {
             rx,
             cancel,
             generation: 0,
+            cover_viewer: None,
+            viewer_zoom: 1.,
+            viewer_pan: Vec2::ZERO,
+            viewer_pending: None,
+            viewer_failed: false,
+            viewer_texture: None,
+            review_editor: None,
+            review_loading: false,
+            review_error: String::new(),
+            stats_year: calendar::today().0,
+            online_stats_pending: false,
+            stats_status: String::new(),
+            help_request: help::Request::Topics,
+            help_page: Default::default(),
+            help_error: String::new(),
+            #[cfg(windows)]
+            support_requested: None,
+            #[cfg(windows)]
+            support_view: None,
+            #[cfg(windows)]
+            support_context: None,
             busy: false,
             syncing: false,
             pushing: false,
@@ -859,7 +925,7 @@ impl App {
             username,
             verified: false,
             import_on_start: std::env::args().any(|a| a == "--import-collection"),
-            status: "Preparando biblioteca…".into(),
+            status: String::new(),
             error,
             show_login: false,
             login_user: String::new(),
@@ -906,6 +972,7 @@ impl App {
                 "profile" => Tab::Profile,
                 "account" => Tab::Account,
                 "notifications" => Tab::Notifications,
+                "help" => Tab::Help,
                 _ => Tab::News,
             };
         }
@@ -966,7 +1033,10 @@ impl App {
             app.catalog_mode = match mode.as_str() {
                 "explore" => CatalogMode::Explore,
                 "lists" => CatalogMode::Lists,
-                "wanted" => CatalogMode::Wanted,
+                "wanted" => {
+                    app.tab = Tab::Wanted;
+                    CatalogMode::Search
+                }
                 _ => CatalogMode::Search,
             };
             app.refresh(1);
@@ -993,6 +1063,11 @@ impl App {
                 wizard.step = 1;
             }
             app.onboarding = Some(wizard);
+        }
+        if std::env::args().any(|a| a == "--preview-cover")
+            && let Some(item) = app.library.entries.values().next().map(|e| e.item.clone())
+        {
+            app.cover_viewer = Some(item);
         }
         app
     }
@@ -1095,6 +1170,9 @@ impl App {
         self.generation += 1;
         self.busy = false;
         self.tab = tab;
+        self.review_editor = None;
+        self.review_loading = false;
+        self.review_error.clear();
         self.profile = None;
         self.list_detail = None;
         self.list_editor = false;
@@ -1349,6 +1427,19 @@ impl App {
         self.begin_transition(-1.);
     }
     fn refresh(&mut self, page: u32) {
+        if self.tab == Tab::Help {
+            self.send(Job::Help(self.help_request, self.prefs.offline));
+            return;
+        }
+        if self.tab == Tab::Stats {
+            if self.verified && !self.prefs.offline && !self.online_stats_pending {
+                self.online_stats_pending = self
+                    .tx
+                    .send((0, Job::OnlineStats(self.library.owner.clone())))
+                    .is_ok();
+            }
+            return;
+        }
         self.append = page > 1;
         if let Some(i) = self.edition.clone() {
             if !self.prefs.offline {
@@ -1396,7 +1487,7 @@ impl App {
         }
         if self.tab.local() {
             self.local_items();
-            if self.tab == Tab::Library {
+            if matches!(self.tab, Tab::Library | Tab::Wanted) {
                 self.pull_account();
             }
             self.status = i18n::trf(
@@ -1435,19 +1526,6 @@ impl App {
                     self.library.owner.clone(),
                     self.prefs.offline,
                 )),
-                CatalogMode::Wanted => {
-                    if self.verified {
-                        self.send(Job::Browse(
-                            discover::Section::Wanted,
-                            page,
-                            self.library.owner.clone(),
-                            self.prefs.offline,
-                        ));
-                    } else {
-                        self.items.clear();
-                        self.error = "Conectá tu cuenta para consultar Buscados".into();
-                    }
-                }
                 CatalogMode::Lists => self.send(Job::Lists(
                     self.lists_section,
                     page,
@@ -1498,6 +1576,43 @@ impl App {
                     self.error = error;
                     self.status =
                         "La colección no se pudo actualizar; tus cambios siguen guardados".into();
+                }
+                Ok(Data::Help(result)) if relevant => {
+                    self.busy = false;
+                    match result {
+                        Ok(page) => {
+                            self.help_page = page;
+                            self.help_error.clear();
+                        }
+                        Err(error) => self.help_error = error,
+                    }
+                }
+                Ok(Data::OnlineStats(owner, result)) if owner == self.library.owner => {
+                    self.online_stats_pending = false;
+                    match result {
+                        Ok(value) => {
+                            self.library.online_readings = Some(value);
+                            self.stats_status = "Lecturas mensuales conectadas con Whakoom".into();
+                            self.save_library();
+                        }
+                        Err(error) => self.stats_status = error,
+                    }
+                }
+                Ok(Data::ReviewDraft(owner, key, result))
+                    if owner == self.library.owner
+                        && self
+                            .review_editor
+                            .as_ref()
+                            .is_some_and(|(current, _)| current == &key) =>
+                {
+                    self.review_loading = false;
+                    match result {
+                        Ok(draft) => {
+                            self.review_editor = Some((key, draft));
+                            self.review_error.clear();
+                        }
+                        Err(error) => self.review_error = error,
+                    }
                 }
                 Ok(Data::Cache(result, clear)) => {
                     self.cache_pending = false;
@@ -1725,6 +1840,11 @@ impl App {
                     }
                 }
                 Ok(Data::Login(account)) => {
+                    self.review_editor = None;
+                    self.review_loading = false;
+                    self.review_error.clear();
+                    self.online_stats_pending = false;
+                    self.stats_status.clear();
                     let name = account.username.clone();
                     self.metadata_pending.clear();
                     self.metadata_failed.clear();
@@ -1811,6 +1931,11 @@ impl App {
                     }
                 }
                 Ok(Data::Logout(warning)) => {
+                    self.review_editor = None;
+                    self.review_loading = false;
+                    self.review_error.clear();
+                    self.online_stats_pending = false;
+                    self.stats_status.clear();
                     self.account_page = Default::default();
                     self.account_loaded = false;
                     self.activity_pending = false;
@@ -1888,6 +2013,42 @@ impl App {
             self.error = format!("No se pudo guardar: {e}");
         }
         while let Ok(event) = self.cover_rx.try_recv() {
+            if event.viewer {
+                if self.viewer_pending.as_ref() == Some(&event.url) {
+                    self.viewer_pending = None;
+                }
+                if self
+                    .cover_viewer
+                    .as_ref()
+                    .is_some_and(|i| i.cover == event.url)
+                {
+                    match event.image {
+                        Ok(image) => {
+                            let color = egui::ColorImage::from_rgba_unmultiplied(
+                                [image.width() as usize, image.height() as usize],
+                                image.as_raw(),
+                            );
+                            self.viewer_texture = Some((
+                                event.url.clone(),
+                                ctx.load_texture(
+                                    format!("viewer:{}", event.url),
+                                    color,
+                                    egui::TextureOptions::LINEAR,
+                                ),
+                            ));
+                        }
+                        Err(_) => {
+                            self.viewer_failed = true;
+                            self.viewer_texture = self
+                                .textures
+                                .get(&event.url)
+                                .cloned()
+                                .map(|t| (event.url, t))
+                        }
+                    }
+                }
+                continue;
+            }
             self.pending.remove(&event.url);
             if event.quality != self.prefs.cover_cache.quality {
                 continue;
@@ -1937,6 +2098,7 @@ impl App {
             && self
                 .upgrade_tx
                 .try_send(CoverJob {
+                    viewer: false,
                     url: key.into(),
                     offline: false,
                     policy: self.prefs.cover_cache.clone(),
@@ -2008,6 +2170,7 @@ impl App {
             && self
                 .cover_tx
                 .try_send(CoverJob {
+                    viewer: false,
                     url: key.clone(),
                     offline: self.prefs.offline,
                     policy: self.prefs.cover_cache.clone(),
@@ -2200,6 +2363,12 @@ impl App {
                 }
             });
             ui.label(RichText::new(tr("Agregar o quitar se sincroniza con tu cuenta. Se conservan tus notas y lecturas.")).size(11.).color(p.muted));
+            if let Some(details) = self.library.entries.get(&item.key).and_then(|entry| entry.details.as_ref()) {
+                ui.horizontal_wrapped(|ui| {
+                    if let Some(owners) = details.owners { ui.label(RichText::new(i18n::trf("{0} personas lo tienen", &[owners.to_string()])).color(p.accent)); }
+                    if !details.isbn.is_empty() { ui.label(format!("ISBN · {}", details.isbn.join(" · "))); }
+                });
+            }
             if self.prefs.offline && !complete { ui.label(RichText::new(tr("Conectate para consultar la serie completa antes de agregarla.")).size(11.).color(p.accent)); }
         });
         ui.add_space(14.);
@@ -2441,6 +2610,7 @@ impl App {
                             Tab::Friends,
                             Tab::Stats,
                             Tab::Settings,
+                            Tab::Help,
                         ] {
                             let button = icons::button(
                                 ui,
@@ -2572,6 +2742,7 @@ impl App {
                                     "Tu perfil, tu sesión y tus preferencias de Whakoom."
                                 }
                                 Tab::Notifications => "Lo nuevo en las colecciones de tus amigos.",
+                                Tab::Help => "La comunidad y el centro de ayuda de Whakoom.",
                             }))
                             .color(p.muted),
                         );
@@ -2607,6 +2778,10 @@ impl App {
                     });
                 }
                 match self.tab {
+                    Tab::Help => {
+                        self.help_ui(ui);
+                        return;
+                    }
                     Tab::Stats => {
                         self.stats_ui(ui);
                         return;
@@ -2671,14 +2846,16 @@ impl App {
                     });
                     ui.add_space(14.);
                 }
-                ui.horizontal(|ui| {
-                    rating::display(ui, 5., self.prefs.dark, 12.);
-                    ui.label(RichText::new(tr("Comunidad")).size(11.).color(p.muted));
-                    rating::personal(ui, 5., self.prefs.dark, 12.);
-                    ui.label(RichText::new(tr("Tu valoración")).size(11.).color(p.muted));
-                });
-                ui.add_space(10.);
-                self.toolbar(ui);
+                if self.tab != Tab::Catalog || self.edition.is_some() {
+                    ui.horizontal(|ui| {
+                        rating::display(ui, 5., self.prefs.dark, 12.);
+                        ui.label(RichText::new(tr("Comunidad")).size(11.).color(p.muted));
+                        rating::personal(ui, 5., self.prefs.dark, 12.);
+                        ui.label(RichText::new(tr("Tu valoración")).size(11.).color(p.muted));
+                    });
+                    ui.add_space(10.);
+                    self.toolbar(ui);
+                }
                 if self.tab == Tab::Library {
                     self.library_filters(ui);
                 }
@@ -2825,9 +3002,7 @@ impl App {
                         self.begin_transition(1.);
                     }
                     if ui
-                        .add_enabled_ui(!self.busy, |ui| {
-                            icons::action(ui, Icon::Refresh, "Actualizar", p)
-                        })
+                        .add_enabled_ui(!self.busy, |ui| icons::refresh(ui, p))
                         .inner
                         .clicked()
                     {
@@ -2950,7 +3125,9 @@ impl App {
                 );
             }
         }
-        self.cover(&mut child, item, Vec2::new(cover_width, cover_width * 1.43));
+        let cover_rect = self
+            .cover(&mut child, item, Vec2::new(cover_width, cover_width * 1.43))
+            .rect;
         child.add_space(16.);
         child.add(
             egui::Label::new(
@@ -3004,9 +3181,19 @@ impl App {
             });
         }
         self.card_rating(&mut child, item, group);
-        ui.interact(slot, id, egui::Sense::click())
-            .on_hover_text(group.map_or(item.title.as_str(), |g| g.title.as_str()))
-            .clicked()
+        let response = ui.interact(slot, id, egui::Sense::click());
+        if response.clicked()
+            && response
+                .interact_pointer_pos()
+                .is_some_and(|pos| cover_rect.contains(pos))
+        {
+            self.open_cover(item.clone());
+            false
+        } else {
+            response
+                .on_hover_text(group.map_or(item.title.as_str(), |g| g.title.as_str()))
+                .clicked()
+        }
     }
     fn list_row(&mut self, ui: &mut egui::Ui, item: &Item, group: Option<&Series>) -> bool {
         let p = self.p();
@@ -3035,8 +3222,9 @@ impl App {
                 .max_rect(rect.shrink(12.)),
         );
         child.set_clip_rect(ui.clip_rect().intersect(rect));
+        let mut cover_rect = egui::Rect::NOTHING;
         child.horizontal_top(|ui| {
-            self.cover(ui, item, Vec2::new(50., 72.));
+            cover_rect = self.cover(ui, item, Vec2::new(50., 72.)).rect;
             ui.vertical(|ui| {
                 ui.add(
                     egui::Label::new(
@@ -3059,9 +3247,20 @@ impl App {
                 self.card_rating(ui, item, group);
             });
         });
-        ui.interact(rect, id, egui::Sense::click()).clicked()
+        let response = ui.interact(rect, id, egui::Sense::click());
+        if response.clicked()
+            && response
+                .interact_pointer_pos()
+                .is_some_and(|pos| cover_rect.contains(pos))
+        {
+            self.open_cover(item.clone());
+            false
+        } else {
+            response.clicked()
+        }
     }
     fn items_ui(&mut self, ui: &mut egui::Ui) {
+        self.catalog_history(ui);
         #[cfg(test)]
         self.card_rects.clear();
         let grouped =
@@ -3097,8 +3296,10 @@ impl App {
                     "Esta serie no tiene tomos guardados todavía. Conectate para consultarlos."
                 } else if self.tab == Tab::Favorites && self.query.is_empty() {
                     "Buscá una serie en Catálogo y pulsá Añadir a favoritos."
+                } else if self.tab == Tab::Catalog && self.query.is_empty() {
+                    "Buscá un título o entrá en Explorar para descubrir cómics. Tus visitas recientes aparecerán acá."
                 } else if self.query.is_empty() {
-                    "Guardá un tomo desde su ficha o importá tu colección de Whakoom."
+                    "Añadí un tomo desde su ficha. Tu colección se actualiza al entrar si tenés una sesión conectada."
                 } else {
                     "No hay resultados. Probá otro título o etiqueta."
                 }))
@@ -3228,6 +3429,7 @@ impl App {
                     });
                 }
                 ui.add_space(12.);
+                self.annual_statistics_ui(ui);
                 self.setting_card(ui, Icon::Read, "Objetivo de lectura", |app, ui| {
                     let goal = app.prefs.reading_goal.max(1);
                     let fraction = (s.read as f32 / goal as f32).min(1.);
@@ -3370,6 +3572,7 @@ impl App {
                 && self
                     .cover_tx
                     .try_send(CoverJob {
+                        viewer: false,
                         url: url.into(),
                         offline: self.prefs.offline,
                         policy: self.prefs.cover_cache.clone(),
@@ -3432,9 +3635,7 @@ impl App {
                             if !user.bio.is_empty() {
                                 ui.label(&user.bio);
                             }
-                            if ui.small_button(tr("Actualizar perfil")).clicked()
-                                && !self.prefs.offline
-                            {
+                            if icons::refresh(ui, p).clicked() && !self.prefs.offline {
                                 self.send(Job::Profile(user.username.clone()));
                             }
                         });
@@ -3490,9 +3691,7 @@ impl App {
                     },
                     &[friends.len().to_string()],
                 ));
-                if icons::action(ui, Icon::Refresh, "Actualizar", p).clicked()
-                    && !self.prefs.offline
-                {
+                if icons::refresh(ui, p).clicked() && !self.prefs.offline {
                     self.refresh(1);
                 }
             });
@@ -3529,6 +3728,8 @@ impl App {
             let strip = egui::ScrollArea::horizontal()
                 .id_salt(("friends-strip", self.social_relation.path()))
                 .max_height(116.)
+                .max_width(ui.available_width())
+                .auto_shrink([false, true])
                 .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
                 .horizontal_scroll_offset(self.friend_scroll)
                 .show(ui, |ui| {
@@ -3598,6 +3799,11 @@ impl App {
                     });
                 });
             let maximum = (strip.content_size.x - strip.inner_rect.width()).max(0.);
+            #[cfg(test)]
+            {
+                self.ui_rects
+                    .insert("friends-strip".into(), strip.inner_rect);
+            }
             self.friend_scroll = strip.state.offset.x.min(maximum);
             let paused = hovered
                 || ui
@@ -3769,7 +3975,7 @@ impl App {
                         let enabled = !app.busy && !app.syncing && !app.pushing;
                         if ui.add_enabled(enabled, egui::Button::new(tr("Desconectar"))).clicked() { app.send(Job::Logout); }
                         if ui.add_enabled(enabled, egui::Button::new(tr("Desconectar y borrar cookies"))).clicked() {
-                            #[cfg(windows)] { app.login_view = None; app.web_context = None; }
+                            #[cfg(windows)] { app.login_view = None; app.web_context = None; app.support_view = None; app.support_context = None; app.support_requested = None; }
                             app.send(Job::ForgetCookies);
                         }
                     });
@@ -4014,6 +4220,7 @@ impl App {
         let p = self.p();
         ui.add_space(16.);
         ui.heading(tr("Opiniones de la comunidad"));
+        self.review_editor_ui(ui, detail);
         if detail.discussion.reviews.is_empty()
             && !self.library.reactions.contains_key(&detail.item.key)
         {
@@ -4038,7 +4245,7 @@ impl App {
                 .fill(p.surface)
                 .stroke(egui::Stroke::new(1., p.border))
                 .corner_radius(12)
-                .inner_margin(16)
+                .inner_margin(14)
                 .show(ui, |ui| {
                     ui.set_width(ui.available_width());
                     ui.horizontal(|ui| {
@@ -4062,12 +4269,23 @@ impl App {
                         ui.label(RichText::new(&review.date).small().color(p.muted));
                         rating::display(ui, review.rating, self.prefs.dark, 16.);
                     });
+                    if !review.body.is_empty() {
+                        ui.add_space(10.);
+                        ui.label(&review.body);
+                    } else {
+                        ui.label(
+                            RichText::new(tr("Valoración sin comentario"))
+                                .small()
+                                .color(p.muted),
+                        );
+                    }
+                    ui.add_space(6.);
                     ui.horizontal_wrapped(|ui| {
                         let vote =
                             reactions::value(&self.library.reactions, &detail.item.key, review);
-                        let mut heart = vote == 1;
-                        let mut dislike = vote == -1;
-                        if icons::toggle(ui, Icon::Heart, "Destacar", &mut heart, p).clicked() {
+                        let heart = vote == 1;
+                        let dislike = vote == -1;
+                        if icons::reaction(ui, Icon::Heart, heart, "Destacar", p).clicked() {
                             reactions::toggle(
                                 &mut self.library.reactions,
                                 &detail.item.key,
@@ -4076,8 +4294,7 @@ impl App {
                             );
                             self.save_library();
                         }
-                        if icons::toggle(ui, Icon::ThumbDown, "Al final", &mut dislike, p).clicked()
-                        {
+                        if icons::reaction(ui, Icon::ThumbDown, dislike, "Al final", p).clicked() {
                             reactions::toggle(
                                 &mut self.library.reactions,
                                 &detail.item.key,
@@ -4094,16 +4311,6 @@ impl App {
                             );
                         }
                     });
-                    if !review.body.is_empty() {
-                        ui.add_space(10.);
-                        ui.label(&review.body);
-                    } else {
-                        ui.label(
-                            RichText::new(tr("Valoración sin comentario"))
-                                .small()
-                                .color(p.muted),
-                        );
-                    }
                 });
         }
         if let Some(next) = detail.discussion.next {
@@ -4226,7 +4433,9 @@ impl App {
         {
             self.ui_rects.insert("back".into(), back.rect);
         }
-        if back.clicked() || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+        if back.clicked()
+            || self.cover_viewer.is_none() && ui.input(|i| i.key_pressed(egui::Key::Escape))
+        {
             self.leave_detail();
             return;
         }
@@ -4258,7 +4467,7 @@ impl App {
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         ui.horizontal_top(|ui| {
-                            self.cover(ui, &d.item, Vec2::new(190., 272.));
+                            if self.cover(ui, &d.item, Vec2::new(190., 272.)).on_hover_text(tr("Ampliar portada")).clicked() { self.open_cover(d.item.clone()); }
                             ui.add_space(18.);
                             ui.vertical(|ui| {
                                 ui.set_width(ui.available_width());
@@ -4281,6 +4490,8 @@ impl App {
                                     ui.label(d.authors.join(", "));
                                 }
                                 ui.label(format!("{} {}", d.language, d.date));
+                                if let Some(owners) = d.owners { ui.label(RichText::new(i18n::trf("{0} personas lo tienen", &[owners.to_string()])).color(p.accent)); }
+                                if !d.isbn.is_empty() { ui.label(format!("ISBN · {}", d.isbn.join(" · "))); }
                                 ui.horizontal(|ui| {
                                     rating::display(ui, d.item.community_rating, self.prefs.dark, 18.);
                                     ui.label(RichText::new(if d.item.community_rating > 0. { format!("{:.1}", d.item.community_rating) } else { "Sin nota pública".into() }).size(12.).color(p.muted));
@@ -4324,6 +4535,7 @@ impl App {
                         icons::paint(ui.painter(), rect, Icon::Calendar, p.accent);
                         ui.label(tr("Fecha de lectura"));
                         changed |= calendar::picker(ui, &d.item.key, &mut e.read_date);
+                        ui.add_space(16.); ui.label(tr("Fecha de compra")); changed |= calendar::picker(ui, &format!("purchase:{}", d.item.key), &mut e.purchase_date);
                         ui.add_space(16.); ui.label(tr("Importe pagado (manual)"));
                         changed |= ui.add(egui::DragValue::new(&mut e.cost).range(0.0..=100_000_000.0).speed(1.)).changed();
                     });
@@ -4586,7 +4798,10 @@ impl eframe::App for App {
                 self.probe_started = true;
                 self.open_browser(_frame);
             }
-            if self.browser_ui(ui) {
+            if let Some(url) = self.support_requested.take() {
+                self.open_support_browser(_frame, &url);
+            }
+            if self.support_browser_ui(ui) || self.browser_ui(ui) {
                 return;
             }
         }
@@ -4600,9 +4815,9 @@ impl eframe::App for App {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(
                             RichText::new(tr(if self.prefs.offline {
-                                "SIN CONEXIÓN · Whakoom Desktop 1.0"
+                                "SIN CONEXIÓN · Whakoom Desktop 2.0"
                             } else {
-                                "Whakoom Desktop 1.0"
+                                "Whakoom Desktop 2.0"
                             }))
                             .size(11.)
                             .color(p.muted),
@@ -4612,6 +4827,7 @@ impl eframe::App for App {
             });
         self.sidebar(ui);
         self.body(ui);
+        self.cover_viewer_ui(&ctx);
         if self.onboarding.is_some() {
             self.onboarding_ui(&ctx);
         } else {
@@ -4649,6 +4865,41 @@ pub fn run() -> eframe::Result {
 #[cfg(test)]
 mod ui_tests {
     use super::*;
+    #[test]
+    fn cover_click_opens_gallery_and_escape_preserves_the_internal_page() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        app.prefs.animations = false;
+        app.prefs.series_view = false;
+        theme::apply(&ctx, true, false);
+        app.local_items();
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let key = app.card_rects.keys().next().unwrap().clone();
+        let position = app.card_rects[&key].left_top() + Vec2::new(40., 80.);
+        click(&mut app, &ctx, position);
+        assert_eq!(app.cover_viewer.as_ref().unwrap().key, key);
+        assert!(app.detail.is_none());
+        assert_eq!(app.tab, Tab::Library);
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::default(),
+            }],
+        );
+        assert!(app.cover_viewer.is_none());
+        assert!(app.detail.is_none());
+        assert_eq!(app.tab, Tab::Library);
+    }
     #[test]
     fn notifications_navigation_stays_available_during_collection_refresh() {
         let ctx = egui::Context::default();
@@ -4699,13 +4950,13 @@ mod ui_tests {
         );
         app.username = Some(app.library.owner.clone());
         app.select(Tab::Friends);
-        let sample = |app: &mut App, time: f64| {
+        let sample = |app: &mut App, time: f64, width: f32| {
             let mut output = ctx.run_ui(
                 egui::RawInput {
                     time: Some(time),
                     screen_rect: Some(egui::Rect::from_min_size(
                         egui::Pos2::ZERO,
-                        Vec2::new(1280., 900.),
+                        Vec2::new(width, 900.),
                     )),
                     events: vec![egui::Event::PointerGone],
                     ..Default::default()
@@ -4721,7 +4972,7 @@ mod ui_tests {
             app.friend_scroll = 0.;
             app.friend_scroll_at = 0.;
             for frame in 0..20 {
-                sample(&mut app, frame as f64 * 0.05);
+                sample(&mut app, frame as f64 * 0.05, 1280.);
             }
             assert!(
                 app.friend_scroll > 20.,
@@ -4729,21 +4980,27 @@ mod ui_tests {
             );
             let period = 3. * (178. + ctx.style_of(egui::Theme::Dark).spacing.item_spacing.x);
             app.friend_scroll = period - 0.5;
-            sample(&mut app, 1.);
+            sample(&mut app, 1., 1280.);
             assert!(app.friend_scroll < 4., "Carousel did not wrap");
         }
         app.prefs.animations = false;
-        sample(&mut app, 1.1);
+        sample(&mut app, 1.1, 1280.);
         let offset = app.friend_scroll;
-        sample(&mut app, 1.2);
+        sample(&mut app, 1.2, 1280.);
         assert_eq!(app.friend_scroll, offset);
         app.prefs.animations = true;
         app.library.followers.truncate(1);
         app.friend_scroll = 0.;
         for frame in 0..20 {
-            sample(&mut app, 1.3 + frame as f64 * 0.05);
+            sample(&mut app, 1.3 + frame as f64 * 0.05, 1280.);
         }
         assert!(app.friend_scroll > 20., "A single contact should also move");
+        for frame in 0..20 {
+            sample(&mut app, 2.5 + frame as f64 * 0.05, 760.);
+        }
+        assert!(app.ui_rects["friends-strip"].right() <= 760.);
+        assert!(app.ui_rects["friends-strip"].width() <= 680.);
+        assert!(app.friend_scroll > 30.);
     }
     fn edition_item() -> Item {
         Item {
@@ -4772,7 +5029,11 @@ mod ui_tests {
         for _ in 0..3 {
             frame(&mut app, &ctx, vec![]);
         }
-        let position = app.card_rects["edicion123"].center();
+        let position = app.card_rects["edicion123"].left_top()
+            + Vec2::new(
+                30.,
+                12. + (app.card_rects["edicion123"].width() - 24.) * 1.43 + 30.,
+            );
         click(&mut app, &ctx, position);
         assert!(app.edition.is_some());
         assert!(app.detail.is_none());
@@ -4798,7 +5059,11 @@ mod ui_tests {
         for _ in 0..3 {
             frame(&mut app, &ctx, vec![]);
         }
-        let position = app.card_rects["edicion123"].center();
+        let position = app.card_rects["edicion123"].left_top()
+            + Vec2::new(
+                30.,
+                12. + (app.card_rects["edicion123"].width() - 24.) * 1.43 + 30.,
+            );
         click(&mut app, &ctx, position);
         assert_eq!(app.items.len(), 3);
         app.leave_edition();
@@ -4872,8 +5137,37 @@ mod ui_tests {
         for _ in 0..3 {
             frame(&mut app, &ctx, vec![]);
         }
-        let position = app.card_rects["comicc"].center();
+        let hover = app.card_rects["comicc"].left_top() + Vec2::new(30., 80.);
+        frame(
+            &mut app,
+            &ctx,
+            vec![
+                egui::Event::PointerMoved(hover),
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    phase: egui::TouchPhase::Move,
+                    delta: Vec2::new(0., -140.),
+                    modifiers: egui::Modifiers::default(),
+                },
+            ],
+        );
+        for _ in 0..15 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let position = app.card_rects["comicc"].left_top()
+            + Vec2::new(
+                30.,
+                12. + (app.card_rects["comicc"].width() - 24.) * 1.43 + 30.,
+            );
         click(&mut app, &ctx, position);
+        assert!(
+            app.detail.is_some(),
+            "Click {:?}, card {:?}, viewer {:?}, items {:?}",
+            position,
+            app.card_rects.get("comicc"),
+            app.cover_viewer.as_ref().map(|i| &i.key),
+            app.items.iter().map(|i| &i.key).collect::<Vec<_>>()
+        );
         assert_eq!(app.detail.as_ref().unwrap().item.key, "comicc");
         frame(&mut app, &ctx, vec![]);
         // The page belongs to the central panel, beside the persistent sidebar.
@@ -5310,7 +5604,7 @@ mod ui_tests {
         for _ in 0..3 {
             frame(&mut app, &ctx, vec![]);
         }
-        let position = app.card_rects.values().next().unwrap().center();
+        let position = app.card_rects.values().next().unwrap().left_bottom() + Vec2::new(30., -62.);
         frame(
             &mut app,
             &ctx,

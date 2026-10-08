@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use std::{collections::HashSet, io::Read, time::Duration};
 
 pub const BASE: &str = "https://www.whakoom.com";
-pub const USER_AGENT: &str = "WhakoomDesktop/1.0 (unofficial desktop client)";
+pub const USER_AGENT: &str = "WhakoomDesktop/2.0 (unofficial desktop client)";
 const MAX_BODY: u64 = 4 * 1024 * 1024;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -45,6 +45,10 @@ pub struct Detail {
     pub edition: Option<Item>,
     #[serde(default)]
     pub discussion: crate::discussion::Discussion,
+    #[serde(default)]
+    pub isbn: Vec<String>,
+    #[serde(default)]
+    pub owners: Option<usize>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -278,6 +282,23 @@ pub fn parse_detail(html: &str, item: &Item) -> Result<Detail, String> {
         result.read_date = date;
     }
     result.discussion = crate::discussion::parse(html);
+    result.isbn = h
+        .select(&sel(".barcodes [itemprop='isbn']"))
+        .map(text)
+        .filter(|s| !s.is_empty())
+        .collect();
+    if result.isbn.is_empty() {
+        let value = attr(&h, "meta[property='books:isbn']", "content");
+        if !value.is_empty() {
+            result.isbn.push(value);
+        }
+    }
+    result.owners = first(&h, ".alsohavethis h2 a span")
+        .chars()
+        .filter(char::is_ascii_digit)
+        .collect::<String>()
+        .parse()
+        .ok();
     Ok(result)
 }
 
@@ -512,6 +533,7 @@ impl Api {
                     Err("Whakoom no confirmó la lectura".into())
                 }
             }
+            Change::Review(draft) => self.publish_review(&self.detail(&pending.item)?, draft),
             Change::Notes(notes) => {
                 let cid = pending
                     .item
@@ -1156,4 +1178,24 @@ pub enum Action {
 
 pub fn fetch_cover(url: &str) -> Result<image::RgbaImage, String> {
     crate::covers::CoverClient::new()?.get(url, false)
+}
+
+#[cfg(test)]
+mod metadata_tests {
+    use super::*;
+    #[test]
+    fn isbn_and_owner_counts_follow_the_live_markup_without_confusing_rating_votes() {
+        let item = Item {
+            key: "comicABC".into(),
+            url: format!("{BASE}/comics/ABC/demo"),
+            ..Default::default()
+        };
+        let detail=parse_detail("<div class='b-info'><h1>Demo</h1><span class='rate-count'>99</span></div><div class='alsohavethis'><h2><a><span>13.480</span> personas</a></h2></div><ul class='barcodes'><li itemprop='isbn'>978-6-076-36085-9</li><li itemprop='isbn'>978-8-411-01427-4</li></ul>",&item).unwrap();
+        assert_eq!(detail.owners, Some(13480));
+        assert_eq!(detail.isbn.len(), 2);
+        assert_eq!(detail.discussion.votes, "99");
+        let unknown = parse_detail("<div class='b-info'><h1>Demo</h1></div>", &item).unwrap();
+        assert!(unknown.owners.is_none());
+        assert!(unknown.isbn.is_empty());
+    }
 }

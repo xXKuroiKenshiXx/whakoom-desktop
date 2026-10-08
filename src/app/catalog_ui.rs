@@ -5,20 +5,21 @@ impl App {
         let p = self.p();
         egui::Frame::new()
             .fill(p.surface)
-            .corner_radius(12)
-            .inner_margin(12)
+            .corner_radius(14)
+            .inner_margin(10)
             .show(ui, |ui| {
+                ui.set_width(ui.available_width());
                 ui.horizontal_wrapped(|ui| {
                     for (mode, icon, title) in [
                         (CatalogMode::Search, Icon::Search, "Buscar"),
                         (CatalogMode::Explore, Icon::Compass, "Explorar"),
                         (CatalogMode::Lists, Icon::Grid, "Listas"),
-                        (CatalogMode::Wanted, Icon::Heart, "Buscados"),
                     ] {
                         let mut palette = p;
                         if self.catalog_mode == mode {
                             palette.surface = p.selected;
                             palette.text = p.accent;
+                            palette.muted = p.accent;
                         }
                         if icons::action(ui, icon, title, palette).clicked()
                             && self.catalog_mode != mode
@@ -36,59 +37,114 @@ impl App {
                             self.refresh(1);
                         }
                     }
-                });
-                if self.catalog_mode == CatalogMode::Explore {
-                    ui.horizontal_wrapped(|ui| {
-                        for section in discover::Section::EXPLORE {
-                            if ui
-                                .selectable_label(
-                                    self.explore_section == section,
-                                    tr(section.title()),
-                                )
-                                .clicked()
-                                && self.explore_section != section
-                            {
-                                self.generation += 1;
-                                self.explore_section = section;
-                                self.items.clear();
-                                self.refresh(1);
-                            }
-                        }
-                    });
-                }
-                if self.catalog_mode == CatalogMode::Search && self.submitted.is_empty() {
-                    let queries = self.library.recent.queries.clone();
-                    ui.add_space(8.);
-                    ui.label(RichText::new(tr("Últimas búsquedas")).color(p.muted));
-                    ui.horizontal_wrapped(|ui| {
-                        for query in queries {
-                            if ui.button(&query).clicked() {
-                                self.query = query.clone();
-                                self.submitted = query;
-                                self.refresh(1);
-                            }
-                        }
-                        if (!self.library.recent.queries.is_empty()
-                            || !self.library.recent.visited.is_empty())
-                            && ui.small_button(tr("Borrar historial")).clicked()
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui
+                            .add_enabled_ui(!self.busy, |ui| icons::refresh(ui, p))
+                            .inner
+                            .clicked()
                         {
-                            self.library.recent = Default::default();
-                            self.save_library();
+                            self.failed.clear();
                             self.refresh(1);
                         }
+                        if self.catalog_mode != CatalogMode::Lists
+                            && icons::view_toggle(ui, self.prefs.list_view, p).clicked()
+                        {
+                            self.prefs.list_view = !self.prefs.list_view;
+                            self.save_prefs();
+                        }
                     });
-                    ui.label(
-                        RichText::new(tr(if self.library.recent.visited.is_empty() {
-                            "Para descubrir"
-                        } else {
-                            "Visitados recientemente"
-                        }))
-                        .size(12.)
-                        .color(p.accent),
-                    );
+                });
+            });
+        ui.add_space(14.);
+        if self.catalog_mode == CatalogMode::Search {
+            ui.horizontal(|ui| {
+                let width = (ui.available_width() - 54.).max(100.);
+                let input = ui.add_sized(
+                    [width, 44.],
+                    egui::TextEdit::singleline(&mut self.query)
+                        .font(egui::FontId::proportional(17.))
+                        .hint_text(tr("Buscar cómics, series o autores…")),
+                );
+                let enter = input.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                let button = ui
+                    .add_enabled_ui(!self.busy && !self.query.trim().is_empty(), |ui| {
+                        icons::symbol(ui, Icon::Search, &tr("Buscar"), false, p, 44.)
+                    })
+                    .inner;
+                if (button.clicked() || enter && !self.busy) && !self.query.trim().is_empty() {
+                    self.submitted = self.query.trim().into();
+                    self.refresh(1);
+                }
+                if input.changed() && self.query.trim().is_empty() && !self.submitted.is_empty() {
+                    self.submitted.clear();
+                    self.refresh(1);
                 }
             });
-        ui.add_space(12.);
+            ui.add_space(12.);
+        } else if self.catalog_mode == CatalogMode::Explore {
+            ui.horizontal_wrapped(|ui| {
+                for section in discover::Section::EXPLORE {
+                    if ui
+                        .selectable_label(self.explore_section == section, tr(section.title()))
+                        .clicked()
+                        && self.explore_section != section
+                    {
+                        self.generation += 1;
+                        self.explore_section = section;
+                        self.items.clear();
+                        self.refresh(1);
+                    }
+                }
+            });
+            ui.add_space(12.);
+        }
+    }
+    pub(super) fn catalog_history(&mut self, ui: &mut egui::Ui) {
+        if self.tab != Tab::Catalog
+            || self.edition.is_some()
+            || self.catalog_mode != CatalogMode::Search
+            || !self.submitted.is_empty()
+        {
+            return;
+        }
+        let p = self.p();
+        let queries = self.library.recent.queries.clone();
+        if !queries.is_empty() {
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(tr("Últimas búsquedas"))
+                        .size(12.)
+                        .color(p.muted),
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button(tr("Borrar historial")).clicked() {
+                        self.library.recent = Default::default();
+                        self.save_library();
+                        self.refresh(1);
+                    }
+                });
+            });
+            ui.horizontal_wrapped(|ui| {
+                for query in queries.iter().take(6) {
+                    if ui.button(query).clicked() {
+                        self.query = query.clone();
+                        self.submitted = query.clone();
+                        self.refresh(1);
+                    }
+                }
+            });
+            ui.add_space(16.);
+        }
+        ui.label(
+            RichText::new(tr(if self.library.recent.visited.is_empty() {
+                "Para descubrir"
+            } else {
+                "Visitados recientemente"
+            }))
+            .size(18.)
+            .strong(),
+        );
+        ui.add_space(10.);
     }
     pub(super) fn lists_ui(&mut self, ui: &mut egui::Ui) {
         let p = self.p();

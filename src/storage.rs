@@ -98,6 +98,8 @@ pub struct Entry {
     pub notes: String,
     pub tags: String,
     pub cost: f64,
+    #[serde(default)]
+    pub purchase_date: String,
     pub rating: u8,
     pub added: u64,
     #[serde(default)]
@@ -121,6 +123,7 @@ impl Default for Entry {
             notes: String::new(),
             tags: String::new(),
             cost: 0.,
+            purchase_date: String::new(),
             rating: 0,
             added: now(),
             readings: Vec::new(),
@@ -156,6 +159,8 @@ pub struct Library {
     pub reading_order: Vec<String>,
     #[serde(default)]
     pub attachments: BTreeMap<String, String>,
+    #[serde(default)]
+    pub online_readings: Option<crate::statistics::OnlineReadings>,
 }
 impl Default for Library {
     fn default() -> Self {
@@ -173,6 +178,7 @@ impl Default for Library {
             recent: Default::default(),
             reading_order: Vec::new(),
             attachments: BTreeMap::new(),
+            online_readings: None,
         }
     }
 }
@@ -342,6 +348,16 @@ impl Library {
         s
     }
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(online) = &self.online_readings {
+            online.validate()?;
+        }
+        if self
+            .entries
+            .values()
+            .any(|e| !e.purchase_date.is_empty() && reading_month(&e.purchase_date).is_none())
+        {
+            return Err("Fecha de compra inválida".into());
+        }
         crate::reactions::validate(&self.reactions)?;
         if self.recent.queries.len() > 16
             || self.recent.visited.len() > 24
@@ -416,6 +432,9 @@ impl Library {
             {
                 return Err("Cambio pendiente con una ficha inválida".into());
             }
+            if let crate::sync::Change::Review(draft) = &pending.change {
+                draft.validate()?;
+            }
             if matches!(pending.change, crate::sync::Change::Rating(value) if value > 5) {
                 return Err("Valoración pendiente inválida".into());
             }
@@ -472,7 +491,7 @@ impl Library {
             format!("\"{}\"", safe.replace('"', "\"\""))
         }
         let mut out = String::from(
-            "\u{feff}Título,Número,Lo tengo,Deseado,Leído,Fecha de lectura,Nota,Gasto,Etiquetas,Notas,URL\r\n",
+            "\u{feff}Título,Número,Lo tengo,Deseado,Leído,Fecha de lectura,Nota,Gasto,Etiquetas,Notas,URL,Fecha de compra\r\n",
         );
         for e in self.entries.values() {
             let row = [
@@ -487,6 +506,7 @@ impl Library {
                 cell(&e.tags),
                 cell(&e.notes),
                 cell(&e.item.url),
+                cell(&e.purchase_date),
             ];
             out.push_str(&row.join(","));
             out.push_str("\r\n");

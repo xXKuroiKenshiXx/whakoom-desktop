@@ -1,5 +1,52 @@
 use whakoom_desktop::api::Api;
 fn main() {
+    if std::env::args().any(|a| a == "--verify-v2") {
+        let result = (|| -> Result<(), String> {
+            let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;
+            let api = Api::with_user_agent(saved.cookie, &saved.user_agent)?;
+            let popular = api.discover(whakoom_desktop::discover::Section::Popular, 1)?;
+            let edition = popular.items.first().ok_or("Catálogo vacío")?;
+            let detail = api.full_detail(edition)?;
+            api.personal_review(&detail)?;
+            let comic = api
+                .edition(edition, 1)?
+                .items
+                .into_iter()
+                .next()
+                .ok_or("Serie vacía")?;
+            let detail = api.full_detail(&comic)?;
+            if detail.isbn.is_empty() || detail.owners.is_none() {
+                return Err("No se pudo verificar ISBN y propietarios".into());
+            }
+            api.personal_review(&detail)?;
+            let online = api.reading_statistics();
+            if let Ok(value) = online {
+                value.validate()?;
+            }
+            let topics =
+                whakoom_desktop::help::fetch(whakoom_desktop::help::Request::Topics, false)?;
+            let topic = topics.topics.first().ok_or("Ayuda sin categorías")?;
+            let posts = whakoom_desktop::help::fetch(
+                whakoom_desktop::help::Request::Posts(topic.id, 1),
+                false,
+            )?;
+            if let Some(post) = posts.posts.first() {
+                whakoom_desktop::help::fetch(
+                    whakoom_desktop::help::Request::Thread(post.id),
+                    false,
+                )?;
+            }
+            println!(
+                "Lecturas reales verificadas: fichas, formularios de opinión, estado de estadísticas y comunidad. No se publicó ni modificó contenido de la cuenta."
+            );
+            Ok(())
+        })();
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if std::env::args().any(|arg| arg == "--verify-followers") {
         let result = (|| -> Result<(), String> {
             let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;

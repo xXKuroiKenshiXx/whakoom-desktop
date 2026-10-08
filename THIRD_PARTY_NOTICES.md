@@ -1,5 +1,9 @@
 # Avisos de terceros
 
+## Recursos de catálogo en las vistas de ejemplo
+
+`assets/quality-sample.jpg` reproduce una portada pública de Civil War obtenida del [CDN de Whakoom](https://i1.whakoom.com/large/3a/20/9c48dced2384462b84e50b3f592c4e62.jpg) para comparar la nitidez de las miniaturas. Las capturas también muestran portadas públicas con una biblioteca de ejemplo. Las ilustraciones pertenecen a sus titulares; no quedan cubiertas por la licencia MIT del código.
+
 Fuentes incorporadas en la aplicación. Se conservan sus licencias y avisos originales.
 
 ## NotoSansMath-OFL.txt
