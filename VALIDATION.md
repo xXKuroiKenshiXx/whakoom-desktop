@@ -4,20 +4,24 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 
 ## Comprobaciones automatizadas
 
-76 pruebas aprobadas en Windows x64/MSVC y 76 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
+86 pruebas aprobadas en Windows x64/MSVC y 86 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
 
 - Formato, pruebas de todos los targets y Clippy con advertencias como errores en Windows y Linux.
 - Calendario: clics que avanzan tres meses sin cerrar el selector ni modificar la fecha hasta elegir un día.
 - Biblioteca: eliminación de una serie conserva notas y lecturas, actualiza la vista y genera cambios pendientes.
 - Sincronización: errores parciales, confirmaciones tardías, cambios nuevos durante una tanda, aislamiento de cuentas y paginación incompleta.
 - Conector: HTML actual, formularios, tokens antifalsificación, campos permitidos, URLs y redirecciones.
+- Explorar y Listas: cuatro categorías con 56 fichas por página, listas propias/favoritas y lista pública de 54 tomos en dos páginas comprobadas contra el sitio actual. Creación y favoritos se verifican con contratos y validación de solicitudes; no se crean listas personales como prueba.
+- Tipografía: presencia de los glifos matemáticos solicitados, chino y cirílico en las fuentes incluidas. Capturas del catálogo en inglés y de Ajustes en chino.
+- Herramientas locales: relecturas, ubicación, conservación, orden de lectura y fotos sobreviven al respaldo; referencias de fotos y fechas corruptas se rechazan.
+- Miniaturas progresivas: un tamaño pequeño permanece visible mientras falta la resolución final, incluso si su caché está corrupta; no se agranda antes de descargar la imagen final.
 - Caché y respaldos: límites, limpieza de archivos propios, imágenes inválidas, exportación CSV y validación de importaciones.
 - Linux: escritura atómica no sigue un enlace simbólico al reemplazarlo; el archivo resultante tiene permisos 0600.
 
 ## Ejecución y paquetes
 
 - Windows: interfaz nativa, instalador por usuario y ejecutable portable. Instalación en una carpeta temporal, identidad del binario instalado, apertura y desinstalación comprobadas.
-- Linux: ejecución en Ubuntu 24.04 dentro de WSL con Xvfb y renderizado software X11. Se abrió la biblioteca y Ajustes desde la AppImage empaquetada. Wayland y otras distribuciones no se probaron de forma interactiva.
+- Linux: ejecución en Ubuntu 24.04 dentro de WSL con Xvfb y renderizado software X11. Se abrió el catálogo integrado y Ajustes en chino desde la AppImage actual; la biblioteca también se comprobó en la revisión anterior. Wayland y otras distribuciones no se probaron de forma interactiva.
 - Secret Service: una sesión ficticia se guardó, recuperó y borró en un llavero aislado. La fecha de lectura utiliza la zona horaria del sistema.
 - Conector Linux: sesión real transferida únicamente por stdin, sin archivo ni argumentos con credenciales; lectura de colección, amigos y siete secciones de cuenta.
 - Capturas Windows: biblioteca y ficha con sinopsis de color, controles de colección y separación de portada. Notas largas quedan dentro de un área con scroll.

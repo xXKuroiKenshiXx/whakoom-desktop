@@ -2,11 +2,11 @@
 
 La contraseña no se persiste. Windows DPAPI protege la sesión con el usuario local de Windows; Linux la guarda en Secret Service. Estos mecanismos no protegen frente a otros programas que ya controlen ese mismo usuario. Los respaldos JSON excluyen la sesión, pero contienen biblioteca, notas, perfiles y cambios pendientes. Las escrituras usan archivos temporales únicos y reemplazo atómico; en Linux los archivos creados tienen permisos 0600.
 
-Las cookies sólo acompañan solicitudes HTTPS al dominio exacto `www.whakoom.com`. Las portadas y avatares usan un cliente separado sin cookies. Se comprueban redirecciones, límites de respuesta, tamaño de imágenes y enlaces importados.
+Las cookies sólo acompañan solicitudes HTTPS al dominio exacto `www.whakoom.com`. Las portadas y avatares usan un cliente separado sin cookies. Se comprueban redirecciones, límites de respuesta, tamaño de imágenes y enlaces importados. Las fotos personales se normalizan y se almacenan dentro del respaldo; sus referencias no son rutas arbitrarias. Crear listas y cambiar sus favoritos requiere verificar la identidad de la sesión antes de escribir.
 
 La cola está separada por cuenta. Sólo se elimina una intención cuando se confirma ese mismo cambio; una respuesta tardía no debe descartar una edición posterior. Un error de permisos se conserva para que el usuario pueda revisarlo.
 
-Para reportar una vulnerabilidad, compartí una reproducción mínima sin datos reales. Si todavía no hay un canal privado del repositorio publicado, comunicá únicamente la descripción general y solicitá un canal privado antes de divulgar credenciales o una explotación activa.
+Reportá vulnerabilidades por el [canal privado del repositorio](https://github.com/xXKuroiKenshiXx/whakoom-desktop/security/advisories/new), con una reproducción mínima sin credenciales ni datos reales.
 
 ## Dependencias revisadas
 

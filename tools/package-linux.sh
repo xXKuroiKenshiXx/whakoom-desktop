@@ -21,7 +21,11 @@ fi
 appdir="$root/dist/WhakoomDesktop.AppDir"
 # Reuse only this project's dedicated AppDir; never touch user data.
 mkdir -p "$appdir/usr/share/doc/whakoom-desktop"
+# linuxdeploy preserves existing executables in a reused AppDir. Replace ours
+# explicitly so repeated builds of the same version always package current code.
+install -Dm755 "$target/release/whakoom-desktop" "$appdir/usr/bin/whakoom-desktop"
 cp LICENSE "$appdir/usr/share/doc/whakoom-desktop/"
+cp THIRD_PARTY_NOTICES.md "$appdir/usr/share/doc/whakoom-desktop/"
 dist/tooling/linuxdeploy.AppImage --appimage-extract-and-run \
   --appdir "$appdir" --executable "$target/release/whakoom-desktop" \
   --desktop-file tools/whakoom-desktop.desktop --icon-file assets/whakoom-desktop.png

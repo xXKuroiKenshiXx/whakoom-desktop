@@ -56,6 +56,70 @@ pub fn today() -> (i32, u32, u32) {
         (year, month, days_left as u32 + 1)
     }
 }
+pub const MONTHS: [&str; 12] = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+];
+pub fn month_picker(ui: &mut egui::Ui, id: &str, value: &mut String) -> bool {
+    let (y, m, _) = today();
+    let mut year = value
+        .get(..4)
+        .and_then(|s| s.parse::<i32>().ok())
+        .filter(|y| (1900..=2200).contains(y))
+        .unwrap_or(y);
+    let mut month = value
+        .get(4..6)
+        .and_then(|s| s.parse::<u32>().ok())
+        .filter(|m| (1..=12).contains(m))
+        .unwrap_or(m);
+    let mut changed = false;
+    ui.horizontal_wrapped(|ui| {
+        if ui.button("‹").clicked() {
+            if month == 1 {
+                month = 12;
+                year -= 1;
+            } else {
+                month -= 1;
+            }
+            changed = true;
+        }
+        egui::ComboBox::from_id_salt((id, "month"))
+            .selected_text(crate::i18n::tr(MONTHS[month as usize - 1]))
+            .show_ui(ui, |ui| {
+                for (index, name) in MONTHS.iter().enumerate() {
+                    changed |= ui
+                        .selectable_value(&mut month, index as u32 + 1, crate::i18n::tr(*name))
+                        .changed();
+                }
+            });
+        changed |= ui
+            .add(egui::DragValue::new(&mut year).range(1900..=2200))
+            .changed();
+        if ui.button("›").clicked() {
+            if month == 12 {
+                month = 1;
+                year += 1;
+            } else {
+                month += 1;
+            }
+            changed = true;
+        }
+    });
+    if changed {
+        *value = format!("{:04}{:02}", year.clamp(1900, 2200), month);
+    }
+    changed
+}
 pub fn picker(ui: &mut egui::Ui, id: &str, date: &mut String) -> bool {
     let selected = if crate::storage::reading_month(date).is_some() {
         (
@@ -72,7 +136,7 @@ pub fn picker(ui: &mut egui::Ui, id: &str, date: &mut String) -> bool {
         .data_mut(|d| *d.get_temp_mut_or_insert_with(state, || (selected.0, selected.1)));
     let mut changed = false;
     let caption = if crate::storage::reading_month(date).is_none() {
-        "Elegir fecha".into()
+        crate::i18n::tr("Elegir fecha")
     } else {
         format!("{}/{}/{}", &date[8..], &date[5..7], &date[..4])
     };
@@ -96,7 +160,7 @@ pub fn picker(ui: &mut egui::Ui, id: &str, date: &mut String) -> bool {
                 "Diciembre",
             ];
             ui.horizontal(|ui| {
-                if ui.button("‹").clicked() {
+                if ui.button(crate::i18n::tr("‹")).clicked() {
                     if month.1 == 1 {
                         month = ((month.0 - 1).max(1), 12);
                     } else {
@@ -104,15 +168,19 @@ pub fn picker(ui: &mut egui::Ui, id: &str, date: &mut String) -> bool {
                     }
                 }
                 egui::ComboBox::from_id_salt(("month", id))
-                    .selected_text(names[month.1 as usize - 1])
+                    .selected_text(crate::i18n::tr(names[month.1 as usize - 1]))
                     .width(110.)
                     .show_ui(ui, |ui| {
                         for (index, name) in names.iter().enumerate() {
-                            ui.selectable_value(&mut month.1, index as u32 + 1, *name);
+                            ui.selectable_value(
+                                &mut month.1,
+                                index as u32 + 1,
+                                crate::i18n::tr(*name),
+                            );
                         }
                     });
                 ui.add(egui::DragValue::new(&mut month.0).range(1..=9999).speed(1.));
-                let next = ui.button("›");
+                let next = ui.button(crate::i18n::tr("›"));
                 #[cfg(test)]
                 ui.ctx().data_mut(|data| {
                     data.insert_temp(egui::Id::new(("calendar-next-test", id)), next.rect)
@@ -129,7 +197,7 @@ pub fn picker(ui: &mut egui::Ui, id: &str, date: &mut String) -> bool {
             egui::Grid::new(("calendar", id))
                 .spacing([4., 4.])
                 .show(ui, |ui| {
-                    for name in ["L", "M", "M", "J", "V", "S", "D"] {
+                    for name in crate::i18n::weekdays() {
                         ui.label(RichText::new(name).strong());
                     }
                     ui.end_row();
@@ -159,14 +227,14 @@ pub fn picker(ui: &mut egui::Ui, id: &str, date: &mut String) -> bool {
                 });
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("Hoy").clicked() {
+                if ui.button(crate::i18n::tr("Hoy")).clicked() {
                     let (y, m, d) = today();
                     *date = format!("{y:04}-{m:02}-{d:02}");
                     month = (y, m);
                     changed = true;
                     ui.close();
                 }
-                if ui.button("Sin fecha").clicked() {
+                if ui.button(crate::i18n::tr("Sin fecha")).clicked() {
                     date.clear();
                     changed = true;
                     ui.close();

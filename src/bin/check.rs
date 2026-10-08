@@ -1,5 +1,113 @@
 use whakoom_desktop::api::Api;
 fn main() {
+    if std::env::args().any(|arg| arg == "--make-catalog-preview") {
+        let result = (|| -> Result<(), String> {
+            if std::env::var_os("WHAKOOM_DESKTOP_DATA_DIR").is_none() {
+                return Err("La vista pública requiere una carpeta aislada".into());
+            }
+            let api = Api::new(String::new())?;
+            let page = api.discover(whakoom_desktop::discover::Section::Popular, 1)?;
+            whakoom_desktop::storage::save_page("browse:local:Popular:1", &page)?;
+            let lists = api.lists(whakoom_desktop::lists::Section::Discover, "local", 1)?;
+            let path = whakoom_desktop::session::data_dir()
+                .join("pages")
+                .join(format!(
+                    "{}.lists.json",
+                    whakoom_desktop::storage::key("lists:local:Discover:1")
+                ));
+            whakoom_desktop::storage::atomic_write(
+                &path,
+                &serde_json::to_vec(&lists).map_err(|e| e.to_string())?,
+            )?;
+            let client = whakoom_desktop::covers::CoverClient::new()?;
+            let policy = whakoom_desktop::covers::CachePolicy {
+                quality: whakoom_desktop::covers::Quality::Low,
+                ..Default::default()
+            };
+            let covers: Vec<_> = page
+                .items
+                .iter()
+                .take(12)
+                .map(|i| &i.cover)
+                .chain(lists.lists.iter().take(6).flat_map(|l| l.covers.first()))
+                .collect();
+            let mut loaded = 0;
+            for cover in &covers {
+                if client.get_with_policy(cover, false, &policy).is_ok() {
+                    loaded += 1;
+                }
+            }
+            println!(
+                "Vista pública: {} fichas, {} listas, {loaded}/{} portadas; sin sesión ni datos de cuenta",
+                page.items.len(),
+                lists.lists.len(),
+                covers.len()
+            );
+            Ok(())
+        })();
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if std::env::args().any(|arg| arg == "--verify-catalog") {
+        let result = (|| -> Result<(), String> {
+            let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;
+            let api = Api::with_user_agent(saved.cookie, &saved.user_agent)?;
+            let owner = api.identity()?.username;
+            for section in whakoom_desktop::discover::Section::EXPLORE {
+                let page = api.discover(section, 1)?;
+                if page.items.is_empty() {
+                    return Err(format!("{} no devolvió fichas", section.title()));
+                }
+                println!(
+                    "{}: {} fichas, próxima página {:?}",
+                    section.title(),
+                    page.items.len(),
+                    page.next
+                );
+                if let Some(next) = page.next {
+                    let second = api.discover(section, next)?;
+                    if second.items.is_empty() {
+                        return Err("Segunda página vacía".into());
+                    }
+                }
+            }
+            let desired = api.discover(whakoom_desktop::discover::Section::Wanted, 1)?;
+            println!("Buscados: {} fichas", desired.items.len());
+            let mut sample = None;
+            for section in whakoom_desktop::lists::Section::ALL {
+                let page = api.lists(section, &owner, 1)?;
+                println!(
+                    "{}: {} listas, próxima página {:?}",
+                    section.title(),
+                    page.lists.len(),
+                    page.next
+                );
+                if sample.is_none() {
+                    sample = page.lists.first().cloned();
+                }
+                if let Some(next) = page.next {
+                    let second = api.lists(section, &owner, next)?;
+                    println!("Página siguiente: {} listas", second.lists.len());
+                }
+            }
+            if let Some(list) = sample {
+                let detail = api.comic_list(&list.url)?;
+                println!("Detalle de lista: {} tomos", detail.comics.len());
+                if let Some(next) = detail.next {
+                    println!("Más tomos: {}", api.list_comics(&detail, next)?.items.len());
+                }
+            }
+            Ok(())
+        })();
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if std::env::args().any(|arg| arg == "--verify-keyring") {
         let result = (|| -> Result<(), String> {
             if std::env::var_os("WHAKOOM_DESKTOP_DATA_DIR").is_none() {

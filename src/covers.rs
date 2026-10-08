@@ -12,6 +12,59 @@ pub enum Quality {
     Balanced,
     High,
 }
+
+#[cfg(test)]
+mod progressive_tests {
+    use super::*;
+    #[test]
+    fn cached_preview_is_visible_before_upgrade_and_corrupt_final_image_does_not_block_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let client = CoverClient::at(dir.path().into()).unwrap();
+        let url = "https://i1.whakoom.com/thumb/progressive-test.jpg";
+        let policy = CachePolicy {
+            quality: Quality::High,
+            ..Default::default()
+        };
+        let mut png = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+            150,
+            220,
+            image::Rgba([12, 34, 56, 255]),
+        ))
+        .write_to(&mut png, image::ImageFormat::Png)
+        .unwrap();
+        fs::write(
+            dir.path().join(format!(
+                "{}.img",
+                storage::key(&quality_url(url, Quality::Low))
+            )),
+            png.into_inner(),
+        )
+        .unwrap();
+        let (preview, complete) = client.preview(url, false, &policy).unwrap();
+        assert_eq!(preview.width(), 150);
+        assert!(!complete);
+        let final_path = dir.path().join(format!(
+            "{}.img",
+            storage::key(&quality_url(url, Quality::High))
+        ));
+        fs::write(&final_path, b"corrupt").unwrap();
+        assert!(!client.preview(url, false, &policy).unwrap().1);
+        let mut png = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+            600,
+            880,
+            image::Rgba([12, 34, 56, 255]),
+        ))
+        .write_to(&mut png, image::ImageFormat::Png)
+        .unwrap();
+        fs::write(final_path, png.into_inner()).unwrap();
+        let (image, complete) = client.preview(url, false, &policy).unwrap();
+        assert_eq!(image.width(), 600);
+        assert!(complete);
+        assert!(client.preview(url, true, &policy).unwrap().1);
+    }
+}
 impl Quality {
     pub fn width(self) -> u32 {
         match self {
@@ -137,7 +190,7 @@ fn quality_url(original: &str, quality: Quality) -> String {
     if url
         .host_str()
         .is_some_and(|host| host.starts_with('i') && host.ends_with(".whakoom.com"))
-        && let Some(rest) = ["/small/", "/medium/", "/large/"]
+        && let Some(rest) = ["/thumb/", "/small/", "/medium/", "/large/"]
             .into_iter()
             .find_map(|prefix| url.path().strip_prefix(prefix))
     {
@@ -160,17 +213,65 @@ fn decode(bytes: &[u8], quality: Quality) -> Result<image::RgbaImage, String> {
     limits.max_image_height = Some(4096);
     limits.max_alloc = Some(64 * 1024 * 1024);
     reader.limits(limits);
-    Ok(reader
+    let image = reader
         .decode()
-        .map_err(|e| format!("Imagen inválida: {e}"))?
-        .thumbnail(quality.width(), quality.width() * 3 / 2)
-        .to_rgba8())
+        .map_err(|e| format!("Imagen inválida: {e}"))?;
+    let image = if image.width() > quality.width() || image.height() > quality.width() * 3 / 2 {
+        image.thumbnail(quality.width(), quality.width() * 3 / 2)
+    } else {
+        image
+    };
+    Ok(image.to_rgba8())
 }
 pub struct CoverClient {
     client: Client,
     root: PathBuf,
 }
 impl CoverClient {
+    /// Read the requested cached size first, then show a small network image while
+    /// the independent upgrade queue fetches the final resolution.
+    pub fn preview(
+        &self,
+        input: &str,
+        offline: bool,
+        policy: &CachePolicy,
+    ) -> Result<(image::RgbaImage, bool), String> {
+        let original = normalized_url(input)?;
+        let target = quality_url(&original, policy.quality);
+        let exact = self.root.join(format!("{}.img", storage::key(&target)));
+        if offline {
+            return self
+                .get_with_policy(input, true, policy)
+                .map(|image| (image, true));
+        }
+        if policy.enabled
+            && fs::metadata(&exact).is_ok_and(|m| m.len() <= 2 * 1024 * 1024)
+            && let Ok(bytes) = fs::read(&exact)
+            && let Ok(image) = decode(&bytes, policy.quality)
+        {
+            return Ok((image, true));
+        }
+        if policy.quality == Quality::Low || target == quality_url(&original, Quality::Low) {
+            return self
+                .get_with_policy(input, false, policy)
+                .map(|image| (image, true));
+        }
+        if policy.enabled
+            && let Ok(image) = self.get_with_policy(input, true, policy)
+        {
+            return Ok((image, false));
+        }
+        let small = CachePolicy {
+            quality: Quality::Low,
+            ..policy.clone()
+        };
+        self.get_with_policy(input, false, &small)
+            .map(|image| (image, false))
+            .or_else(|_| {
+                self.get_with_policy(input, false, policy)
+                    .map(|image| (image, true))
+            })
+    }
     pub fn new() -> Result<Self, String> {
         Self::at(session::data_dir().join("covers"))
     }

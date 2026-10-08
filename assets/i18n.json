@@ -1,0 +1,1892 @@
+{
+  "Novedades": [
+    "New releases",
+    "Novidades",
+    "Новинки",
+    "新出版物"
+  ],
+  "Catálogo": [
+    "Catalog",
+    "Catálogo",
+    "Каталог",
+    "目录"
+  ],
+  "Mi biblioteca": [
+    "My library",
+    "Minha biblioteca",
+    "Моя библиотека",
+    "我的藏书"
+  ],
+  "Favoritos": [
+    "Favorites",
+    "Favoritos",
+    "Избранное",
+    "收藏"
+  ],
+  "Deseados": [
+    "Wishlist",
+    "Desejados",
+    "Желаемое",
+    "愿望清单"
+  ],
+  "Lecturas": [
+    "Reading",
+    "Leituras",
+    "Чтение",
+    "阅读"
+  ],
+  "Estadísticas": [
+    "Statistics",
+    "Estatísticas",
+    "Статистика",
+    "统计"
+  ],
+  "Ajustes": [
+    "Settings",
+    "Configurações",
+    "Настройки",
+    "设置"
+  ],
+  "Amigos": [
+    "Friends",
+    "Amigos",
+    "Друзья",
+    "好友"
+  ],
+  "Mi perfil": [
+    "My profile",
+    "Meu perfil",
+    "Мой профиль",
+    "我的个人资料"
+  ],
+  "Cuenta": [
+    "Account",
+    "Conta",
+    "Аккаунт",
+    "账户"
+  ],
+  "Notificaciones": [
+    "Notifications",
+    "Notificações",
+    "Уведомления",
+    "通知"
+  ],
+  "Buscar": [
+    "Search",
+    "Pesquisar",
+    "Поиск",
+    "搜索"
+  ],
+  "Explorar": [
+    "Explore",
+    "Explorar",
+    "Обзор",
+    "探索"
+  ],
+  "Listas": [
+    "Lists",
+    "Listas",
+    "Списки",
+    "列表"
+  ],
+  "Buscados": [
+    "Wanted",
+    "Procurados",
+    "Ищу",
+    "想要"
+  ],
+  "Descubrir": [
+    "Discover",
+    "Descobrir",
+    "Открыть новое",
+    "发现"
+  ],
+  "Populares": [
+    "Popular",
+    "Populares",
+    "Популярное",
+    "热门"
+  ],
+  "Mejor valorados": [
+    "Top rated",
+    "Mais bem avaliados",
+    "Лучшие оценки",
+    "高评分"
+  ],
+  "Novelas gráficas": [
+    "Graphic novels",
+    "Romances gráficos",
+    "Графические романы",
+    "图像小说"
+  ],
+  "Todos los cómics": [
+    "All comics",
+    "Todos os quadrinhos",
+    "Все комиксы",
+    "所有漫画"
+  ],
+  "Últimas listas": [
+    "Recent lists",
+    "Listas recentes",
+    "Новые списки",
+    "最新列表"
+  ],
+  "Mis listas": [
+    "My lists",
+    "Minhas listas",
+    "Мои списки",
+    "我的列表"
+  ],
+  "Listas favoritas": [
+    "Favorite lists",
+    "Listas favoritas",
+    "Избранные списки",
+    "收藏的列表"
+  ],
+  "Últimas búsquedas": [
+    "Recent searches",
+    "Pesquisas recentes",
+    "Недавние поиски",
+    "最近搜索"
+  ],
+  "Visitados recientemente": [
+    "Recently viewed",
+    "Vistos recentemente",
+    "Недавно просмотрено",
+    "最近浏览"
+  ],
+  "Para descubrir": [
+    "Discover something new",
+    "Para descobrir",
+    "Откройте новое",
+    "发现新内容"
+  ],
+  "Borrar historial": [
+    "Clear history",
+    "Limpar histórico",
+    "Очистить историю",
+    "清除历史"
+  ],
+  "Buscar en estas listas…": [
+    "Filter these lists…",
+    "Filtrar estas listas…",
+    "Фильтр этих списков…",
+    "筛选这些列表…"
+  ],
+  "Buscar tomos para la lista…": [
+    "Find volumes for this list…",
+    "Buscar volumes para a lista…",
+    "Найти тома для списка…",
+    "为列表搜索单行本…"
+  ],
+  "Crear lista": [
+    "Create list",
+    "Criar lista",
+    "Создать список",
+    "创建列表"
+  ],
+  "Volver a listas": [
+    "Back to lists",
+    "Voltar às listas",
+    "Назад к спискам",
+    "返回列表"
+  ],
+  "Añadir a listas favoritas": [
+    "Favorite this list",
+    "Favoritar esta lista",
+    "Добавить список в избранное",
+    "收藏此列表"
+  ],
+  "Quitar de listas favoritas": [
+    "Remove list from favorites",
+    "Remover lista dos favoritos",
+    "Убрать список из избранного",
+    "取消收藏列表"
+  ],
+  "Nombre": [
+    "Name",
+    "Nome",
+    "Имя",
+    "名称"
+  ],
+  "Descripción": [
+    "Description",
+    "Descrição",
+    "Описание",
+    "描述"
+  ],
+  "Lista privada": [
+    "Private list",
+    "Lista privada",
+    "Приватный список",
+    "私密列表"
+  ],
+  "Numerar los tomos": [
+    "Number the volumes",
+    "Numerar os volumes",
+    "Нумерация томов",
+    "为单行本编号"
+  ],
+  "Lista personal": [
+    "Personal list",
+    "Lista pessoal",
+    "Личный список",
+    "个人列表"
+  ],
+  "Guía de lectura": [
+    "Reading guide",
+    "Guia de leitura",
+    "Порядок чтения",
+    "阅读指南"
+  ],
+  "Tomos seleccionados": [
+    "Selected volumes",
+    "Volumes selecionados",
+    "Выбранные тома",
+    "已选择的单行本"
+  ],
+  "Crear en mi cuenta de Whakoom": [
+    "Create in my Whakoom account",
+    "Criar na minha conta Whakoom",
+    "Создать в аккаунте Whakoom",
+    "在我的 Whakoom 账户中创建"
+  ],
+  "Los tomos conservan el orden que elegiste. La lista se crea en tu cuenta online.": [
+    "Volumes keep your chosen order. The list is created in your online account.",
+    "Os volumes mantêm a ordem escolhida. A lista é criada na sua conta online.",
+    "Тома сохраняют выбранный порядок. Список создаётся в вашем онлайн-аккаунте.",
+    "单行本按您选择的顺序排列。列表将在您的在线账户中创建。"
+  ],
+  "Todavía no hay listas en esta sección": [
+    "No lists in this section yet",
+    "Ainda não há listas nesta seção",
+    "В этом разделе пока нет списков",
+    "此栏目暂无列表"
+  ],
+  "Cargar más": [
+    "Load more",
+    "Carregar mais",
+    "Загрузить ещё",
+    "加载更多"
+  ],
+  "Quitar": [
+    "Remove",
+    "Remover",
+    "Удалить",
+    "移除"
+  ],
+  "Cerrar": [
+    "Close",
+    "Fechar",
+    "Закрыть",
+    "关闭"
+  ],
+  "Cancelar": [
+    "Cancel",
+    "Cancelar",
+    "Отмена",
+    "取消"
+  ],
+  "Actualizar": [
+    "Refresh",
+    "Atualizar",
+    "Обновить",
+    "刷新"
+  ],
+  "Portadas": [
+    "Covers",
+    "Capas",
+    "Обложки",
+    "封面"
+  ],
+  "Lista": [
+    "List",
+    "Lista",
+    "Список",
+    "列表"
+  ],
+  "Series": [
+    "Series",
+    "Séries",
+    "Серии",
+    "系列"
+  ],
+  "Tomos": [
+    "Volumes",
+    "Volumes",
+    "Тома",
+    "单行本"
+  ],
+  "Series y títulos": [
+    "Series and titles",
+    "Séries e títulos",
+    "Серии и названия",
+    "系列与作品"
+  ],
+  "Leídos": [
+    "Read",
+    "Lidos",
+    "Прочитано",
+    "已读"
+  ],
+  "Comunidad": [
+    "Community",
+    "Comunidade",
+    "Сообщество",
+    "社区"
+  ],
+  "Tu valoración": [
+    "Your rating",
+    "Sua avaliação",
+    "Ваша оценка",
+    "您的评分"
+  ],
+  "Mi valoración": [
+    "My rating",
+    "Minha avaliação",
+    "Моя оценка",
+    "我的评分"
+  ],
+  "Tu valoración personal · violeta": [
+    "Your personal rating · violet",
+    "Sua avaliação pessoal · violeta",
+    "Ваша оценка · фиолетовая",
+    "个人评分 · 紫色"
+  ],
+  "Valoración de la comunidad de Whakoom": [
+    "Whakoom community rating",
+    "Avaliação da comunidade Whakoom",
+    "Оценка сообщества Whakoom",
+    "Whakoom 社区评分"
+  ],
+  "Sin nota pública": [
+    "No community rating",
+    "Sem avaliação pública",
+    "Нет оценки сообщества",
+    "暂无社区评分"
+  ],
+  "Opiniones": [
+    "Reviews",
+    "Comentários",
+    "Отзывы",
+    "评论"
+  ],
+  "Opiniones de la comunidad": [
+    "Community reviews",
+    "Comentários da comunidade",
+    "Отзывы сообщества",
+    "社区评论"
+  ],
+  "Más opiniones": [
+    "More reviews",
+    "Mais comentários",
+    "Ещё отзывы",
+    "更多评论"
+  ],
+  "Destacado por vos": [
+    "Pinned by you",
+    "Destacado por você",
+    "Вы выделили этот отзыв",
+    "您置顶的评论"
+  ],
+  "Tus corazones destacan comentarios; los dislikes los envían al final. Se guardan en este equipo.": [
+    "Hearts pin reviews; dislikes move them to the end. Saved on this device.",
+    "Corações destacam comentários; dislikes os levam ao final. Salvos neste dispositivo.",
+    "Сердечки закрепляют отзывы, дизлайки перемещают их вниз. Хранятся на этом устройстве.",
+    "点赞可置顶评论，点踩将其移至末尾。保存在此设备中。"
+  ],
+  "Valoración sin comentario": [
+    "Rating without a review",
+    "Avaliação sem comentário",
+    "Оценка без отзыва",
+    "评分无评论"
+  ],
+  "Sinopsis": [
+    "Synopsis",
+    "Sinopse",
+    "Описание",
+    "简介"
+  ],
+  "TOMO · MI BIBLIOTECA": [
+    "VOLUME · MY LIBRARY",
+    "VOLUME · MINHA BIBLIOTECA",
+    "ТОМ · МОЯ БИБЛИОТЕКА",
+    "单行本 · 我的藏书"
+  ],
+  "MI COLECCIÓN": [
+    "MY COLLECTION",
+    "MINHA COLEÇÃO",
+    "МОЯ КОЛЛЕКЦИЯ",
+    "我的收藏"
+  ],
+  "Lo tengo": [
+    "Owned",
+    "Tenho",
+    "У меня есть",
+    "已拥有"
+  ],
+  "Lo quiero": [
+    "Wanted",
+    "Quero",
+    "Хочу",
+    "想要"
+  ],
+  "Leído": [
+    "Read",
+    "Lido",
+    "Прочитано",
+    "已读"
+  ],
+  "Tu lectura y tus notas": [
+    "Your reading and notes",
+    "Sua leitura e suas notas",
+    "Ваше чтение и заметки",
+    "阅读与笔记"
+  ],
+  "Fecha de lectura": [
+    "Reading date",
+    "Data de leitura",
+    "Дата чтения",
+    "阅读日期"
+  ],
+  "Importe pagado (manual)": [
+    "Amount paid (manual)",
+    "Valor pago (manual)",
+    "Уплачено (вручную)",
+    "支付金额（手动）"
+  ],
+  "Etiquetas": [
+    "Tags",
+    "Etiquetas",
+    "Метки",
+    "标签"
+  ],
+  "Favoritos, para releer, pendientes…": [
+    "Favorites, reread, pending…",
+    "Favoritos, reler, pendentes…",
+    "Избранное, перечитать, в планах…",
+    "收藏、重读、待读…"
+  ],
+  "Notas personales": [
+    "Personal notes",
+    "Notas pessoais",
+    "Личные заметки",
+    "个人笔记"
+  ],
+  "Qué te dejó esta lectura, tus momentos favoritos…": [
+    "Your thoughts, favorite moments…",
+    "Suas impressões, momentos favoritos…",
+    "Впечатления и любимые моменты…",
+    "阅读感想、喜爱的瞬间…"
+  ],
+  "Añadir emoji": [
+    "Add emoji",
+    "Adicionar emoji",
+    "Добавить эмодзи",
+    "添加表情"
+  ],
+  "Guardado automático · etiquetas y gastos locales · lecturas y cambios de colección se envían a tu cuenta.": [
+    "Autosaved · tags and costs stay local · reading and collection changes sync to your account.",
+    "Salvo automaticamente · etiquetas e gastos locais · leituras e mudanças na coleção sincronizam com sua conta.",
+    "Автосохранение · метки и расходы локально · чтение и коллекция синхронизируются с аккаунтом.",
+    "自动保存 · 标签和费用存于本地 · 阅读和收藏更改同步至账户。"
+  ],
+  "Colección personal": [
+    "Personal collection",
+    "Coleção pessoal",
+    "Личная коллекция",
+    "个人收藏"
+  ],
+  "Ubicación": [
+    "Location",
+    "Localização",
+    "Расположение",
+    "存放位置"
+  ],
+  "Estante, caja o habitación…": [
+    "Shelf, box or room…",
+    "Estante, caixa ou cômodo…",
+    "Полка, коробка или комната…",
+    "书架、箱子或房间…"
+  ],
+  "Estado de conservación": [
+    "Condition",
+    "Estado de conservação",
+    "Состояние",
+    "保存状态"
+  ],
+  "Nuevo, muy bueno, desgastado…": [
+    "New, very good, worn…",
+    "Novo, muito bom, desgastado…",
+    "Новое, хорошее, потёртое…",
+    "全新、良好、磨损…"
+  ],
+  "Historial de lecturas y relecturas": [
+    "Reading and rereading history",
+    "Histórico de leituras e releituras",
+    "История чтения и перечитывания",
+    "阅读和重读记录"
+  ],
+  "Registrar lectura / relectura hoy": [
+    "Record a reading / rereading today",
+    "Registrar leitura / releitura hoje",
+    "Записать чтение / перечитывание сегодня",
+    "记录今天的阅读或重读"
+  ],
+  "Ubicación, conservación y relecturas se guardan localmente y en tu respaldo.": [
+    "Location, condition and rereadings are saved locally and in your backup.",
+    "Localização, conservação e releituras ficam no dispositivo e no backup.",
+    "Расположение, состояние и перечитывания хранятся локально и в резервной копии.",
+    "位置、保存状态和重读记录保存在本地及备份中。"
+  ],
+  "Firmas y dedicatorias": [
+    "Signatures and dedications",
+    "Assinaturas e dedicatórias",
+    "Автографы и посвящения",
+    "签名与题词"
+  ],
+  "Álbum local incluido en el respaldo JSON. No necesita suscripción.": [
+    "Local album included in the JSON backup. No subscription needed.",
+    "Álbum local incluído no backup JSON. Sem assinatura.",
+    "Локальный альбом включён в резервную копию JSON. Подписка не нужна.",
+    "本地相册包含在 JSON 备份中，无需订阅。"
+  ],
+  "Añadir foto": [
+    "Add photo",
+    "Adicionar foto",
+    "Добавить фото",
+    "添加照片"
+  ],
+  "Ordená tus próximas lecturas con las flechas.": [
+    "Use the arrows to order your next readings.",
+    "Use as setas para organizar suas próximas leituras.",
+    "Используйте стрелки для порядка чтения.",
+    "使用箭头安排接下来的阅读顺序。"
+  ],
+  "Novedades de mis series": [
+    "Releases from my series",
+    "Novidades das minhas séries",
+    "Новинки моих серий",
+    "我的系列新出版物"
+  ],
+  "Colecciones": [
+    "Collections",
+    "Coleções",
+    "Коллекции",
+    "收藏集"
+  ],
+  "Ver colección": [
+    "View collection",
+    "Ver coleção",
+    "Открыть коллекцию",
+    "查看收藏集"
+  ],
+  "Añadir a favoritos": [
+    "Add to favorites",
+    "Adicionar aos favoritos",
+    "Добавить в избранное",
+    "添加至收藏"
+  ],
+  "Quitar de favoritos": [
+    "Remove from favorites",
+    "Remover dos favoritos",
+    "Убрать из избранного",
+    "取消收藏"
+  ],
+  "Añadir serie completa": [
+    "Add complete series",
+    "Adicionar série completa",
+    "Добавить всю серию",
+    "添加完整系列"
+  ],
+  "Quitar colección": [
+    "Remove collection",
+    "Remover coleção",
+    "Удалить коллекцию",
+    "移除收藏集"
+  ],
+  "Quitar colección de mi biblioteca": [
+    "Remove collection from my library",
+    "Remover coleção da biblioteca",
+    "Удалить коллекцию из библиотеки",
+    "从藏书移除收藏集"
+  ],
+  "Quitar serie de mi colección": [
+    "Remove series from my collection",
+    "Remover série da coleção",
+    "Удалить серию из коллекции",
+    "从收藏移除系列"
+  ],
+  "Agregar o quitar se sincroniza con tu cuenta. Se conservan tus notas y lecturas.": [
+    "Adding and removing syncs to your account. Notes and reading history are kept.",
+    "Adicionar e remover sincroniza com sua conta. Notas e leituras são mantidas.",
+    "Добавление и удаление синхронизируются с аккаунтом. Заметки и чтение сохраняются.",
+    "添加和移除将同步到账户，笔记和阅读记录保留。"
+  ],
+  "Conectate para consultar la serie completa antes de agregarla.": [
+    "Connect to load the complete series before adding it.",
+    "Conecte-se para consultar a série completa antes de adicioná-la.",
+    "Подключитесь для загрузки всей серии перед добавлением.",
+    "添加前请连接以加载完整系列。"
+  ],
+  "Acá empieza tu próxima historia": [
+    "Your next story starts here",
+    "Sua próxima história começa aqui",
+    "Ваша следующая история начинается здесь",
+    "下一个故事从这里开始"
+  ],
+  "Abrí un tomo para ver su ficha, agregar notas o marcar tu lectura.": [
+    "Open a volume to see its details, add notes or mark it read.",
+    "Abra um volume para ver detalhes, adicionar notas ou marcar a leitura.",
+    "Откройте том для информации, заметок и отметки о чтении.",
+    "打开单行本查看详情、添加笔记或标记已读。"
+  ],
+  "No hay resultados. Probá otro título o etiqueta.": [
+    "No results. Try another title or tag.",
+    "Nenhum resultado. Tente outro título ou etiqueta.",
+    "Нет результатов. Попробуйте другое название или метку.",
+    "无结果，请尝试其他标题或标签。"
+  ],
+  "Buscar cómics, series o autores…": [
+    "Search comics, series or authors…",
+    "Pesquisar quadrinhos, séries ou autores…",
+    "Поиск комиксов, серий и авторов…",
+    "搜索漫画、系列或作者…"
+  ],
+  "Buscar en tu biblioteca…": [
+    "Search your library…",
+    "Pesquisar na sua biblioteca…",
+    "Поиск в вашей библиотеке…",
+    "搜索您的藏书…"
+  ],
+  "ACTIVIDAD RECIENTE": [
+    "RECENT ACTIVITY",
+    "ATIVIDADE RECENTE",
+    "НЕДАВНЯЯ АКТИВНОСТЬ",
+    "最近动态"
+  ],
+  "ACTIVIDAD DE TUS AMIGOS": [
+    "FRIENDS' ACTIVITY",
+    "ATIVIDADE DOS AMIGOS",
+    "АКТИВНОСТЬ ДРУЗЕЙ",
+    "好友动态"
+  ],
+  "Todos mis amigos": [
+    "All my friends",
+    "Todos os meus amigos",
+    "Все мои друзья",
+    "所有好友"
+  ],
+  "Actualizar perfil": [
+    "Refresh profile",
+    "Atualizar perfil",
+    "Обновить профиль",
+    "刷新个人资料"
+  ],
+  "Amigos anteriores": [
+    "Previous friends",
+    "Amigos anteriores",
+    "Предыдущие друзья",
+    "上一组好友"
+  ],
+  "Más amigos": [
+    "More friends",
+    "Mais amigos",
+    "Ещё друзья",
+    "更多好友"
+  ],
+  "Carrusel automático": [
+    "Automatic carousel",
+    "Carrossel automático",
+    "Автоматическая карусель",
+    "自动轮播"
+  ],
+  "Carrusel automático de amigos": [
+    "Automatic friends carousel",
+    "Carrossel automático de amigos",
+    "Автоматическая карусель друзей",
+    "好友自动轮播"
+  ],
+  "cómics": [
+    "comics",
+    "quadrinhos",
+    "комиксов",
+    "漫画"
+  ],
+  "Actividad de amigos obtenida de Whakoom.": [
+    "Friends' activity from Whakoom.",
+    "Atividade de amigos do Whakoom.",
+    "Активность друзей из Whakoom.",
+    "来自 Whakoom 的好友动态。"
+  ],
+  "Conectá tu cuenta para ver a las personas que seguís en Whakoom.": [
+    "Connect your account to see people you follow on Whakoom.",
+    "Conecte sua conta para ver quem você segue no Whakoom.",
+    "Подключите аккаунт, чтобы увидеть подписки в Whakoom.",
+    "连接账户以查看您在 Whakoom 关注的人。"
+  ],
+  "Apariencia": [
+    "Appearance",
+    "Aparência",
+    "Оформление",
+    "外观"
+  ],
+  "Oscuro": [
+    "Dark",
+    "Escuro",
+    "Тёмная",
+    "深色"
+  ],
+  "Claro": [
+    "Light",
+    "Claro",
+    "Светлая",
+    "浅色"
+  ],
+  "Animaciones y efecto holográfico": [
+    "Animations and holographic effect",
+    "Animações e efeito holográfico",
+    "Анимация и голографический эффект",
+    "动画与全息效果"
+  ],
+  "Zoom, reflejo e inclinación desde los 150 ms sobre la portada.": [
+    "Zoom, sheen and tilt after hovering 150 ms.",
+    "Zoom, brilho e inclinação após 150 ms sobre a capa.",
+    "Масштаб, блик и наклон через 150 мс наведения.",
+    "悬停封面 150 毫秒后放大、闪光与倾斜。"
+  ],
+  "Menú lateral compacto": [
+    "Compact sidebar",
+    "Menu lateral compacto",
+    "Компактное боковое меню",
+    "紧凑侧栏"
+  ],
+  "Idioma de la aplicación": [
+    "Application language",
+    "Idioma do aplicativo",
+    "Язык приложения",
+    "应用语言"
+  ],
+  "Cambia los controles de la app. Los títulos y comentarios conservan su idioma original.": [
+    "Changes app controls. Titles and reviews keep their original language.",
+    "Altera os controles do app. Títulos e comentários mantêm o idioma original.",
+    "Меняет язык интерфейса. Названия и отзывы остаются на исходном языке.",
+    "更改应用控件语言，标题和评论保留原始语言。"
+  ],
+  "Conexión": [
+    "Connection",
+    "Conexão",
+    "Подключение",
+    "连接"
+  ],
+  "Trabajar sin conexión": [
+    "Work offline",
+    "Trabalhar offline",
+    "Работать офлайн",
+    "离线使用"
+  ],
+  "Los cambios quedan pendientes sin red y se envían al reconectar.": [
+    "Changes stay pending offline and are sent when you reconnect.",
+    "Mudanças ficam pendentes offline e são enviadas ao reconectar.",
+    "Изменения сохраняются офлайн и отправляются при подключении.",
+    "离线时更改保留为待同步，重新连接后发送。"
+  ],
+  "La caché de miniaturas se configura en la tarjeta de almacenamiento.": [
+    "Configure the thumbnail cache in the storage card.",
+    "Configure o cache de miniaturas no cartão de armazenamento.",
+    "Кэш миниатюр настраивается в разделе хранения.",
+    "在存储卡片中配置缩略图缓存。"
+  ],
+  "Reintentar imágenes": [
+    "Retry images",
+    "Tentar imagens novamente",
+    "Повторить загрузку изображений",
+    "重试图片"
+  ],
+  "Caché de miniaturas": [
+    "Thumbnail cache",
+    "Cache de miniaturas",
+    "Кэш миниатюр",
+    "缩略图缓存"
+  ],
+  "Guardar miniaturas en este equipo": [
+    "Save thumbnails on this device",
+    "Salvar miniaturas neste dispositivo",
+    "Сохранять миниатюры на устройстве",
+    "在此设备保存缩略图"
+  ],
+  "Las portadas guardadas abren más rápido y funcionan sin conexión.": [
+    "Saved covers load faster and work offline.",
+    "Capas salvas carregam mais rápido e funcionam offline.",
+    "Сохранённые обложки быстрее открываются и доступны офлайн.",
+    "缓存的封面加载更快且可离线显示。"
+  ],
+  "Espacio máximo en disco": [
+    "Maximum disk space",
+    "Espaço máximo em disco",
+    "Лимит места на диске",
+    "最大磁盘空间"
+  ],
+  "Máximo de miniaturas": [
+    "Maximum thumbnails",
+    "Máximo de miniaturas",
+    "Лимит миниатюр",
+    "最多缩略图数"
+  ],
+  "0 = sin límite de cantidad; siempre se respeta el espacio elegido.": [
+    "0 = unlimited count; the disk limit always applies.",
+    "0 = quantidade ilimitada; o limite de espaço sempre se aplica.",
+    "0 = без ограничения числа; лимит диска действует всегда.",
+    "0 = 数量不限，但始终遵守磁盘空间限制。"
+  ],
+  "Resolución": [
+    "Resolution",
+    "Resolução",
+    "Разрешение",
+    "分辨率"
+  ],
+  "Ligera · 150 px": [
+    "Small · 150 px",
+    "Leve · 150 px",
+    "Лёгкая · 150 px",
+    "低 · 150 像素"
+  ],
+  "Equilibrada · 300 px": [
+    "Balanced · 300 px",
+    "Equilibrada · 300 px",
+    "Средняя · 300 px",
+    "平衡 · 300 像素"
+  ],
+  "Alta · 600 px": [
+    "High · 600 px",
+    "Alta · 600 px",
+    "Высокая · 600 px",
+    "高 · 600 像素"
+  ],
+  "Miniaturas en memoria": [
+    "Thumbnails in memory",
+    "Miniaturas na memória",
+    "Миниатюры в памяти",
+    "内存缩略图数"
+  ],
+  "Mayor resolución usa más memoria. La nitidez depende de la imagen original de Whakoom.": [
+    "Higher resolution uses more memory. Sharpness depends on Whakoom's original image.",
+    "Resoluções maiores usam mais memória. A nitidez depende da imagem original do Whakoom.",
+    "Высокое разрешение использует больше памяти. Чёткость зависит от оригинала Whakoom.",
+    "分辨率越高占用内存越多，清晰度取决于 Whakoom 的原始图片。"
+  ],
+  "Vaciar caché de disco": [
+    "Clear disk cache",
+    "Limpar cache de disco",
+    "Очистить кэш на диске",
+    "清空磁盘缓存"
+  ],
+  "Comprobar espacio": [
+    "Check storage",
+    "Verificar espaço",
+    "Проверить место",
+    "检查存储"
+  ],
+  "Respaldo": [
+    "Backup",
+    "Backup",
+    "Резервная копия",
+    "备份"
+  ],
+  "Guardar JSON": [
+    "Save JSON",
+    "Salvar JSON",
+    "Сохранить JSON",
+    "保存 JSON"
+  ],
+  "Exportar CSV": [
+    "Export CSV",
+    "Exportar CSV",
+    "Экспорт CSV",
+    "导出 CSV"
+  ],
+  "Restaurar respaldo": [
+    "Restore backup",
+    "Restaurar backup",
+    "Восстановить копию",
+    "恢复备份"
+  ],
+  "Incluye biblioteca, notas, corazones, dislikes, favoritos y cambios pendientes. No incluye la contraseña ni las cookies.": [
+    "Includes library, notes, hearts, dislikes, favorites and pending changes. Excludes passwords and cookies.",
+    "Inclui biblioteca, notas, corações, dislikes, favoritos e mudanças pendentes. Sem senhas ou cookies.",
+    "Включает библиотеку, заметки, реакции, избранное и ожидающие изменения. Без пароля и cookies.",
+    "包括藏书、笔记、点赞、点踩、收藏及待同步更改，不包含密码或 Cookie。"
+  ],
+  "Cuenta de Whakoom": [
+    "Whakoom account",
+    "Conta Whakoom",
+    "Аккаунт Whakoom",
+    "Whakoom 账户"
+  ],
+  "Conectar cuenta": [
+    "Connect account",
+    "Conectar conta",
+    "Подключить аккаунт",
+    "连接账户"
+  ],
+  "Conectando…": [
+    "Connecting…",
+    "Conectando…",
+    "Подключение…",
+    "正在连接…"
+  ],
+  "Desconectar": [
+    "Disconnect",
+    "Desconectar",
+    "Отключить",
+    "断开连接"
+  ],
+  "Desconectar y borrar cookies": [
+    "Disconnect and clear cookies",
+    "Desconectar e apagar cookies",
+    "Отключить и удалить cookies",
+    "断开并清除 Cookie"
+  ],
+  "Conectá tu cuenta para administrar tu perfil y tus preferencias.": [
+    "Connect your account to manage your profile and preferences.",
+    "Conecte sua conta para gerenciar perfil e preferências.",
+    "Подключите аккаунт для управления профилем и настройками.",
+    "连接账户以管理个人资料和偏好。"
+  ],
+  "Iniciar sesión": [
+    "Sign in",
+    "Entrar",
+    "Войти",
+    "登录"
+  ],
+  "Usuario o email": [
+    "Username or email",
+    "Usuário ou email",
+    "Имя пользователя или email",
+    "用户名或邮箱"
+  ],
+  "Contraseña": [
+    "Password",
+    "Senha",
+    "Пароль",
+    "密码"
+  ],
+  "Mostrar contraseña": [
+    "Show password",
+    "Mostrar senha",
+    "Показать пароль",
+    "显示密码"
+  ],
+  "Ingresá tu usuario o email y contraseña. La sesión se guarda cifrada; la contraseña no se guarda.": [
+    "Enter your username or email and password. The session is encrypted; the password is not saved.",
+    "Digite usuário ou email e senha. A sessão é criptografada; a senha não é salva.",
+    "Введите имя или email и пароль. Сеанс зашифрован; пароль не сохраняется.",
+    "请输入用户名或邮箱和密码。会话加密保存，密码不保存。"
+  ],
+  "Desactivá Trabajar sin conexión en Ajustes para conectar tu cuenta.": [
+    "Disable Work offline in Settings to connect your account.",
+    "Desative Trabalhar offline nas configurações para conectar sua conta.",
+    "Отключите офлайн-режим в настройках для подключения аккаунта.",
+    "在设置中关闭离线模式以连接账户。"
+  ],
+  "Reintentar conexión": [
+    "Retry connection",
+    "Tentar conexão novamente",
+    "Повторить подключение",
+    "重试连接"
+  ],
+  "Verificación de Whakoom": [
+    "Whakoom verification",
+    "Verificação do Whakoom",
+    "Проверка Whakoom",
+    "Whakoom 验证"
+  ],
+  "Verificar acceso": [
+    "Verify access",
+    "Verificar acesso",
+    "Проверить доступ",
+    "验证访问"
+  ],
+  "Volver al programa": [
+    "Return to app",
+    "Voltar ao aplicativo",
+    "Вернуться в приложение",
+    "返回应用"
+  ],
+  "Si el sitio exige una comprobación adicional, completala dentro de Whakoom Desktop.": [
+    "If the site requires an additional check, complete it inside Whakoom Desktop.",
+    "Se o site solicitar uma verificação extra, conclua-a no Whakoom Desktop.",
+    "Если сайт требует дополнительную проверку, выполните её в Whakoom Desktop.",
+    "如果网站要求额外验证，请在 Whakoom Desktop 内完成。"
+  ],
+  "Perfil": [
+    "Profile",
+    "Perfil",
+    "Профиль",
+    "个人资料"
+  ],
+  "Tu imagen pública": [
+    "Your public picture",
+    "Sua imagem pública",
+    "Ваше публичное фото",
+    "您的公开头像"
+  ],
+  "Cambiar foto de perfil": [
+    "Change profile picture",
+    "Alterar foto de perfil",
+    "Изменить фото профиля",
+    "更换头像"
+  ],
+  "Biografía": [
+    "Biography",
+    "Biografia",
+    "О себе",
+    "个人简介"
+  ],
+  "Ver perfil": [
+    "View profile",
+    "Ver perfil",
+    "Открыть профиль",
+    "查看个人资料"
+  ],
+  "Cambiar contraseña": [
+    "Change password",
+    "Alterar senha",
+    "Изменить пароль",
+    "修改密码"
+  ],
+  "Dejá los campos nuevos vacíos para conservar tu contraseña.": [
+    "Leave the new fields empty to keep your password.",
+    "Deixe os campos novos vazios para manter sua senha.",
+    "Оставьте новые поля пустыми, чтобы сохранить пароль.",
+    "如需保留密码，请将新密码字段留空。"
+  ],
+  "Suscripción": [
+    "Subscription",
+    "Assinatura",
+    "Подписка",
+    "订阅"
+  ],
+  "Planes y gestión de pagos": [
+    "Plans and billing",
+    "Planos e pagamentos",
+    "Тарифы и платежи",
+    "套餐与付款"
+  ],
+  "El código se canjea en tu cuenta online.": [
+    "The code is redeemed in your online account.",
+    "O código é resgatado na sua conta online.",
+    "Код активируется в вашем онлайн-аккаунте.",
+    "兑换码将在您的在线账户中使用。"
+  ],
+  "Cancelar renovación": [
+    "Cancel renewal",
+    "Cancelar renovação",
+    "Отменить продление",
+    "取消续订"
+  ],
+  "Confirmar cancelación": [
+    "Confirm cancellation",
+    "Confirmar cancelamento",
+    "Подтвердить отмену",
+    "确认取消"
+  ],
+  "Conservar suscripción": [
+    "Keep subscription",
+    "Manter assinatura",
+    "Сохранить подписку",
+    "保留订阅"
+  ],
+  "¿Cancelar la renovación automática de tu suscripción?": [
+    "Cancel automatic subscription renewal?",
+    "Cancelar a renovação automática da assinatura?",
+    "Отменить автоматическое продление подписки?",
+    "取消订阅自动续费？"
+  ],
+  "Idioma y país": [
+    "Language and country",
+    "Idioma e país",
+    "Язык и страна",
+    "语言和国家"
+  ],
+  "Idiomas de publicaciones": [
+    "Publication languages",
+    "Idiomas das publicações",
+    "Языки изданий",
+    "出版物语言"
+  ],
+  "Añadir idioma": [
+    "Add language",
+    "Adicionar idioma",
+    "Добавить язык",
+    "添加语言"
+  ],
+  "Privacidad": [
+    "Privacy",
+    "Privacidade",
+    "Приватность",
+    "隐私"
+  ],
+  "Controla la visibilidad de tu colección online.": [
+    "Controls the visibility of your online collection.",
+    "Controla a visibilidade da coleção online.",
+    "Управляет видимостью онлайн-коллекции.",
+    "控制在线收藏的可见性。"
+  ],
+  "Usa la opción de privacidad de tu cuenta de Whakoom.": [
+    "Uses the privacy setting of your Whakoom account.",
+    "Usa a privacidade da sua conta Whakoom.",
+    "Использует настройку приватности аккаунта Whakoom.",
+    "使用 Whakoom 账户隐私设置。"
+  ],
+  "Usuarios bloqueados": [
+    "Blocked users",
+    "Usuários bloqueados",
+    "Заблокированные пользователи",
+    "已屏蔽用户"
+  ],
+  "No tenés usuarios bloqueados.": [
+    "You have no blocked users.",
+    "Você não bloqueou nenhum usuário.",
+    "Нет заблокированных пользователей.",
+    "暂无已屏蔽用户。"
+  ],
+  "Desbloquear": [
+    "Unblock",
+    "Desbloquear",
+    "Разблокировать",
+    "取消屏蔽"
+  ],
+  "Notificaciones dentro de Whakoom Desktop": [
+    "Notifications in Whakoom Desktop",
+    "Notificações no Whakoom Desktop",
+    "Уведомления в Whakoom Desktop",
+    "Whakoom Desktop 内通知"
+  ],
+  "La campana muestra la actividad de amigos. Se consulta cada cinco minutos mientras la app está abierta.": [
+    "The bell shows friends' activity. Checked every five minutes while the app is open.",
+    "O sino mostra a atividade de amigos. Consultado a cada cinco minutos com o app aberto.",
+    "Колокольчик показывает активность друзей. Проверка каждые пять минут, пока приложение открыто.",
+    "铃铛显示好友动态，应用打开时每五分钟检查一次。"
+  ],
+  "En mi colección": [
+    "In my collection",
+    "Na minha coleção",
+    "В моей коллекции",
+    "我的收藏"
+  ],
+  "Por leer": [
+    "To read",
+    "Para ler",
+    "К прочтению",
+    "待读"
+  ],
+  "Objetivo de lectura": [
+    "Reading goal",
+    "Meta de leitura",
+    "Цель чтения",
+    "阅读目标"
+  ],
+  "Meta de lecturas": [
+    "Reading target",
+    "Objetivo de leituras",
+    "Цель по чтению",
+    "阅读目标数量"
+  ],
+  "Cuenta los tomos marcados como leídos en tu biblioteca.": [
+    "Counts volumes marked read in your library.",
+    "Conta volumes marcados como lidos na biblioteca.",
+    "Считает прочитанные тома в библиотеке.",
+    "统计藏书中标记为已读的单行本。"
+  ],
+  "Tu colección en cifras": [
+    "Your collection in numbers",
+    "Sua coleção em números",
+    "Коллекция в цифрах",
+    "收藏统计"
+  ],
+  "Importes cargados manualmente": [
+    "Manually entered amounts",
+    "Valores inseridos manualmente",
+    "Суммы введены вручную",
+    "手动输入的金额"
+  ],
+  "Suma de tus importes personales. No se obtiene del catálogo ni convierte monedas.": [
+    "Sum of your personal amounts. Not obtained from the catalog; no currency conversion.",
+    "Soma dos seus valores pessoais. Não vem do catálogo nem converte moedas.",
+    "Сумма личных расходов. Не берётся из каталога, без конвертации валют.",
+    "个人输入金额的总和，不来自目录，不进行货币兑换。"
+  ],
+  "Editoriales": [
+    "Publishers",
+    "Editoras",
+    "Издательства",
+    "出版社"
+  ],
+  "Las editoriales aparecerán al consultar las fichas de tus tomos.": [
+    "Publishers appear after fetching your volume details.",
+    "As editoras aparecem ao consultar os detalhes dos volumes.",
+    "Издательства появятся после загрузки информации о томах.",
+    "加载单行本详情后显示出版社。"
+  ],
+  "Añadí etiquetas en tus fichas para agrupar las estadísticas.": [
+    "Add tags to your volumes to group statistics.",
+    "Adicione etiquetas aos volumes para agrupar estatísticas.",
+    "Добавьте метки к томам для группировки статистики.",
+    "为单行本添加标签以分类统计。"
+  ],
+  "Lecturas por mes": [
+    "Readings by month",
+    "Leituras por mês",
+    "Чтение по месяцам",
+    "每月阅读"
+  ],
+  "Registrá fechas de lectura para ver tu historial.": [
+    "Record reading dates to see your history.",
+    "Registre datas de leitura para ver o histórico.",
+    "Запишите даты чтения для просмотра истории.",
+    "记录阅读日期以查看历史。"
+  ],
+  "Filtros de colección": [
+    "Collection filters",
+    "Filtros da coleção",
+    "Фильтры коллекции",
+    "收藏筛选"
+  ],
+  "Todas las editoriales": [
+    "All publishers",
+    "Todas as editoras",
+    "Все издательства",
+    "所有出版社"
+  ],
+  "Todos los estados": [
+    "Any reading status",
+    "Todos os estados",
+    "Любой статус чтения",
+    "所有阅读状态"
+  ],
+  "Sin leer": [
+    "Unread",
+    "Não lido",
+    "Не прочитано",
+    "未读"
+  ],
+  "Valoración mínima": [
+    "Minimum rating",
+    "Avaliação mínima",
+    "Минимальная оценка",
+    "最低评分"
+  ],
+  "Limpiar filtros": [
+    "Clear filters",
+    "Limpar filtros",
+    "Сбросить фильтры",
+    "清除筛选"
+  ],
+  "Relecturas": [
+    "Rereadings",
+    "Releituras",
+    "Перечитывания",
+    "重读"
+  ],
+  "Enero": [
+    "January",
+    "Janeiro",
+    "Январь",
+    "一月"
+  ],
+  "Febrero": [
+    "February",
+    "Fevereiro",
+    "Февраль",
+    "二月"
+  ],
+  "Marzo": [
+    "March",
+    "Março",
+    "Март",
+    "三月"
+  ],
+  "Abril": [
+    "April",
+    "Abril",
+    "Апрель",
+    "四月"
+  ],
+  "Mayo": [
+    "May",
+    "Maio",
+    "Май",
+    "五月"
+  ],
+  "Junio": [
+    "June",
+    "Junho",
+    "Июнь",
+    "六月"
+  ],
+  "Julio": [
+    "July",
+    "Julho",
+    "Июль",
+    "七月"
+  ],
+  "Agosto": [
+    "August",
+    "Agosto",
+    "Август",
+    "八月"
+  ],
+  "Septiembre": [
+    "September",
+    "Setembro",
+    "Сентябрь",
+    "九月"
+  ],
+  "Octubre": [
+    "October",
+    "Outubro",
+    "Октябрь",
+    "十月"
+  ],
+  "Noviembre": [
+    "November",
+    "Novembro",
+    "Ноябрь",
+    "十一月"
+  ],
+  "Diciembre": [
+    "December",
+    "Dezembro",
+    "Декабрь",
+    "十二月"
+  ],
+  "Elegir fecha": [
+    "Choose date",
+    "Escolher data",
+    "Выбрать дату",
+    "选择日期"
+  ],
+  "Hoy": [
+    "Today",
+    "Hoje",
+    "Сегодня",
+    "今天"
+  ],
+  "Sin fecha": [
+    "No date",
+    "Sem data",
+    "Без даты",
+    "无日期"
+  ],
+  "Ver mes": [
+    "View month",
+    "Ver mês",
+    "Открыть месяц",
+    "查看月份"
+  ],
+  "Próximamente": [
+    "Upcoming",
+    "Em breve",
+    "Скоро",
+    "即将出版"
+  ],
+  "Sin portada": [
+    "No cover",
+    "Sem capa",
+    "Нет обложки",
+    "暂无封面"
+  ],
+  "Sin portada · reintentar": [
+    "No cover · retry",
+    "Sem capa · tentar novamente",
+    "Нет обложки · повторить",
+    "暂无封面 · 重试"
+  ],
+  "Cargando…": [
+    "Loading…",
+    "Carregando…",
+    "Загрузка…",
+    "加载中…"
+  ],
+  "Consultando…": [
+    "Fetching…",
+    "Consultando…",
+    "Загрузка…",
+    "正在获取…"
+  ],
+  "Consultando la ficha…": [
+    "Fetching details…",
+    "Consultando detalhes…",
+    "Загрузка информации…",
+    "正在获取详情…"
+  ],
+  "Consultando opiniones de la serie…": [
+    "Fetching series reviews…",
+    "Consultando comentários da série…",
+    "Загрузка отзывов о серии…",
+    "正在获取系列评论…"
+  ],
+  "Detener": [
+    "Stop",
+    "Parar",
+    "Остановить",
+    "停止"
+  ],
+  "Buscar en Whakoom": [
+    "Search Whakoom",
+    "Pesquisar no Whakoom",
+    "Поиск в Whakoom",
+    "在 Whakoom 搜索"
+  ],
+  "Guardar cambios": [
+    "Save changes",
+    "Salvar mudanças",
+    "Сохранить изменения",
+    "保存更改"
+  ],
+  "Aplicación": [
+    "Application",
+    "Aplicativo",
+    "Приложение",
+    "应用"
+  ],
+  "Cambiar imagen": [
+    "Change picture",
+    "Alterar imagem",
+    "Изменить изображение",
+    "更换图片"
+  ],
+  "Reintentar": [
+    "Retry",
+    "Tentar novamente",
+    "Повторить",
+    "重试"
+  ],
+  "TU ESPACIO PERSONAL": [
+    "YOUR PERSONAL SPACE",
+    "SEU ESPAÇO PESSOAL",
+    "ВАШЕ ЛИЧНОЕ ПРОСТРАНСТВО",
+    "您的个人空间"
+  ],
+  "DESCUBRÍ TU PRÓXIMA LECTURA": [
+    "DISCOVER YOUR NEXT READ",
+    "DESCUBRA SUA PRÓXIMA LEITURA",
+    "НАЙДИТЕ СЛЕДУЮЩУЮ КНИГУ",
+    "发现下一部作品"
+  ],
+  "Tus tomos, en orden. Cada lectura cuenta.": [
+    "Your volumes, in order. Every reading counts.",
+    "Seus volumes, em ordem. Cada leitura conta.",
+    "Ваши тома по порядку. Каждое чтение важно.",
+    "您的单行本按序排列，每次阅读都值得记录。"
+  ],
+  "Un lugar para todas tus historias.": [
+    "A place for all your stories.",
+    "Um lugar para todas as suas histórias.",
+    "Место для всех ваших историй.",
+    "所有故事的归属之地。"
+  ],
+  "Novedades reales para descubrir, coleccionar y leer.": [
+    "Real releases to discover, collect and read.",
+    "Novidades reais para descobrir, colecionar e ler.",
+    "Новинки для открытия, коллекции и чтения.",
+    "发现、收藏与阅读真实新出版物。"
+  ],
+  "Encontrá títulos y ediciones de Whakoom.": [
+    "Find titles and editions from Whakoom.",
+    "Encontre títulos e edições do Whakoom.",
+    "Найдите произведения и издания Whakoom.",
+    "查找 Whakoom 的作品和版本。"
+  ],
+  "Las historias que querés sumar a tu biblioteca.": [
+    "Stories you want to add to your library.",
+    "As histórias que você quer na biblioteca.",
+    "Истории, которые вы хотите добавить в библиотеку.",
+    "您想加入藏书的故事。"
+  ],
+  "Las series que guardaste para volver a encontrar.": [
+    "Series you saved to find again.",
+    "Séries salvas para encontrar novamente.",
+    "Серии, которые вы сохранили на будущее.",
+    "保存的系列，方便再次找到。"
+  ],
+  "Tu próxima lectura está acá.": [
+    "Your next read is here.",
+    "Sua próxima leitura está aqui.",
+    "Ваше следующее чтение здесь.",
+    "下一次阅读从这里开始。"
+  ],
+  "Conocé tu colección y tus hábitos de lectura.": [
+    "Explore your collection and reading habits.",
+    "Conheça sua coleção e seus hábitos de leitura.",
+    "Узнайте свою коллекцию и привычки чтения.",
+    "了解您的收藏和阅读习惯。"
+  ],
+  "Tu biblioteca, a tu manera.": [
+    "Your library, your way.",
+    "Sua biblioteca, do seu jeito.",
+    "Ваша библиотека по вашим правилам.",
+    "您的藏书，由您设置。"
+  ],
+  "Tus amigos y sus últimas incorporaciones.": [
+    "Your friends and their latest additions.",
+    "Seus amigos e suas últimas aquisições.",
+    "Друзья и их последние приобретения.",
+    "好友及其最近新增的收藏。"
+  ],
+  "Tu identidad y tu colección en Whakoom.": [
+    "Your identity and collection on Whakoom.",
+    "Seu perfil e sua coleção no Whakoom.",
+    "Ваш профиль и коллекция в Whakoom.",
+    "您在 Whakoom 的身份和收藏。"
+  ],
+  "Tu perfil, tu sesión y tus preferencias de Whakoom.": [
+    "Your profile, session and Whakoom preferences.",
+    "Seu perfil, sessão e preferências do Whakoom.",
+    "Ваш профиль, сеанс и настройки Whakoom.",
+    "您的个人资料、会话和 Whakoom 偏好。"
+  ],
+  "Lo nuevo en las colecciones de tus amigos.": [
+    "New additions to your friends' collections.",
+    "Novidades nas coleções dos seus amigos.",
+    "Новое в коллекциях друзей.",
+    "好友收藏中的新内容。"
+  ],
+  "Preparando biblioteca…": [
+    "Preparing library…",
+    "Preparando biblioteca…",
+    "Подготовка библиотеки…",
+    "正在准备藏书…"
+  ],
+  "Consultando la actividad…": [
+    "Fetching activity…",
+    "Consultando atividade…",
+    "Загрузка активности…",
+    "正在获取动态…"
+  ],
+  "Todavía no hay actividad pública para mostrar.": [
+    "No public activity to show yet.",
+    "Ainda não há atividade pública.",
+    "Публичной активности пока нет.",
+    "暂无公开动态。"
+  ],
+  "Consultando opiniones…": [
+    "Fetching reviews…",
+    "Consultando comentários…",
+    "Загрузка отзывов…",
+    "正在获取评论…"
+  ],
+  "No hay opiniones publicadas en esta ficha.": [
+    "There are no reviews for this title.",
+    "Não há comentários para este título.",
+    "Нет отзывов об этом произведении.",
+    "此作品暂无评论。"
+  ],
+  "Esta serie no tiene tomos guardados todavía. Conectate para consultarlos.": [
+    "This series has no cached volumes yet. Connect to fetch them.",
+    "Esta série ainda não tem volumes salvos. Conecte-se para consultá-los.",
+    "Тома этой серии ещё не сохранены. Подключитесь для загрузки.",
+    "此系列尚无缓存单行本，请连接后获取。"
+  ],
+  "Buscá una serie en Catálogo y pulsá Añadir a favoritos.": [
+    "Find a series in Catalog and choose Add to favorites.",
+    "Encontre uma série no catálogo e escolha Adicionar aos favoritos.",
+    "Найдите серию в каталоге и добавьте в избранное.",
+    "在目录中找到系列并添加至收藏。"
+  ],
+  "Guardá un tomo desde su ficha o importá tu colección de Whakoom.": [
+    "Add a volume from its details or connect your Whakoom collection.",
+    "Adicione um volume nos detalhes ou conecte sua coleção Whakoom.",
+    "Добавьте том из карточки или подключите коллекцию Whakoom.",
+    "从详情添加单行本或连接您的 Whakoom 收藏。"
+  ],
+  "Nombre de usuario": [
+    "Username",
+    "Nome de usuário",
+    "Имя пользователя",
+    "用户名"
+  ],
+  "Correo electrónico": [
+    "Email",
+    "Email",
+    "Электронная почта",
+    "电子邮箱"
+  ],
+  "Contraseña actual": [
+    "Current password",
+    "Senha atual",
+    "Текущий пароль",
+    "当前密码"
+  ],
+  "Nueva contraseña": [
+    "New password",
+    "Nova senha",
+    "Новый пароль",
+    "新密码"
+  ],
+  "Repetir contraseña": [
+    "Repeat password",
+    "Repetir senha",
+    "Повторите пароль",
+    "再次输入密码"
+  ],
+  "Código de Whakoom": [
+    "Whakoom code",
+    "Código Whakoom",
+    "Код Whakoom",
+    "Whakoom 兑换码"
+  ],
+  "Idioma de Whakoom": [
+    "Whakoom language",
+    "Idioma do Whakoom",
+    "Язык Whakoom",
+    "Whakoom 语言"
+  ],
+  "País": [
+    "Country",
+    "País",
+    "Страна",
+    "国家"
+  ],
+  "Cuenta privada": [
+    "Private account",
+    "Conta privada",
+    "Приватный аккаунт",
+    "私密账户"
+  ],
+  "Ocultar mi comicteca": [
+    "Hide my collection",
+    "Ocultar minha coleção",
+    "Скрыть мою коллекцию",
+    "隐藏我的藏书"
+  ],
+  "Ofertas y promociones": [
+    "Offers and promotions",
+    "Ofertas e promoções",
+    "Предложения и акции",
+    "优惠与促销"
+  ],
+  "Promociones del mundo del cómic.": [
+    "Comic-related promotions.",
+    "Promoções de quadrinhos.",
+    "Акции мира комиксов.",
+    "漫画相关促销活动。"
+  ],
+  "Novedades editoriales": [
+    "New publications",
+    "Novidades editoriais",
+    "Новинки издательств",
+    "出版动态"
+  ],
+  "Nuevos tomos de las series que coleccionás.": [
+    "New volumes from series you collect.",
+    "Novos volumes das séries que você coleciona.",
+    "Новые тома ваших серий.",
+    "您收藏系列的新单行本。"
+  ],
+  "Nuevo seguidor": [
+    "New follower",
+    "Novo seguidor",
+    "Новый подписчик",
+    "新关注者"
+  ],
+  "Cuando alguien empieza a seguirte.": [
+    "When someone follows you.",
+    "Quando alguém começa a seguir você.",
+    "Когда кто-то подписывается на вас.",
+    "有人开始关注您时。"
+  ],
+  "Nuevos comentarios": [
+    "New comments",
+    "Novos comentários",
+    "Новые комментарии",
+    "新评论"
+  ],
+  "Comentarios y respuestas en Whakoom.": [
+    "Comments and replies on Whakoom.",
+    "Comentários e respostas no Whakoom.",
+    "Комментарии и ответы в Whakoom.",
+    "Whakoom 上的评论和回复。"
+  ],
+  "Actividad de tus amigos": [
+    "Friends' activity",
+    "Atividade dos amigos",
+    "Активность друзей",
+    "好友动态"
+  ],
+  "Resumen de las personas que seguís.": [
+    "Summary of people you follow.",
+    "Resumo de quem você segue.",
+    "Сводка о тех, на кого вы подписаны.",
+    "您关注的人的动态摘要。"
+  ],
+  "Novedades de Whakoom": [
+    "Whakoom news",
+    "Novidades do Whakoom",
+    "Новости Whakoom",
+    "Whakoom 新闻"
+  ],
+  "Cambios y nuevas funciones del servicio.": [
+    "Service changes and new features.",
+    "Mudanças e novas funções do serviço.",
+    "Изменения и новые функции сервиса.",
+    "服务变更与新功能。"
+  ],
+  "Consejos de uso": [
+    "Usage tips",
+    "Dicas de uso",
+    "Советы по использованию",
+    "使用提示"
+  ],
+  "Sugerencias para usar Whakoom.": [
+    "Tips for using Whakoom.",
+    "Dicas para usar o Whakoom.",
+    "Советы по использованию Whakoom.",
+    "使用 Whakoom 的建议。"
+  ],
+  "Seleccionar": [
+    "Select",
+    "Selecionar",
+    "Выбрать",
+    "选择"
+  ],
+  "votos": [
+    "votes",
+    "votos",
+    "голосов",
+    "票"
+  ],
+  "Ver tomos": [
+    "View volumes",
+    "Ver volumes",
+    "Открыть тома",
+    "查看单行本"
+  ],
+  "/ Mi colección": [
+    "/ My collection",
+    "/ Minha coleção",
+    "/ Моя коллекция",
+    "/ 我的收藏"
+  ],
+  "PNG, JPEG o WebP · hasta 5 MiB": [
+    "PNG, JPEG or WebP · up to 5 MiB",
+    "PNG, JPEG ou WebP · até 5 MiB",
+    "PNG, JPEG или WebP · до 5 MiB",
+    "PNG、JPEG 或 WebP · 最大 5 MiB"
+  ],
+  "Contraer menú": [
+    "Collapse menu",
+    "Recolher menu",
+    "Свернуть меню",
+    "收起菜单"
+  ],
+  "Expandir menú": [
+    "Expand menu",
+    "Expandir menu",
+    "Развернуть меню",
+    "展开菜单"
+  ],
+  "Modo claro": [
+    "Light mode",
+    "Modo claro",
+    "Светлая тема",
+    "浅色模式"
+  ],
+  "Modo oscuro": [
+    "Dark mode",
+    "Modo escuro",
+    "Тёмная тема",
+    "深色模式"
+  ],
+  "Serie": [
+    "Series",
+    "Série",
+    "Серия",
+    "系列"
+  ],
+  "Gestionar cuenta  ›": [
+    "Manage account  ›",
+    "Gerenciar conta  ›",
+    "Управление аккаунтом  ›",
+    "管理账户  ›"
+  ],
+  "Conectar con Whakoom  ›": [
+    "Connect to Whakoom  ›",
+    "Conectar ao Whakoom  ›",
+    "Подключиться к Whakoom  ›",
+    "连接 Whakoom  ›"
+  ],
+  "Conectar con Whakoom": [
+    "Connect to Whakoom",
+    "Conectar ao Whakoom",
+    "Подключиться к Whakoom",
+    "连接 Whakoom"
+  ],
+  "SIN CONEXIÓN · Whakoom Desktop 1.0": [
+    "OFFLINE · Whakoom Desktop 1.0",
+    "OFFLINE · Whakoom Desktop 1.0",
+    "ОФЛАЙН · Whakoom Desktop 1.0",
+    "离线 · Whakoom Desktop 1.0"
+  ],
+  "Agregar serie completa": [
+    "Add complete series",
+    "Adicionar série completa",
+    "Добавить всю серию",
+    "添加完整系列"
+  ],
+  "Serie en mi biblioteca": [
+    "Series in my library",
+    "Série na minha biblioteca",
+    "Серия в моей библиотеке",
+    "系列已加入藏书"
+  ],
+  "listas": [
+    "lists",
+    "listas",
+    "списков",
+    "列表"
+  ],
+  "fichas": [
+    "titles",
+    "títulos",
+    "произведений",
+    "作品"
+  ],
+  "fichas · copia local": [
+    "titles · cached copy",
+    "títulos · cópia local",
+    "произведений · локальная копия",
+    "作品 · 本地缓存"
+  ],
+  "fichas · Whakoom": [
+    "titles · Whakoom",
+    "títulos · Whakoom",
+    "произведений · Whakoom",
+    "作品 · Whakoom"
+  ],
+  "RAM de portadas: hasta ≈{0} MB": [
+    "Cover RAM: up to ≈{0} MB",
+    "RAM das capas: até ≈{0} MB",
+    "Память обложек: до ≈{0} МБ",
+    "封面内存：最多约 {0} MB"
+  ],
+  "{0} guardadas · {1} MB en disco": [
+    "{0} cached · {1} MB on disk",
+    "{0} salvas · {1} MB em disco",
+    "Сохранено: {0} · {1} МБ на диске",
+    "已缓存 {0} 张 · 磁盘 {1} MB"
+  ],
+  "{0} fichas guardadas en tu biblioteca local": [
+    "{0} titles cached in your local library",
+    "{0} títulos salvos na sua biblioteca local",
+    "{0} произведений в локальной библиотеке",
+    "本地藏书已缓存 {0} 部作品"
+  ],
+  "{0} personas que seguís": [
+    "{0} people you follow",
+    "{0} pessoas que você segue",
+    "Подписок: {0}",
+    "您关注了 {0} 人"
+  ]
+}

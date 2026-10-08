@@ -5630,10 +5630,12 @@ dependencies = [
 name = "whakoom-desktop"
 version = "1.0.0"
 dependencies = [
+ "base64 0.22.1",
  "eframe",
  "image",
  "keyring",
  "libc",
+ "read-fonts",
  "reqwest",
  "rfd",
  "scraper",

@@ -49,6 +49,8 @@ pub struct Preferences {
     pub series_view: bool,
     pub desktop_notifications: bool,
     pub cover_cache: crate::covers::CachePolicy,
+    pub language: crate::i18n::Language,
+    pub friends_carousel: bool,
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -63,6 +65,8 @@ impl Default for Preferences {
             series_view: true,
             desktop_notifications: true,
             cover_cache: Default::default(),
+            language: Default::default(),
+            friends_carousel: true,
         }
     }
 }
@@ -94,6 +98,14 @@ pub struct Entry {
     pub cost: f64,
     pub rating: u8,
     pub added: u64,
+    #[serde(default)]
+    pub readings: Vec<String>,
+    #[serde(default)]
+    pub location: String,
+    #[serde(default)]
+    pub condition: String,
+    #[serde(default)]
+    pub photos: Vec<String>,
 }
 impl Default for Entry {
     fn default() -> Self {
@@ -109,6 +121,10 @@ impl Default for Entry {
             cost: 0.,
             rating: 0,
             added: now(),
+            readings: Vec::new(),
+            location: String::new(),
+            condition: String::new(),
+            photos: Vec::new(),
         }
     }
 }
@@ -130,6 +146,12 @@ pub struct Library {
     pub inbox: crate::notifications::Inbox,
     #[serde(default)]
     pub reactions: crate::reactions::Reactions,
+    #[serde(default)]
+    pub recent: Recent,
+    #[serde(default)]
+    pub reading_order: Vec<String>,
+    #[serde(default)]
+    pub attachments: BTreeMap<String, String>,
 }
 impl Default for Library {
     fn default() -> Self {
@@ -143,7 +165,31 @@ impl Default for Library {
             friends: Vec::new(),
             inbox: Default::default(),
             reactions: Default::default(),
+            recent: Default::default(),
+            reading_order: Vec::new(),
+            attachments: BTreeMap::new(),
         }
+    }
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Recent {
+    pub queries: Vec<String>,
+    pub visited: Vec<Item>,
+}
+impl Recent {
+    pub fn search(&mut self, query: &str) {
+        let query = query.trim();
+        if query.is_empty() || query.chars().count() > 200 {
+            return;
+        }
+        self.queries.retain(|q| !q.eq_ignore_ascii_case(query));
+        self.queries.insert(0, query.into());
+        self.queries.truncate(16);
+    }
+    pub fn visit(&mut self, item: &Item) {
+        self.visited.retain(|i| i.key != item.key);
+        self.visited.insert(0, item.clone());
+        self.visited.truncate(24);
     }
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -164,6 +210,7 @@ pub struct Stats {
     pub tags: BTreeMap<String, usize>,
     pub publishers: BTreeMap<String, usize>,
     pub reading_months: BTreeMap<String, usize>,
+    pub rereads: usize,
 }
 impl Library {
     pub fn favorite_edition(&mut self, item: &Item) -> bool {
@@ -260,7 +307,19 @@ impl Library {
                     });
                 *s.publishers.entry(publisher.into()).or_default() += 1;
             }
+            let dated_current = usize::from(
+                e.read
+                    && reading_month(&e.read_date).is_some()
+                    && !e.readings.contains(&e.read_date),
+            );
+            s.rereads += (e.readings.len() + dated_current).saturating_sub(1);
+            for date in &e.readings {
+                if let Some(month) = reading_month(date) {
+                    *s.reading_months.entry(month.into()).or_default() += 1;
+                }
+            }
             if e.read
+                && !e.readings.contains(&e.read_date)
                 && let Some(month) = reading_month(&e.read_date)
             {
                 *s.reading_months.entry(month.into()).or_default() += 1;
@@ -279,6 +338,39 @@ impl Library {
     }
     pub fn validate(&self) -> Result<(), String> {
         crate::reactions::validate(&self.reactions)?;
+        if self.recent.queries.len() > 16
+            || self.recent.visited.len() > 24
+            || self.recent.queries.iter().any(|q| q.chars().count() > 200)
+            || self
+                .recent
+                .visited
+                .iter()
+                .any(|i| crate::api::key_from_url(&i.url).as_ref() != Some(&i.key))
+        {
+            return Err("Historial inválido".into());
+        }
+        let mut order = BTreeSet::new();
+        if self.reading_order.len() > 100_000
+            || self
+                .reading_order
+                .iter()
+                .any(|key| !self.entries.contains_key(key) || !order.insert(key))
+        {
+            return Err("Orden de lectura inválido".into());
+        }
+        if self.attachments.values().map(String::len).sum::<usize>() > crate::photos::MAX_TOTAL
+            || self.attachments.len() > 2000
+        {
+            return Err("El álbum supera 16 MiB".into());
+        }
+        for (id, data) in &self.attachments {
+            if !crate::photos::valid_id(id) || crate::storage::key(data) != *id {
+                return Err("Foto de respaldo inválida".into());
+            }
+            let bytes = crate::photos::bytes(data)?;
+            crate::photos::decode(&bytes)?;
+        }
+
         if self.entries.len() > 100_000 {
             return Err("El respaldo supera 100.000 entradas".into());
         }
@@ -296,6 +388,15 @@ impl Library {
                     || crate::api::key_from_url(&detail.item.url).as_ref() != Some(k))
             {
                 return Err("Respaldo con detalles de otra ficha".into());
+            }
+            if e.readings.len() > 1000
+                || e.readings.iter().any(|date| reading_month(date).is_none())
+                || e.location.chars().count() > 200
+                || e.condition.chars().count() > 200
+                || e.photos.len() > 32
+                || e.photos.iter().any(|id| !self.attachments.contains_key(id))
+            {
+                return Err("Datos personales inválidos".into());
             }
             if !e.cost.is_finite() || e.cost < 0. || e.rating > 5 {
                 return Err("Respaldo con valores inválidos".into());
@@ -495,14 +596,21 @@ struct CachedPage {
     saved: u64,
 }
 pub fn cached_page(cache_key: &str) -> Option<Page> {
-    let bytes = fs::read(
-        session::data_dir()
-            .join("pages")
-            .join(format!("{}.json", key(cache_key))),
-    )
-    .ok()?;
+    let path = session::data_dir()
+        .join("pages")
+        .join(format!("{}.json", key(cache_key)));
+    if fs::metadata(&path).ok()?.len() > 32 * 1024 * 1024 {
+        return None;
+    }
+    let bytes = fs::read(path).ok()?;
     let c: CachedPage = serde_json::from_slice(&bytes).ok()?;
-    (c.key == cache_key).then_some(c.page)
+    (c.key == cache_key
+        && c.page.items.len() <= 10_000
+        && c.page
+            .items
+            .iter()
+            .all(|item| crate::api::key_from_url(&item.url).as_ref() == Some(&item.key)))
+    .then_some(c.page)
 }
 pub fn save_page(cache_key: &str, page: &Page) -> Result<(), String> {
     let c = CachedPage {

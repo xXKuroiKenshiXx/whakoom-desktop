@@ -4,6 +4,12 @@
 
 Versión en iteración; se actualizan los mismos archivos sin generar otra versión.
 
+- Catálogo integrado con Explorar, Buscados, historial de búsquedas y visitas, y Listas propias/favoritas/creación online.
+- Portadas progresivas con colas independientes para miniaturas y resolución final; respaldo de símbolos matemáticos y CJK.
+- Español, inglés, portugués, ruso y chino; carrusel opcional de amigos y ajustes adaptables.
+- Relecturas, cola de lectura, ubicación, conservación, filtros y álbum local de firmas incluido en el respaldo.
+- El empaquetado Linux reemplaza el ejecutable al reutilizar la misma AppDir, evitando publicar un binario anterior.
+
 - Calendario persistente al navegar por meses, con selector de mes y año.
 - Corazón de deseados relleno y rojo, sinopsis con color, mayor separación de la portada y emojis dentro de notas.
 - Marco iridiscente sutil y animado, desactivable junto con las demás animaciones.

@@ -120,10 +120,10 @@ pub fn parse_items(html: &str) -> Vec<Item> {
             let key = key_from_url(href)?;
             let img = a.select(&sel("img")).next();
             let strong = a.select(&sel("strong")).next();
-            let result = a
-                .ancestors()
-                .filter_map(ElementRef::wrap)
-                .find(|e| e.value().classes().any(|c| c == "sresult" || c == "item"));
+            let result = a.ancestors().filter_map(ElementRef::wrap).find(|e| {
+                e.value().name() == "li"
+                    || e.value().classes().any(|c| c == "sresult" || c == "item")
+            });
             // Exclude toolbar links (Lo tengo, user actions, duplicate text links).
             if img.is_none() && strong.is_none() {
                 return None;

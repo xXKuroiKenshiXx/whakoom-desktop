@@ -2,16 +2,17 @@
 
 ## Interfaz y procesos
 
-`app.rs` implementa la navegación y las pantallas con egui/eframe y OpenGL. Las tareas de red y decodificación se ejecutan fuera del hilo de interfaz. La ventana de verificación WebView2 se usa únicamente en Windows cuando el sitio exige pasos adicionales; la interfaz principal es nativa.
+`app.rs` y `app/` implementan la navegación y las pantallas con egui/eframe y OpenGL. Las tareas de red y decodificación se ejecutan fuera del hilo de interfaz. La ventana de verificación WebView2 se usa únicamente en Windows cuando el sitio exige pasos adicionales; la interfaz principal es nativa.
 
 | Módulo | Responsabilidad |
 | --- | --- |
-| `api.rs`, `catalog.rs` | HTTPS, servicios web, lectura de fichas y paginación |
+| `api.rs`, `catalog.rs`, `discover.rs`, `lists.rs` | HTTPS, servicios web, lectura de fichas y paginación |
 | `sync.rs` | Intenciones pendientes, reintentos y reconciliación |
 | `storage.rs`, `session.rs` | Biblioteca, respaldos, escritura atómica y credenciales |
 | `account.rs`, `social.rs` | Formularios de cuenta, perfiles y actividad |
 | `discussion.rs`, `reactions.rs` | Opiniones y prioridades personales |
-| `covers.rs` | Descarga, resolución y límites de caché |
+| `covers.rs`, `photos.rs` | Portadas progresivas, caché y fotos personales con límites |
+| `i18n.rs`, `fonts.rs` | Idiomas de interfaz y glifos de respaldo |
 | `calendar.rs`, `notifications.rs` | Fechas, selector y bandeja de avisos |
 | `theme.rs`, `icons.rs`, `brand.rs`, `rating.rs`, `holographic.rs` | Componentes visuales |
 
@@ -19,7 +20,7 @@
 
 Las solicitudes autenticadas se restringen a HTTPS en `www.whakoom.com`, incluidas las redirecciones. Se usan contratos del cliente web como `/mycollection/comics.aspx/List` y `/wkws.asmx/…`, además de HTML público y formularios con token antifalsificación. No es una API oficial estable.
 
-Las imágenes usan otro cliente, sin cookies, restringido al sitio y sus CDN `iN.whakoom.com`. Hay límites de respuesta, dimensiones y asignación de memoria al decodificar. La caché controla espacio, cantidad, calidad y miniaturas en memoria; las vistas extensas dibujan filas visibles.
+Las imágenes usan otro cliente, sin cookies, restringido al sitio y sus CDN `iN.whakoom.com`. Hay límites de respuesta, dimensiones y asignación de memoria al decodificar. Cuatro trabajadores cargan miniaturas y dos mejoran su resolución en una cola independiente; se prioriza la caché y se conserva la miniatura si falla la mejora. La caché controla espacio, cantidad, calidad y miniaturas en memoria; las vistas extensas dibujan filas visibles.
 
 ## Sincronización
 
@@ -41,7 +42,7 @@ La contraseña no se guarda. Windows utiliza `session.dpapi` protegido por DPAPI
 
 `whakoom-check` ofrece consultas públicas y pruebas de lectura con la sesión existente: `--account`, `--verify-desktop`, `--inspect-pending`, `--covers`, `--detail-url URL`, `--friends-user USUARIO` y `--edition-query TEXTO`.
 
-`--verify-keyring` requiere una carpeta de datos aislada y comprueba persistencia con una sesión ficticia. `--verify-session-stdin` permite comprobar una sesión transferida por stdin, sin guardarla. `--make-preview` genera una biblioteca de ejemplo con títulos públicos.
+`--verify-keyring` requiere una carpeta de datos aislada y comprueba persistencia con una sesión ficticia. `--verify-session-stdin` permite comprobar una sesión transferida por stdin, sin guardarla. `--make-preview` genera una biblioteca de ejemplo con títulos públicos. `--make-catalog-preview` prepara catálogo/listas públicos en una carpeta aislada; `--verify-catalog` comprueba las secciones y su paginación con consultas de lectura.
 
 **`--verify-sync` envía los mismos valores existentes de un tomo a la cuenta real y los relee.** No lo uses sin intención de ejecutar esa comprobación. `--inspect RUTA --output ARCHIVO` puede guardar HTML autenticado: ese archivo es privado y no se publica.
 

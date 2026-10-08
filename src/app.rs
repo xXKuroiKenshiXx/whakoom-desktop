@@ -1,3 +1,5 @@
+mod catalog_ui;
+mod collection_ui;
 use eframe::egui::{self, RichText, Vec2};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -16,9 +18,10 @@ use whakoom_desktop::{
     api::{Api, Detail, Item, Page},
     brand, calendar, catalog,
     covers::CoverClient,
-    discussion, holographic,
+    discover, discussion, holographic,
+    i18n::{self, tr},
     icons::{self, Icon},
-    rating, reactions,
+    lists, rating, reactions,
     series::{self, Series},
     session, social,
     storage::{self, Library, Preferences, Stats, Writer},
@@ -61,7 +64,7 @@ impl Tab {
     fn icon(self) -> Icon {
         match self {
             Self::News => Icon::Grid,
-            Self::Catalog => Icon::Search,
+            Self::Catalog => Icon::Compass,
             Self::Library => Icon::Book,
             Self::Favorites => Icon::Star,
             Self::Wanted => Icon::Heart,
@@ -87,7 +90,25 @@ impl Tab {
         )
     }
 }
+#[derive(Clone, Copy, Default, PartialEq)]
+enum CatalogMode {
+    #[default]
+    Search,
+    Explore,
+    Lists,
+    Wanted,
+}
+
 enum Job {
+    Browse(discover::Section, u32, String, bool),
+    Lists(lists::Section, u32, String, bool),
+    ListDetail(String, String, bool),
+    ListMore(lists::ComicList, u32, String),
+    ListFavorite(lists::ComicList, bool, String),
+    ListCreate(lists::Draft, String),
+    ListSearch(String),
+    ListVolumes(Item),
+    PhotoImport(PathBuf, String, String),
     News(String, bool),
     Search(String, u32),
     Detail(Item),
@@ -112,6 +133,11 @@ enum Job {
     Cache(whakoom_desktop::covers::CachePolicy, bool),
 }
 enum Data {
+    Lists(String, lists::ListPage),
+    List(String, Box<lists::ComicList>),
+    ListMore(String, u64, Page),
+    ListSearch(Vec<Item>),
+    Photo(String, String, String, String),
     Cache(Result<whakoom_desktop::covers::CacheInfo, String>, bool),
     Page(Page, bool, bool),
     Detail(Box<Detail>),
@@ -139,9 +165,54 @@ struct CoverJob {
     policy: whakoom_desktop::covers::CachePolicy,
 }
 struct CoverEvent {
+    complete: bool,
     quality: whakoom_desktop::covers::Quality,
     url: String,
     image: Result<image::RgbaImage, String>,
+}
+fn cover_workers(
+    ctx: &egui::Context,
+    events: mpsc::Sender<CoverEvent>,
+    preview: bool,
+    count: usize,
+    capacity: usize,
+) -> mpsc::SyncSender<CoverJob> {
+    let (tx, rx) = mpsc::sync_channel::<CoverJob>(capacity);
+    let rx = Arc::new(Mutex::new(rx));
+    for _ in 0..count {
+        let rx = rx.clone();
+        let events = events.clone();
+        let ctx = ctx.clone();
+        std::thread::spawn(move || {
+            let client = CoverClient::new();
+            loop {
+                let Ok(job) = rx.lock().unwrap().recv() else {
+                    break;
+                };
+                let result = match &client {
+                    Ok(client) if preview => client.preview(&job.url, job.offline, &job.policy),
+                    Ok(client) => client
+                        .get_with_policy(&job.url, job.offline, &job.policy)
+                        .map(|image| (image, true)),
+                    Err(error) => Err(error.clone()),
+                };
+                let complete = result.as_ref().is_ok_and(|(_, complete)| *complete);
+                if events
+                    .send(CoverEvent {
+                        url: job.url,
+                        quality: job.policy.quality,
+                        complete,
+                        image: result.map(|(image, _)| image),
+                    })
+                    .is_err()
+                {
+                    break;
+                }
+                ctx.request_repaint();
+            }
+        });
+    }
+    tx
 }
 fn vote_badge(ui: &mut egui::Ui, votes: &str, dark: bool) {
     let (color, fill) = if dark {
@@ -162,8 +233,9 @@ fn vote_badge(ui: &mut egui::Ui, votes: &str, dark: bool) {
         .show(ui, |ui| {
             ui.label(
                 RichText::new(format!(
-                    "{} votos",
-                    if votes.is_empty() { "—" } else { votes }
+                    "{} {}",
+                    if votes.is_empty() { "—" } else { votes },
+                    tr("votos")
                 ))
                 .size(13.)
                 .strong()
@@ -200,7 +272,7 @@ fn note_editor(ui: &mut egui::Ui, id: &str, notes: &mut String, p: Palette) -> b
             ui.add(
                 egui::TextEdit::multiline(notes)
                     .frame(egui::Frame::NONE)
-                    .hint_text("Qué te dejó esta lectura, tus momentos favoritos…")
+                    .hint_text(tr("Qué te dejó esta lectura, tus momentos favoritos…"))
                     .desired_width(f32::INFINITY)
                     .desired_rows(4),
             )
@@ -296,6 +368,100 @@ fn worker(
                         }
                     }
                 }
+                Job::Browse(section, page, owner, offline) => {
+                    let key = format!("browse:{owner}:{section:?}:{page}");
+                    let cached = storage::cached_page(&key);
+                    if let Some(saved) = cached.clone() {
+                        let _ = etx.send(Event {
+                            id,
+                            data: Ok(Data::Page(saved, true, offline)),
+                        });
+                        ctx.request_repaint();
+                    }
+                    if offline {
+                        cached
+                            .map(|p| Data::Page(p, true, true))
+                            .ok_or_else(|| "No hay una copia guardada de esta sección".into())
+                    } else {
+                        api.discover(section, page).map(|p| {
+                            let _ = storage::save_page(&key, &p);
+                            Data::Page(p, false, true)
+                        })
+                    }
+                }
+                Job::Lists(section, page, owner, offline) => {
+                    let key = storage::key(&format!("lists:{owner}:{section:?}:{page}"));
+                    let path = session::data_dir()
+                        .join("pages")
+                        .join(format!("{key}.lists.json"));
+                    if offline {
+                        std::fs::read(path)
+                            .map_err(|_| "No hay listas guardadas de esta sección".to_string())
+                            .and_then(|b| {
+                                serde_json::from_slice(&b)
+                                    .map_err(|_| "Copia de listas inválida".into())
+                            })
+                            .map(|p| Data::Lists(owner, p))
+                    } else {
+                        api.lists(section, &owner, page).map(|p| {
+                            if let Ok(bytes) = serde_json::to_vec(&p) {
+                                let _ = storage::atomic_write(&path, &bytes);
+                            }
+                            Data::Lists(owner, p)
+                        })
+                    }
+                }
+                Job::ListDetail(url, owner, offline) => {
+                    let path = session::data_dir().join("pages").join(format!(
+                        "{}.list.json",
+                        storage::key(&format!("{owner}:{url}"))
+                    ));
+                    if offline {
+                        std::fs::read(path)
+                            .map_err(|_| "Esta lista no está guardada todavía".to_string())
+                            .and_then(|b| {
+                                serde_json::from_slice(&b)
+                                    .map_err(|_| "Copia de lista inválida".into())
+                            })
+                            .map(|p| Data::List(owner, Box::new(p)))
+                    } else {
+                        api.comic_list(&url).map(|p| {
+                            if let Ok(bytes) = serde_json::to_vec(&p) {
+                                let _ = storage::atomic_write(&path, &bytes);
+                            }
+                            Data::List(owner, Box::new(p))
+                        })
+                    }
+                }
+                Job::ListMore(list, page, owner) => api
+                    .list_comics(&list, page)
+                    .map(|p| Data::ListMore(owner, list.id, p)),
+                Job::ListFavorite(list, desired, owner) => api.identity().and_then(|u| {
+                    if u.username == owner {
+                        api.favorite_list(&list, desired)
+                            .map(|p| Data::List(owner, Box::new(p)))
+                    } else {
+                        Err("La sesión pertenece a otra cuenta".into())
+                    }
+                }),
+                Job::ListCreate(draft, owner) => api.identity().and_then(|u| {
+                    if u.username == owner {
+                        api.create_list(&draft)
+                            .map(|p| Data::List(owner, Box::new(p)))
+                    } else {
+                        Err("La sesión pertenece a otra cuenta".into())
+                    }
+                }),
+                Job::ListSearch(query) => api
+                    .search(&query, 1)
+                    .map(|page| Data::ListSearch(page.items)),
+                Job::ListVolumes(item) => catalog::all_volumes(
+                    |page| api.edition(&item, page),
+                    || cancel.load(Ordering::Relaxed),
+                )
+                .map(Data::ListSearch),
+                Job::PhotoImport(path, key, owner) => whakoom_desktop::photos::import(&path)
+                    .map(|(id, data)| Data::Photo(owner, key, id, data)),
                 Job::Search(q, p) => api.search(&q, p).map(|p| Data::Page(p, false, true)),
                 Job::Detail(i) => api.full_detail(&i).map(|d| Data::Detail(Box::new(d))),
                 Job::Edition(i, p) => api.edition(&i, p).map(|p| Data::Page(p, false, true)),
@@ -434,6 +600,8 @@ struct App {
     next_cache: Instant,
     cover_tx: mpsc::SyncSender<CoverJob>,
     cover_rx: mpsc::Receiver<CoverEvent>,
+    upgrade_tx: mpsc::SyncSender<CoverJob>,
+    incomplete: HashSet<String>,
     textures: HashMap<String, egui::TextureHandle>,
     texture_birth: HashMap<String, Instant>,
     texture_order: VecDeque<String>,
@@ -453,6 +621,22 @@ struct App {
     remove_series: Option<Series>,
     transition_start: Instant,
     transition_direction: f32,
+    catalog_mode: CatalogMode,
+    explore_section: discover::Section,
+    lists_section: lists::Section,
+    list_page: lists::ListPage,
+    list_detail: Option<lists::ComicList>,
+    list_editor: bool,
+    list_draft: lists::Draft,
+    list_query: String,
+    list_candidates: Vec<Item>,
+    news_owned_only: bool,
+    filter_publisher: String,
+    filter_read: Option<bool>,
+    filter_rating: u8,
+    friend_scroll: f32,
+    friend_scroll_at: Instant,
+    friend_forward: bool,
     query: String,
     submitted: String,
     month: String,
@@ -515,61 +699,28 @@ impl App {
         if std::env::args().any(|a| a == "--volumes") {
             prefs.series_view = false;
         }
-        if !cfg!(test)
-            && let Some(bytes) = [
-                "C:/Windows/Fonts/seguiemj.ttf",
-                "/usr/share/fonts/truetype/noto/NotoSansSymbols2-Regular.ttf",
-            ]
-            .into_iter()
-            .find_map(|path| std::fs::read(path).ok())
+        if let Some(code) = std::env::args()
+            .skip_while(|arg| arg != "--language")
+            .nth(1)
         {
-            let mut fonts = egui::FontDefinitions::default();
-            fonts.font_data.insert(
-                "emoji".into(),
-                std::sync::Arc::new(egui::FontData::from_owned(bytes)),
-            );
-            fonts
-                .families
-                .entry(egui::FontFamily::Proportional)
-                .or_default()
-                .push("emoji".into());
-            cc.egui_ctx.set_fonts(fonts);
+            prefs.language = match code.as_str() {
+                "en" => i18n::Language::English,
+                "pt" => i18n::Language::Portuguese,
+                "ru" => i18n::Language::Russian,
+                "zh" => i18n::Language::Chinese,
+                _ => i18n::Language::Spanish,
+            };
         }
+        if !cfg!(test) {
+            whakoom_desktop::fonts::install(&cc.egui_ctx);
+        }
+        i18n::set_language(prefs.language);
         theme::apply(&cc.egui_ctx, prefs.dark, prefs.animations);
         let cancel = Arc::new(AtomicBool::new(false));
         let (tx, rx) = worker(cc.egui_ctx.clone(), cancel.clone());
-        let (cover_tx, crx) = mpsc::sync_channel::<CoverJob>(6);
-        let crx = Arc::new(Mutex::new(crx));
         let (etx, cover_rx) = mpsc::channel();
-        for _ in 0..2 {
-            let rx = crx.clone();
-            let tx = etx.clone();
-            let ctx = cc.egui_ctx.clone();
-            std::thread::spawn(move || {
-                let client = CoverClient::new();
-                loop {
-                    let job = rx.lock().unwrap().recv();
-                    let Ok(job) = job else {
-                        break;
-                    };
-                    let image = match &client {
-                        Ok(c) => c.get_with_policy(&job.url, job.offline, &job.policy),
-                        Err(e) => Err(e.clone()),
-                    };
-                    if tx
-                        .send(CoverEvent {
-                            quality: job.policy.quality,
-                            url: job.url,
-                            image,
-                        })
-                        .is_err()
-                    {
-                        break;
-                    }
-                    ctx.request_repaint();
-                }
-            });
-        }
+        let cover_tx = cover_workers(&cc.egui_ctx, etx.clone(), true, 4, 12);
+        let upgrade_tx = cover_workers(&cc.egui_ctx, etx, false, 2, 4);
         let stored = if preview { None } else { session::load() };
         let username = stored
             .as_ref()
@@ -620,6 +771,8 @@ impl App {
             next_cache: Instant::now(),
             cover_tx,
             cover_rx,
+            upgrade_tx,
+            incomplete: HashSet::new(),
             textures: HashMap::new(),
             texture_birth: HashMap::new(),
             texture_order: VecDeque::new(),
@@ -639,6 +792,22 @@ impl App {
             remove_series: None,
             transition_start: Instant::now(),
             transition_direction: 1.,
+            catalog_mode: Default::default(),
+            explore_section: Default::default(),
+            lists_section: Default::default(),
+            list_page: Default::default(),
+            list_detail: None,
+            list_editor: false,
+            list_draft: Default::default(),
+            list_query: String::new(),
+            list_candidates: Vec::new(),
+            news_owned_only: false,
+            filter_publisher: String::new(),
+            filter_read: None,
+            filter_rating: 0,
+            friend_scroll: 0.,
+            friend_scroll_at: Instant::now(),
+            friend_forward: true,
             query: String::new(),
             submitted: String::new(),
             month: String::new(),
@@ -736,6 +905,19 @@ impl App {
         {
             app.enter_series(group);
         }
+        if let Some(mode) = std::env::args()
+            .skip_while(|arg| arg != "--preview-catalog-mode")
+            .nth(1)
+        {
+            app.tab = Tab::Catalog;
+            app.catalog_mode = match mode.as_str() {
+                "explore" => CatalogMode::Explore,
+                "lists" => CatalogMode::Lists,
+                "wanted" => CatalogMode::Wanted,
+                _ => CatalogMode::Search,
+            };
+            app.refresh(1);
+        }
         if std::env::args().any(|a| a == "--preview-comic")
             && let Some(item) = app.items.first().cloned()
         {
@@ -758,8 +940,8 @@ impl App {
             ui.label(RichText::new(&group.title).size(20.).strong());
             ui.label(format!("Se quitarán {} tomos de tu colección de Whakoom. Tus notas y lecturas se conservarán.", group.volumes.len()));
             ui.horizontal(|ui| {
-                if ui.button("Cancelar").clicked() { self.remove_series = None; }
-                if ui.button("Quitar colección").clicked() { self.remove_library_series(&group); self.remove_series = None; }
+                if ui.button(tr("Cancelar")).clicked() { self.remove_series = None; }
+                if ui.button(tr("Quitar colección")).clicked() { self.remove_library_series(&group); self.remove_series = None; }
             });
         });
         if !open {
@@ -849,6 +1031,8 @@ impl App {
         self.busy = self.syncing;
         self.tab = tab;
         self.profile = None;
+        self.list_detail = None;
+        self.list_editor = false;
         if tab == Tab::Account {
             self.account_page = account::Page::default();
             self.account_loaded = false;
@@ -992,6 +1176,16 @@ impl App {
             .library
             .entries
             .values()
+            .filter(|e| {
+                self.tab != Tab::Library
+                    || ((self.filter_publisher.is_empty()
+                        || e.item.publisher == self.filter_publisher
+                        || e.details
+                            .as_ref()
+                            .is_some_and(|d| d.publisher == self.filter_publisher))
+                        && self.filter_read.is_none_or(|read| e.read == read)
+                        && e.rating >= self.filter_rating)
+            })
             .filter(|e| match self.tab {
                 Tab::Library => e.owned,
                 Tab::Wanted => e.wanted,
@@ -1013,8 +1207,8 @@ impl App {
             q.is_empty()
                 || self.library.entries.get(&item.key).is_some_and(|e| {
                     format!(
-                        "{} {} {} {}",
-                        e.item.title, e.item.publisher, e.tags, e.notes
+                        "{} {} {} {} {} {}",
+                        e.item.title, e.item.publisher, e.tags, e.notes, e.location, e.condition
                     )
                     .to_lowercase()
                     .contains(&q)
@@ -1023,6 +1217,15 @@ impl App {
         self.groups.retain(|g| g.volumes.iter().any(&matches));
         self.items.retain(matches);
         self.items.sort_by_cached_key(|i| i.title.to_lowercase());
+        if self.tab == Tab::Reading {
+            self.items.sort_by_key(|item| {
+                self.library
+                    .reading_order
+                    .iter()
+                    .position(|k| k == &item.key)
+                    .unwrap_or(usize::MAX)
+            });
+        }
         if self.selected_series.is_some() {
             self.items.sort_by(series::volume_order);
         }
@@ -1128,25 +1331,62 @@ impl App {
             if self.tab == Tab::Library {
                 self.pull_account();
             }
-            self.status = format!(
-                "{} fichas guardadas en tu biblioteca local",
-                self.library.entries.len()
+            self.status = i18n::trf(
+                "{0} fichas guardadas en tu biblioteca local",
+                &[self.library.entries.len().to_string()],
             );
             return;
         }
         match self.tab {
             Tab::News => self.send(Job::News(self.month.clone(), self.prefs.offline)),
-            Tab::Catalog => {
-                if self.prefs.offline {
-                    self.local_items();
-                    self.status = "Búsqueda en tus fichas guardadas".into();
-                } else if !self.submitted.is_empty() {
-                    self.send(Job::Search(self.submitted.clone(), page));
-                } else {
-                    self.items.clear();
-                    self.next = None;
+            Tab::Catalog => match self.catalog_mode {
+                CatalogMode::Search if !self.submitted.is_empty() => {
+                    self.library.recent.search(&self.submitted);
+                    self.save_library();
+                    if self.prefs.offline {
+                        self.local_items();
+                    } else {
+                        self.send(Job::Search(self.submitted.clone(), page));
+                    }
                 }
-            }
+                CatalogMode::Search => {
+                    self.items = self.library.recent.visited.clone();
+                    self.next = None;
+                    if self.items.is_empty() && !self.prefs.offline {
+                        self.send(Job::Browse(
+                            discover::Section::Popular,
+                            page,
+                            self.library.owner.clone(),
+                            false,
+                        ));
+                    }
+                }
+                CatalogMode::Explore => self.send(Job::Browse(
+                    self.explore_section,
+                    page,
+                    self.library.owner.clone(),
+                    self.prefs.offline,
+                )),
+                CatalogMode::Wanted => {
+                    if self.verified {
+                        self.send(Job::Browse(
+                            discover::Section::Wanted,
+                            page,
+                            self.library.owner.clone(),
+                            self.prefs.offline,
+                        ));
+                    } else {
+                        self.items.clear();
+                        self.error = "Conectá tu cuenta para consultar Buscados".into();
+                    }
+                }
+                CatalogMode::Lists => self.send(Job::Lists(
+                    self.lists_section,
+                    page,
+                    self.library.owner.clone(),
+                    self.prefs.offline,
+                )),
+            },
             _ => {}
         }
     }
@@ -1248,6 +1488,60 @@ impl App {
                             self.metadata_failed.insert(item.key);
                         }
                     }
+                }
+                Ok(Data::Photo(owner, key, id, data)) if owner == self.library.owner => {
+                    if self
+                        .library
+                        .attachments
+                        .values()
+                        .map(String::len)
+                        .sum::<usize>()
+                        + data.len()
+                        > whakoom_desktop::photos::MAX_TOTAL
+                    {
+                        self.error = "El álbum local supera 16 MiB".into();
+                    } else if let Some(entry) = self.library.entries.get_mut(&key)
+                        && entry.photos.len() < 32
+                        && !entry.photos.contains(&id)
+                    {
+                        entry.photos.push(id.clone());
+                        self.library.attachments.insert(id, data);
+                        self.save_library();
+                    }
+                    self.busy = false;
+                }
+                Ok(Data::Lists(owner, page)) if relevant && owner == self.library.owner => {
+                    if self.append {
+                        let mut ids: HashSet<_> =
+                            self.list_page.lists.iter().map(|l| l.id).collect();
+                        self.list_page
+                            .lists
+                            .extend(page.lists.into_iter().filter(|l| ids.insert(l.id)));
+                        self.list_page.next = page.next;
+                    } else {
+                        self.list_page = page;
+                    }
+                    self.busy = false;
+                    self.status = format!("{} listas", self.list_page.lists.len());
+                }
+                Ok(Data::List(owner, list)) if relevant && owner == self.library.owner => {
+                    self.list_detail = Some(*list);
+                    self.list_editor = false;
+                    self.busy = false;
+                }
+                Ok(Data::ListMore(owner, id, page)) if relevant && owner == self.library.owner => {
+                    if let Some(list) = self.list_detail.as_mut().filter(|l| l.id == id) {
+                        let mut ids: HashSet<_> =
+                            list.comics.iter().map(|i| i.key.clone()).collect();
+                        list.comics
+                            .extend(page.items.into_iter().filter(|i| ids.insert(i.key.clone())));
+                        list.next = page.next;
+                    }
+                    self.busy = false;
+                }
+                Ok(Data::ListSearch(items)) if relevant => {
+                    self.list_candidates = items;
+                    self.busy = false;
                 }
                 Ok(Data::Friends(friends)) if relevant => {
                     self.library.friends = friends;
@@ -1514,7 +1808,14 @@ impl App {
             }
             match event.image {
                 Ok(img) => {
-                    self.texture_birth.insert(event.url.clone(), Instant::now());
+                    if event.complete {
+                        self.incomplete.remove(&event.url);
+                    } else {
+                        self.incomplete.insert(event.url.clone());
+                    }
+                    self.texture_birth
+                        .entry(event.url.clone())
+                        .or_insert_with(Instant::now);
                     let color = egui::ColorImage::from_rgba_unmultiplied(
                         [img.width() as usize, img.height() as usize],
                         img.as_raw(),
@@ -1523,11 +1824,13 @@ impl App {
                         event.url.clone(),
                         ctx.load_texture(&event.url, color, egui::TextureOptions::LINEAR),
                     );
+                    self.texture_order.retain(|u| u != &event.url);
                     self.texture_order.push_back(event.url);
                     while self.textures.len() > self.prefs.cover_cache.memory_limit() {
                         if let Some(old) = self.texture_order.pop_front() {
                             self.textures.remove(&old);
                             self.texture_birth.remove(&old);
+                            self.incomplete.remove(&old);
                         }
                     }
                 }
@@ -1540,8 +1843,27 @@ impl App {
         }
         self.pump_sync(ctx);
     }
+    fn upgrade_cover(&mut self, key: &str, ui: &egui::Ui) {
+        if self.incomplete.contains(key)
+            && !self.prefs.offline
+            && !self.pending.contains(key)
+            && !self.failed.contains_key(key)
+            && self
+                .upgrade_tx
+                .try_send(CoverJob {
+                    url: key.into(),
+                    offline: false,
+                    policy: self.prefs.cover_cache.clone(),
+                })
+                .is_ok()
+        {
+            self.pending.insert(key.into());
+            ui.ctx().request_repaint_after(Duration::from_millis(16));
+        }
+    }
     fn cover(&mut self, ui: &mut egui::Ui, item: &Item, size: Vec2) -> egui::Response {
         let key = &item.cover;
+        self.upgrade_cover(key, ui);
         if let Some(t) = self.textures.get(key) {
             let fade = if self.prefs.animations {
                 self.texture_birth
@@ -1595,7 +1917,7 @@ impl App {
             && !key.is_empty()
             && !self.pending.contains(key)
             && !failed
-            && self.pending.len() < 6
+            && self.pending.len() < 16
             && self
                 .cover_tx
                 .try_send(CoverJob {
@@ -1614,6 +1936,8 @@ impl App {
         }
     }
     fn open_item(&mut self, item: Item) {
+        self.library.recent.visit(&item);
+        self.save_library();
         if item.key.starts_with("edicion") {
             self.begin_transition(1.);
             self.items = self
@@ -1762,7 +2086,7 @@ impl App {
                 #[cfg(test)]
                 { self.ui_rects.insert("add-edition".into(), response.rect); }
                 if response.clicked() { self.add_current_edition(); }
-                if owned > 0 && complete && ui.add_enabled(!self.busy && self.library_valid, egui::Button::new("Quitar serie de mi colección")).clicked() {
+                if owned > 0 && complete && ui.add_enabled(!self.busy && self.library_valid, egui::Button::new(tr("Quitar serie de mi colección"))).clicked() {
                     let volumes = self.library.editions.get(&item.key).map(|e| e.volumes.clone()).unwrap_or_default();
                     for volume in volumes {
                         if let Some(entry) = self.library.entries.get_mut(&volume.key) { entry.owned = false; }
@@ -1778,18 +2102,18 @@ impl App {
             ui.add_space(10.);
             ui.horizontal_wrapped(|ui| {
                 rating::display(ui, community, self.prefs.dark, 18.);
-                ui.label(RichText::new(if community > 0. { format!("{community:.1}") } else { "Sin nota pública".into() }).size(12.).color(p.muted));
+                ui.label(RichText::new(tr(if community > 0. { format!("{community:.1}") } else { "Sin nota pública".into() })).size(12.).color(p.muted));
                 vote_badge(ui, &votes, self.prefs.dark);
                 ui.add_space(18.);
-                ui.label("Mi valoración");
+                ui.label(tr("Mi valoración"));
                 let mut value = self.library.entries.get(&item.key).map(|e| e.rating).unwrap_or_default();
                 if rating::edit(ui, &mut value, self.prefs.dark) {
                     self.library.ensure(&item).rating = value;
                     self.queue_change(&item, sync::Change::Rating(value));
                 }
             });
-            ui.label(RichText::new("Agregar o quitar se sincroniza con tu cuenta. Se conservan tus notas y lecturas.").size(11.).color(p.muted));
-            if self.prefs.offline && !complete { ui.label(RichText::new("Conectate para consultar la serie completa antes de agregarla.").size(11.).color(p.accent)); }
+            ui.label(RichText::new(tr("Agregar o quitar se sincroniza con tu cuenta. Se conservan tus notas y lecturas.")).size(11.).color(p.muted));
+            if self.prefs.offline && !complete { ui.label(RichText::new(tr("Conectate para consultar la serie completa antes de agregarla.")).size(11.).color(p.accent)); }
         });
         ui.add_space(14.);
     }
@@ -1832,18 +2156,18 @@ impl App {
             painter.text(
                 label_rect.min,
                 egui::Align2::LEFT_TOP,
-                self.username.as_deref().unwrap_or("Cuenta"),
+                self.username.clone().unwrap_or_else(|| tr("Cuenta")),
                 egui::FontId::proportional(14.),
                 p.text,
             );
             painter.text(
                 label_rect.min + Vec2::new(0., 23.),
                 egui::Align2::LEFT_TOP,
-                if self.verified {
+                tr(if self.verified {
                     "Gestionar cuenta  ›"
                 } else {
                     "Conectar con Whakoom  ›"
-                },
+                }),
                 egui::FontId::proportional(11.),
                 p.muted,
             );
@@ -1851,7 +2175,7 @@ impl App {
         let response = ui
             .interact(rect, ui.id().with("account-button"), egui::Sense::click())
             .on_hover_cursor(egui::CursorIcon::PointingHand)
-            .on_hover_text("Cuenta de Whakoom");
+            .on_hover_text(tr("Cuenta de Whakoom"));
         ui.painter().rect_stroke(
             rect,
             10,
@@ -1935,7 +2259,7 @@ impl App {
         ui.horizontal(|ui| {
             if community > 0. {
                 rating::display(ui, community, self.prefs.dark, 14.)
-                    .on_hover_text("Valoración de la comunidad de Whakoom");
+                    .on_hover_text(tr("Valoración de la comunidad de Whakoom"));
                 ui.label(
                     RichText::new(format!("{community:.1}"))
                         .size(11.)
@@ -1943,11 +2267,11 @@ impl App {
                 );
             } else {
                 ui.label(
-                    RichText::new(if self.metadata_pending.contains(&source.key) {
+                    RichText::new(tr(if self.metadata_pending.contains(&source.key) {
                         "Consultando nota…"
                     } else {
                         "Sin nota pública"
-                    })
+                    }))
                     .size(11.)
                     .color(self.p().muted),
                 );
@@ -1955,7 +2279,7 @@ impl App {
         });
         ui.horizontal(|ui| {
             rating::personal(ui, personal, self.prefs.dark, 14.)
-                .on_hover_text("Tu valoración personal · violeta");
+                .on_hover_text(tr("Tu valoración personal · violeta"));
             ui.label(
                 RichText::new(if personal > 0. {
                     format!("{personal:.1}")
@@ -1969,7 +2293,7 @@ impl App {
     }
     fn sidebar(&mut self, ui: &mut egui::Ui) {
         let p = self.p();
-        let compact = self.prefs.compact_sidebar;
+        let compact = self.prefs.compact_sidebar || ui.ctx().content_rect().width() < 1050.;
         let target_width = if compact { 76. } else { 246. };
         let width = ui.ctx().animate_value_with_time(
             egui::Id::new("sidebar-width"),
@@ -2010,8 +2334,8 @@ impl App {
                     brand::paint(ui.painter(), r);
                     if !compact {
                         ui.vertical(|ui| {
-                            ui.label(RichText::new("Whakoom").size(22.).strong());
-                            ui.label(RichText::new("DESKTOP").size(10.).color(p.accent));
+                            ui.label(RichText::new(tr("Whakoom")).size(22.).strong());
+                            ui.label(RichText::new(tr("DESKTOP")).size(10.).color(p.accent));
                         });
                     }
                 });
@@ -2025,9 +2349,9 @@ impl App {
                             Tab::Catalog,
                             Tab::Library,
                             Tab::Favorites,
+                            Tab::Reading,
                             Tab::Friends,
                             Tab::Wanted,
-                            Tab::Reading,
                             Tab::Stats,
                             Tab::Settings,
                         ] {
@@ -2088,7 +2412,7 @@ impl App {
                         if icons::action(ui, Icon::Arrow, "Mis series", p).clicked() {
                             self.leave_series();
                         }
-                        ui.label(RichText::new("/ Mi colección").color(p.muted));
+                        ui.label(RichText::new(tr("/ Mi colección")).color(p.muted));
                     });
                     ui.add_space(12.);
                 }
@@ -2104,14 +2428,14 @@ impl App {
                         },
                         p,
                     )
-                    .on_hover_text("Notificaciones")
+                    .on_hover_text(tr("Notificaciones"))
                     .clicked()
                     {
                         self.select(Tab::Notifications);
                     }
                     ui.vertical(|ui| {
                         ui.label(
-                            RichText::new(
+                            RichText::new(tr(
                                 if self.tab.local()
                                     || matches!(self.tab, Tab::Friends | Tab::Profile)
                                 {
@@ -2119,7 +2443,7 @@ impl App {
                                 } else {
                                     "DESCUBRÍ TU PRÓXIMA LECTURA"
                                 },
-                            )
+                            ))
                             .size(10.)
                             .color(p.accent),
                         );
@@ -2129,9 +2453,17 @@ impl App {
                             .map(|s| s.title.as_str())
                             .or_else(|| self.edition.as_ref().map(|i| i.title.as_str()))
                             .unwrap_or(self.tab.title());
-                        ui.label(RichText::new(title).size(30.).strong());
                         ui.label(
-                            RichText::new(match self.tab {
+                            RichText::new(tr(if self.edition.is_none() {
+                                tr(title)
+                            } else {
+                                title.into()
+                            }))
+                            .size(30.)
+                            .strong(),
+                        );
+                        ui.label(
+                            RichText::new(tr(match self.tab {
                                 Tab::Library if self.selected_series.is_some() => {
                                     "Tus tomos, en orden. Cada lectura cuenta."
                                 }
@@ -2151,7 +2483,7 @@ impl App {
                                     "Tu perfil, tu sesión y tus preferencias de Whakoom."
                                 }
                                 Tab::Notifications => "Lo nuevo en las colecciones de tus amigos.",
-                            })
+                            }))
                             .color(p.muted),
                         );
                     });
@@ -2165,7 +2497,7 @@ impl App {
                         .show(ui, |ui| {
                             ui.horizontal_wrapped(|ui| {
                                 ui.label(RichText::new(&self.error).color(p.accent));
-                                if ui.small_button("Cerrar").clicked() {
+                                if ui.small_button(tr("Cerrar")).clicked() {
                                     self.error.clear();
                                 }
                             });
@@ -2180,7 +2512,7 @@ impl App {
                         } else {
                             "Consultando…"
                         });
-                        if self.syncing && ui.button("Detener").clicked() {
+                        if self.syncing && ui.button(tr("Detener")).clicked() {
                             self.cancel.store(true, Ordering::Relaxed);
                         }
                     });
@@ -2217,6 +2549,13 @@ impl App {
                     }
                     _ => {}
                 }
+                if self.tab == Tab::Catalog && self.edition.is_none() {
+                    self.catalog_controls(ui);
+                    if self.catalog_mode == CatalogMode::Lists {
+                        self.lists_ui(ui);
+                        return;
+                    }
+                }
                 if self.tab == Tab::Library && self.selected_series.is_none() {
                     ui.horizontal_wrapped(|ui| {
                         for (label, value) in [
@@ -2236,7 +2575,7 @@ impl App {
                                                 .strong()
                                                 .color(p.accent),
                                         );
-                                        ui.label(RichText::new(label).size(12.).color(p.muted));
+                                        ui.label(RichText::new(tr(label)).size(12.).color(p.muted));
                                     });
                                 });
                         }
@@ -2245,18 +2584,34 @@ impl App {
                 }
                 ui.horizontal(|ui| {
                     rating::display(ui, 5., self.prefs.dark, 12.);
-                    ui.label(RichText::new("Comunidad").size(11.).color(p.muted));
+                    ui.label(RichText::new(tr("Comunidad")).size(11.).color(p.muted));
                     rating::personal(ui, 5., self.prefs.dark, 12.);
-                    ui.label(RichText::new("Tu valoración").size(11.).color(p.muted));
+                    ui.label(RichText::new(tr("Tu valoración")).size(11.).color(p.muted));
                 });
                 ui.add_space(10.);
                 self.toolbar(ui);
+                if self.tab == Tab::Library {
+                    self.library_filters(ui);
+                }
+
+                if self.tab == Tab::Reading && self.selected_series.is_none() {
+                    self.reading_queue(ui);
+                    return;
+                }
+                if self.tab == Tab::News
+                    && ui
+                        .checkbox(&mut self.news_owned_only, tr("Novedades de mis series"))
+                        .changed()
+                {
+                    self.begin_transition(1.);
+                }
+
                 ui.add_space(18.);
                 self.edition_actions(ui);
                 if self.edition.is_some() {
                     ui.horizontal(|ui| {
-                        ui.selectable_value(&mut self.edition_reviews, false, "Tomos");
-                        ui.selectable_value(&mut self.edition_reviews, true, "Opiniones");
+                        ui.selectable_value(&mut self.edition_reviews, false, tr("Tomos"));
+                        ui.selectable_value(&mut self.edition_reviews, true, tr("Opiniones"));
                     });
                     ui.add_space(10.);
                     if self.edition_reviews {
@@ -2271,7 +2626,7 @@ impl App {
                                 if let Some(detail) = detail {
                                     self.discussion_ui(ui, &detail);
                                 } else {
-                                    ui.label("Consultando opiniones de la serie…");
+                                    ui.label(tr("Consultando opiniones de la serie…"));
                                 }
                             });
                         return;
@@ -2327,28 +2682,24 @@ impl App {
                             self.leave_edition();
                         }
                     } else if self.tab == Tab::News {
-                        ui.add(
-                            egui::TextEdit::singleline(&mut self.month)
-                                .hint_text("Mes actual / YYYYMM")
-                                .desired_width(145.),
-                        );
-                        if ui
-                            .add_enabled(!self.busy, egui::Button::new("Ver mes"))
-                            .clicked()
-                        {
+                        if calendar::month_picker(ui, "news-month", &mut self.month) {
                             self.refresh(1);
                         }
                         if ui
-                            .add_enabled(!self.busy, egui::Button::new("Próximamente"))
+                            .add_enabled(!self.busy, egui::Button::new(tr("Próximamente")))
                             .clicked()
                         {
                             self.month = "upcoming".into();
                             self.refresh(1);
                         }
-                    } else {
+                    } else if self.tab != Tab::Catalog || self.catalog_mode == CatalogMode::Search {
                         let input = ui.add(
                             egui::TextEdit::singleline(&mut self.query)
-                                .hint_text("Buscar en tu biblioteca…")
+                                .hint_text(tr(if self.tab == Tab::Catalog {
+                                    "Buscar cómics, series o autores…"
+                                } else {
+                                    "Buscar en tu biblioteca…"
+                                }))
                                 .desired_width(220.),
                         );
                         if input.changed() && self.tab.local() {
@@ -2357,7 +2708,7 @@ impl App {
                         let enter =
                             input.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                         if ui
-                            .add_enabled(!self.busy, egui::Button::new("Buscar"))
+                            .add_enabled(!self.busy, egui::Button::new(tr("Buscar")))
                             .clicked()
                             || enter && !self.busy
                         {
@@ -2368,7 +2719,7 @@ impl App {
                     if self.tab == Tab::Library && self.selected_series.is_none() {
                         for (label, series) in [("Series", true), ("Tomos", false)] {
                             if ui
-                                .selectable_label(self.prefs.series_view == series, label)
+                                .selectable_label(self.prefs.series_view == series, tr(label))
                                 .clicked()
                                 && self.prefs.series_view != series
                             {
@@ -2381,7 +2732,7 @@ impl App {
                     ui.separator();
                     for (label, list) in [("Portadas", false), ("Lista", true)] {
                         if ui
-                            .selectable_label(self.prefs.list_view == list, label)
+                            .selectable_label(self.prefs.list_view == list, tr(label))
                             .clicked()
                             && self.prefs.list_view != list
                         {
@@ -2438,12 +2789,12 @@ impl App {
             ui.horizontal_top(|ui| {
                 if let Some(item) = group.volumes.first() { self.cover(ui, item, Vec2::new(84., 120.)); }
                 ui.vertical(|ui| {
-                    ui.label(RichText::new("MI COLECCIÓN").size(10.).color(p.accent));
+                    ui.label(RichText::new(tr("MI COLECCIÓN")).size(10.).color(p.accent));
                     ui.label(RichText::new(&group.publisher).size(17.).strong());
                     ui.add_space(8.);
                     ui.label(format!("{} tomos en tu biblioteca · {} leídos", group.volumes.len(), read));
-                    ui.label(RichText::new("Abrí un tomo para ver su ficha, agregar notas o marcar tu lectura.").size(12.).color(p.muted));
-                    if ui.add_enabled(self.library_valid && !self.pushing, egui::Button::new("Quitar colección de mi biblioteca")).clicked() { self.remove_series = Some(group.clone()); }
+                    ui.label(RichText::new(tr("Abrí un tomo para ver su ficha, agregar notas o marcar tu lectura.")).size(12.).color(p.muted));
+                    if ui.add_enabled(self.library_valid && !self.pushing, egui::Button::new(tr("Quitar colección de mi biblioteca"))).clicked() { self.remove_series = Some(group.clone()); }
                     let total = group.volumes.len().max(1);
                     ui.add(egui::ProgressBar::new(read as f32 / total as f32).desired_width(260.).text(format!("{}% de tus tomos leídos", read * 100 / total)));
                 });
@@ -2554,18 +2905,18 @@ impl App {
         } else {
             child.horizontal(|ui| {
                 ui.label(
-                    RichText::new(if item.key.starts_with("edicion") {
+                    RichText::new(tr(if item.key.starts_with("edicion") {
                         "Serie"
                     } else if item.issue.is_empty() {
                         "Tomo único"
                     } else {
                         &item.issue
-                    })
+                    }))
                     .size(12.)
                     .color(p.muted),
                 );
                 if self.library.entries.get(&item.key).is_some_and(|e| e.read) {
-                    ui.label(RichText::new("Leído").size(11.).color(p.green));
+                    ui.label(RichText::new(tr("Leído")).size(11.).color(p.green));
                 }
             });
         }
@@ -2632,21 +2983,34 @@ impl App {
         self.card_rects.clear();
         let grouped =
             self.tab == Tab::Library && self.prefs.series_view && self.selected_series.is_none();
+        let visible: Vec<usize> = (0..self.items.len())
+            .filter(|index| {
+                !self.news_owned_only
+                    || self.tab != Tab::News
+                    || self.library.entries.values().any(|entry| {
+                        entry.owned
+                            && entry
+                                .item
+                                .title
+                                .eq_ignore_ascii_case(&self.items[*index].title)
+                    })
+            })
+            .collect();
         let count = if grouped {
             self.groups.len()
         } else {
-            self.items.len()
+            visible.len()
         };
         if count == 0 {
             ui.add_space(32.);
             let p = self.p();
             ui.label(
-                RichText::new("Acá empieza tu próxima historia")
+                RichText::new(tr("Acá empieza tu próxima historia"))
                     .size(24.)
                     .strong(),
             );
             ui.label(
-                RichText::new(if self.edition.is_some() && self.prefs.offline {
+                RichText::new(tr(if self.edition.is_some() && self.prefs.offline {
                     "Esta serie no tiene tomos guardados todavía. Conectate para consultarlos."
                 } else if self.tab == Tab::Favorites && self.query.is_empty() {
                     "Buscá una serie en Catálogo y pulsá Añadir a favoritos."
@@ -2654,7 +3018,7 @@ impl App {
                     "Guardá un tomo desde su ficha o importá tu colección de Whakoom."
                 } else {
                     "No hay resultados. Probá otro título o etiqueta."
-                })
+                }))
                 .color(p.muted),
             );
             return;
@@ -2680,7 +3044,7 @@ impl App {
                             opened_group = Some(group);
                         }
                     } else {
-                        let item = self.items[index].clone();
+                        let item = self.items[visible[index]].clone();
                         if self.list_row(ui, &item, None) {
                             opened_item = Some(item);
                         }
@@ -2707,7 +3071,7 @@ impl App {
                                     opened_group = Some(group);
                                 }
                             } else {
-                                let item = self.items[index].clone();
+                                let item = self.items[visible[index]].clone();
                                 if self.card(ui, &item, None, width, height) {
                                     opened_item = Some(item);
                                 }
@@ -2727,7 +3091,7 @@ impl App {
         }
         if let Some(next) = self.next
             && ui
-                .add_enabled(!self.busy, egui::Button::new("Cargar más"))
+                .add_enabled(!self.busy, egui::Button::new(tr("Cargar más")))
                 .clicked()
         {
             self.refresh(next);
@@ -2772,7 +3136,7 @@ impl App {
                                                 RichText::new(count.to_string()).size(36.).strong(),
                                             );
                                             ui.label(
-                                                RichText::new(*label).size(13.).color(p.muted),
+                                                RichText::new(tr(*label)).size(13.).color(p.muted),
                                             );
                                         },
                                     );
@@ -2797,10 +3161,10 @@ impl App {
                     );
                     ui.add_space(14.);
                     ui.horizontal_wrapped(|ui| {
-                        ui.label("Meta de lecturas");
+                        ui.label(tr("Meta de lecturas"));
                         let before = app.prefs.reading_goal;
                         if ui
-                            .add(egui::Button::new("−").min_size(Vec2::splat(38.)))
+                            .add(egui::Button::new(tr("−")).min_size(Vec2::splat(38.)))
                             .clicked()
                         {
                             app.prefs.reading_goal = before.saturating_sub(1).max(1);
@@ -2810,7 +3174,7 @@ impl App {
                             egui::DragValue::new(&mut app.prefs.reading_goal).range(1..=10000),
                         );
                         if ui
-                            .add(egui::Button::new("+").min_size(Vec2::splat(38.)))
+                            .add(egui::Button::new(tr("+")).min_size(Vec2::splat(38.)))
                             .clicked()
                         {
                             app.prefs.reading_goal =
@@ -2821,7 +3185,7 @@ impl App {
                         }
                     });
                     ui.label(
-                        RichText::new("Cuenta los tomos marcados como leídos en tu biblioteca.")
+                        RichText::new(tr("Cuenta los tomos marcados como leídos en tu biblioteca."))
                             .small()
                             .color(p.muted),
                     );
@@ -2833,10 +3197,10 @@ impl App {
                                 .size(30.)
                                 .strong(),
                         );
-                        ui.label(RichText::new("Importes cargados manualmente").color(p.muted));
+                        ui.label(RichText::new(tr("Importes cargados manualmente")).color(p.muted));
                     });
                     ui.label(
-                        RichText::new("Suma de tus importes personales. No se obtiene del catálogo ni convierte monedas.")
+                        RichText::new(tr("Suma de tus importes personales. No se obtiene del catálogo ni convierte monedas."))
                             .small()
                             .color(p.muted),
                     );
@@ -2856,16 +3220,17 @@ impl App {
                 });
                 self.setting_card(ui, Icon::Star, "Etiquetas", |app, ui| {
                     if s.tags.is_empty() {
-                        ui.label("Añadí etiquetas en tus fichas para agrupar las estadísticas.");
+                        ui.label(tr("Añadí etiquetas en tus fichas para agrupar las estadísticas."));
                     }
                     let max = s.tags.values().copied().max().unwrap_or(1);
                     for (label, count) in &s.tags {
                         app.stat_bar(ui, label, *count, max);
                     }
                 });
+                ui.label(format!("{}: {}",tr("Relecturas"),s.rereads));
                 self.setting_card(ui, Icon::Read, "Lecturas por mes", |app, ui| {
                     if s.reading_months.is_empty() {
-                        ui.label("Registrá fechas de lectura para ver tu historial.");
+                        ui.label(tr("Registrá fechas de lectura para ver tu historial."));
                     }
                     let max = s.reading_months.values().copied().max().unwrap_or(1);
                     for (label, count) in s.reading_months.iter().rev().take(24) {
@@ -2894,6 +3259,7 @@ impl App {
         });
     }
     fn avatar_at(&mut self, ui: &mut egui::Ui, url: &str, rect: egui::Rect) {
+        self.upgrade_cover(url, ui);
         if let Some(texture) = self.textures.get(url) {
             self.texture_order.retain(|u| u != url);
             self.texture_order.push_back(url.into());
@@ -2916,7 +3282,7 @@ impl App {
             if !url.is_empty()
                 && !self.pending.contains(url)
                 && !self.failed.contains_key(url)
-                && self.pending.len() < 6
+                && self.pending.len() < 16
                 && self
                     .cover_tx
                     .try_send(CoverJob {
@@ -2973,7 +3339,7 @@ impl App {
                             ui.label(RichText::new(format!("@{}", user.username)).color(p.accent));
                             ui.horizontal_wrapped(|ui| {
                                 if !user.comics.is_empty() {
-                                    ui.label(format!("{} cómics", user.comics));
+                                    ui.label(format!("{} {}", user.comics, tr("cómics")));
                                 }
                                 if !user.followers.is_empty() {
                                     ui.label(&user.followers);
@@ -2982,7 +3348,8 @@ impl App {
                             if !user.bio.is_empty() {
                                 ui.label(&user.bio);
                             }
-                            if ui.small_button("Actualizar perfil").clicked() && !self.prefs.offline
+                            if ui.small_button(tr("Actualizar perfil")).clicked()
+                                && !self.prefs.offline
                             {
                                 self.send(Job::Profile(user.username.clone()));
                             }
@@ -2991,23 +3358,25 @@ impl App {
                 });
             ui.add_space(16.);
             ui.label(
-                RichText::new("ACTIVIDAD RECIENTE")
+                RichText::new(tr("ACTIVIDAD RECIENTE"))
                     .size(11.)
                     .color(p.accent),
             );
             self.activity_ui(ui, user.activity);
         } else {
             if self.username.is_none() {
-                ui.label("Conectá tu cuenta para ver a las personas que seguís en Whakoom.");
-                if ui.button("Conectar cuenta").clicked() {
+                ui.label(tr(
+                    "Conectá tu cuenta para ver a las personas que seguís en Whakoom.",
+                ));
+                if ui.button(tr("Conectar cuenta")).clicked() {
                     self.show_login = true;
                 }
                 return;
             }
             ui.horizontal(|ui| {
-                ui.label(format!(
-                    "{} personas que seguís",
-                    self.library.friends.len()
+                ui.label(i18n::trf(
+                    "{0} personas que seguís",
+                    &[self.library.friends.len().to_string()],
                 ));
                 if icons::action(ui, Icon::Refresh, "Actualizar", p).clicked()
                     && !self.prefs.offline
@@ -3016,52 +3385,82 @@ impl App {
                 }
             });
             let friends = self.library.friends.clone();
-            egui::ScrollArea::horizontal()
+            ui.horizontal(|ui| {
+                if ui
+                    .button("‹")
+                    .on_hover_text(tr("Amigos anteriores"))
+                    .clicked()
+                {
+                    self.friend_scroll = (self.friend_scroll - 200.).max(0.);
+                }
+                if ui.button("›").on_hover_text(tr("Más amigos")).clicked() {
+                    self.friend_scroll += 200.;
+                }
+                if ui
+                    .checkbox(&mut self.prefs.friends_carousel, tr("Carrusel automático"))
+                    .changed()
+                {
+                    self.save_prefs();
+                }
+            });
+            let delta = self.friend_scroll_at.elapsed().as_secs_f32().min(0.1);
+            self.friend_scroll_at = Instant::now();
+            let strip = egui::ScrollArea::horizontal()
                 .id_salt("friends-strip")
-                .max_height(120.)
+                .max_height(116.)
+                .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
+                .horizontal_scroll_offset(self.friend_scroll)
                 .show(ui, |ui| {
                     ui.horizontal_top(|ui| {
                         for friend in &friends {
-                            let frame = egui::Frame::new()
-                                .fill(p.surface)
-                                .corner_radius(12)
-                                .inner_margin(12)
-                                .show(ui, |ui| {
-                                    ui.vertical(|ui| {
-                                        ui.set_width(150.);
-                                        ui.horizontal(|ui| {
-                                            let (rect, _) = ui.allocate_exact_size(
-                                                Vec2::splat(38.),
-                                                egui::Sense::hover(),
-                                            );
-                                            self.avatar_at(ui, &friend.avatar, rect);
-                                            ui.add(
-                                                egui::Label::new(
-                                                    RichText::new(&friend.username).strong(),
-                                                )
-                                                .truncate(),
-                                            );
-                                        });
-                                        ui.label(
-                                            RichText::new(format!("{} cómics", friend.comics))
-                                                .size(11.)
-                                                .color(p.muted),
-                                        );
-                                    });
-                                });
+                            let (rect, response) =
+                                ui.allocate_exact_size(Vec2::new(178., 94.), egui::Sense::click());
+                            let hover = if self.prefs.animations {
+                                ui.ctx().animate_bool_with_time(
+                                    response.id.with("friend-hover"),
+                                    response.hovered(),
+                                    0.16,
+                                )
+                            } else {
+                                0.
+                            };
+                            ui.painter().rect(
+                                rect.expand(hover * 2.),
+                                12,
+                                p.surface,
+                                egui::Stroke::new(
+                                    1. + hover,
+                                    p.border.lerp_to_gamma(p.accent, hover * 0.65),
+                                ),
+                                egui::StrokeKind::Inside,
+                            );
+                            let avatar = egui::Rect::from_center_size(
+                                rect.min + Vec2::new(36., 37.),
+                                Vec2::splat(42. * (1. + hover * 0.18)),
+                            );
+                            self.avatar_at(ui, &friend.avatar, avatar);
+                            let galley = ui.painter().layout(
+                                friend.username.clone(),
+                                egui::FontId::proportional(14. + hover),
+                                p.text,
+                                104.,
+                            );
+                            ui.painter()
+                                .galley(rect.min + Vec2::new(66., 22.), galley, p.text);
+                            ui.painter().text(
+                                rect.min + Vec2::new(16., 75.),
+                                egui::Align2::LEFT_CENTER,
+                                format!("{} {}", friend.comics, tr("cómics")),
+                                egui::FontId::proportional(11.),
+                                p.muted,
+                            );
                             #[cfg(test)]
                             {
-                                self.ui_rects.insert(
-                                    format!("friend-{}", friend.username),
-                                    frame.response.rect,
-                                );
+                                self.ui_rects
+                                    .insert(format!("friend-{}", friend.username), rect);
                             }
-                            if ui
-                                .interact(
-                                    frame.response.rect,
-                                    ui.id().with(&friend.username),
-                                    egui::Sense::click(),
-                                )
+                            if response
+                                .on_hover_cursor(egui::CursorIcon::PointingHand)
                                 .clicked()
                             {
                                 self.open_profile(friend.clone());
@@ -3069,9 +3468,31 @@ impl App {
                         }
                     });
                 });
+            let maximum = (strip.content_size.x - strip.inner_rect.width()).max(0.);
+            self.friend_scroll = strip.state.offset.x.min(maximum);
+            let paused = ui
+                .ctx()
+                .pointer_hover_pos()
+                .is_some_and(|pos| strip.inner_rect.expand(20.).contains(pos))
+                || ui.ctx().input(|i| i.pointer.any_down());
+            if self.prefs.animations && self.prefs.friends_carousel && maximum > 0. && !paused {
+                let step = 18. * delta;
+                if self.friend_forward {
+                    self.friend_scroll = (self.friend_scroll + step).min(maximum);
+                    if self.friend_scroll >= maximum {
+                        self.friend_forward = false;
+                    }
+                } else {
+                    self.friend_scroll = (self.friend_scroll - step).max(0.);
+                    if self.friend_scroll <= 0. {
+                        self.friend_forward = true;
+                    }
+                }
+                ui.ctx().request_repaint_after(Duration::from_millis(33));
+            }
             ui.add_space(16.);
             ui.label(
-                RichText::new("ACTIVIDAD DE TUS AMIGOS")
+                RichText::new(tr("ACTIVIDAD DE TUS AMIGOS"))
                     .size(11.)
                     .color(p.accent),
             );
@@ -3084,11 +3505,11 @@ impl App {
         let p = self.p();
         if activity.is_empty() {
             ui.label(
-                RichText::new(if self.busy {
+                RichText::new(tr(if self.busy {
                     "Consultando la actividad…"
                 } else {
                     "No hay actividad disponible en los perfiles consultados."
-                })
+                }))
                 .color(p.muted),
             );
             return;
@@ -3166,7 +3587,7 @@ impl App {
                 ui.horizontal(|ui| {
                     let (rect, _) = ui.allocate_exact_size(Vec2::splat(22.), egui::Sense::hover());
                     icons::paint(ui.painter(), rect, icon, p.accent);
-                    ui.label(RichText::new(title).size(19.).strong());
+                    ui.label(RichText::new(tr(title)).size(19.).strong());
                 });
                 ui.add_space(12.);
                 contents(self, ui);
@@ -3198,14 +3619,14 @@ impl App {
                     ui.horizontal_wrapped(|ui| {
                         if icons::action(ui, Icon::User, "Ver mi perfil", p).clicked() { app.select(Tab::Profile); }
                         let enabled = !app.busy && !app.syncing && !app.pushing;
-                        if ui.add_enabled(enabled, egui::Button::new("Desconectar")).clicked() { app.send(Job::Logout); }
-                        if ui.add_enabled(enabled, egui::Button::new("Desconectar y borrar cookies")).clicked() {
+                        if ui.add_enabled(enabled, egui::Button::new(tr("Desconectar"))).clicked() { app.send(Job::Logout); }
+                        if ui.add_enabled(enabled, egui::Button::new(tr("Desconectar y borrar cookies"))).clicked() {
                             #[cfg(windows)] { app.login_view = None; app.web_context = None; }
                             app.send(Job::ForgetCookies);
                         }
                     });
                 } else {
-                    ui.label("Conectá tu cuenta para administrar tu perfil y tus preferencias.");
+                    ui.label(tr("Conectá tu cuenta para administrar tu perfil y tus preferencias."));
                 }
                 if !app.verified && icons::action(ui, Icon::Cloud, "Iniciar sesión", p).clicked() { app.show_login = true; }
                 if !app.library.outbox.is_empty() {
@@ -3247,24 +3668,24 @@ impl App {
                                 let (rect, _) = ui.allocate_exact_size(Vec2::splat(88.), egui::Sense::hover());
                                 app.avatar_at(ui, &page.avatar, rect);
                                 ui.vertical(|ui| {
-                                    ui.label("Tu imagen pública");
-                                    if ui.button("Cambiar foto de perfil").clicked() {
+                                    ui.label(tr("Tu imagen pública"));
+                                    if ui.button(tr("Cambiar foto de perfil")).clicked() {
                                         avatar = rfd::FileDialog::new().add_filter("Imagen", &["png","jpg","jpeg","webp"]).pick_file();
                                     }
-                                    ui.label(RichText::new("PNG, JPEG o WebP · hasta 5 MiB").small().color(p.muted));
+                                    ui.label(RichText::new(tr("PNG, JPEG o WebP · hasta 5 MiB")).small().color(p.muted));
                                 });
                             });
                             ui.add_space(18.);
                             Self::account_field(ui, &mut page, "name", "Nombre público", false);
-                            ui.label("Biografía");
+                            ui.label(tr("Biografía"));
                             ui.add(egui::TextEdit::multiline(page.values.entry("bio".into()).or_default()).desired_rows(5).desired_width(f32::INFINITY));
                         }
                         account::Section::Account => {
                             Self::account_field(ui, &mut page, "nickname", "Nombre de usuario", false);
                             Self::account_field(ui, &mut page, "email", "Correo electrónico", false);
                             ui.add_space(12.);
-                            ui.label(RichText::new("Cambiar contraseña").strong());
-                            ui.label(RichText::new("Dejá los campos nuevos vacíos para conservar tu contraseña.").small().color(p.muted));
+                            ui.label(RichText::new(tr("Cambiar contraseña")).strong());
+                            ui.label(RichText::new(tr("Dejá los campos nuevos vacíos para conservar tu contraseña.")).small().color(p.muted));
                             Self::account_field(ui, &mut page, "newpassword", "Nueva contraseña", true);
                             Self::account_field(ui, &mut page, "newpassword2", "Repetir nueva contraseña", true);
                             ui.separator();
@@ -3275,16 +3696,16 @@ impl App {
                             if !page.renewal_date.is_empty() { ui.label(format!("Renovación: {}",page.renewal_date)); }
                             if page.can_cancel {
                                 if app.confirm_cancellation {
-                                    ui.label("¿Cancelar la renovación automática de tu suscripción?");
+                                    ui.label(tr("¿Cancelar la renovación automática de tu suscripción?"));
                                     ui.horizontal(|ui| {
-                                        if ui.button("Confirmar cancelación").clicked() { cancel_subscription = true; app.confirm_cancellation = false; }
-                                        if ui.button("Conservar suscripción").clicked() { app.confirm_cancellation = false; }
+                                        if ui.button(tr("Confirmar cancelación")).clicked() { cancel_subscription = true; app.confirm_cancellation = false; }
+                                        if ui.button(tr("Conservar suscripción")).clicked() { app.confirm_cancellation = false; }
                                     });
-                                } else if ui.button("Cancelar renovación").clicked() { app.confirm_cancellation = true; }
+                                } else if ui.button(tr("Cancelar renovación")).clicked() { app.confirm_cancellation = true; }
                             }
                             Self::account_field(ui, &mut page, "code", "Código de Whakoom", false);
-                            ui.label(RichText::new("El código se canjea en tu cuenta online.").small().color(p.muted));
-                            if ui.button("Planes y gestión de pagos").clicked()
+                            ui.label(RichText::new(tr("El código se canjea en tu cuenta online.")).small().color(p.muted));
+                            if ui.button(tr("Planes y gestión de pagos")).clicked()
                                 && let Err(error) = webbrowser::open("https://www.whakoom.com/micuenta/mysubscription.aspx") { app.error = error.to_string(); }
                         }
                         account::Section::Notifications => {
@@ -3298,16 +3719,16 @@ impl App {
                                 ("tips","Consejos de uso","Sugerencias para usar Whakoom."),
                             ] {
                                 Self::account_check(ui, &mut page, name, label);
-                                ui.label(RichText::new(help).small().color(p.muted)); ui.add_space(8.);
+                                ui.label(RichText::new(tr(help)).small().color(p.muted)); ui.add_space(8.);
                             }
                             ui.separator();
-                            if ui.checkbox(&mut app.prefs.desktop_notifications,"Notificaciones dentro de Whakoom Desktop").changed() { app.save_prefs(); app.next_activity = Instant::now(); }
-                            ui.label(RichText::new("La campana muestra la actividad de amigos. Se consulta cada cinco minutos mientras la app está abierta.").small().color(p.muted));
+                            if ui.checkbox(&mut app.prefs.desktop_notifications,tr("Notificaciones dentro de Whakoom Desktop")).changed() { app.save_prefs(); app.next_activity = Instant::now(); }
+                            ui.label(RichText::new(tr("La campana muestra la actividad de amigos. Se consulta cada cinco minutos mientras la app está abierta.")).small().color(p.muted));
                         }
                         account::Section::Region => {
                             Self::account_combo(ui, &mut page, "uilang", "Idioma de Whakoom");
                             Self::account_combo(ui, &mut page, "country", "País");
-                            ui.add_space(14.); ui.label(RichText::new("Idiomas de publicaciones").strong());
+                            ui.add_space(14.); ui.label(RichText::new(tr("Idiomas de publicaciones")).strong());
                             let mut selected: Vec<u64> = page.values.get("languages").and_then(|v| serde_json::from_str(v).ok()).unwrap_or_default();
                             let options = page.options.get("lang").cloned().unwrap_or_default();
                             ui.horizontal_wrapped(|ui| {
@@ -3318,7 +3739,7 @@ impl App {
                                 }
                                 if let Some(id) = remove { selected.retain(|n| *n != id); }
                             });
-                            egui::ComboBox::from_id_salt("publication-language").selected_text("Añadir idioma").width(280.).show_ui(ui, |ui| {
+                            egui::ComboBox::from_id_salt("publication-language").selected_text(tr("Añadir idioma")).width(280.).show_ui(ui, |ui| {
                                 for (id,name) in &options {
                                     if let Ok(id) = id.parse::<u64>() && id > 0 && !selected.contains(&id) && ui.selectable_label(false,name).clicked() { selected.push(id); }
                                 }
@@ -3327,18 +3748,18 @@ impl App {
                         }
                         account::Section::Privacy => {
                             Self::account_check(ui, &mut page, "privateaccount", "Cuenta privada");
-                            ui.label(RichText::new("Usa la opción de privacidad de tu cuenta de Whakoom.").color(p.muted));
+                            ui.label(RichText::new(tr("Usa la opción de privacidad de tu cuenta de Whakoom.")).color(p.muted));
                             ui.add_space(16.);
                             Self::account_check(ui, &mut page, "privatecollection", "Ocultar mi comicteca");
-                            ui.label(RichText::new("Controla la visibilidad de tu colección online.").color(p.muted));
+                            ui.label(RichText::new(tr("Controla la visibilidad de tu colección online.")).color(p.muted));
                         }
                         account::Section::Blocked => {
-                            if page.blocked.is_empty() { ui.label("No tenés usuarios bloqueados."); }
+                            if page.blocked.is_empty() { ui.label(tr("No tenés usuarios bloqueados.")); }
                             for (id,user) in &page.blocked {
                                 ui.horizontal(|ui| {
                                     let (rect, _) = ui.allocate_exact_size(Vec2::splat(40.),egui::Sense::hover()); app.avatar_at(ui,&user.avatar,rect);
                                     ui.label(&user.username);
-                                    if ui.button("Desbloquear").clicked() { unblock = Some(id.clone()); }
+                                    if ui.button(tr("Desbloquear")).clicked() { unblock = Some(id.clone()); }
                                 }); ui.add_space(10.);
                             }
                         }
@@ -3408,7 +3829,7 @@ impl App {
         label: &str,
         password: bool,
     ) {
-        ui.label(label);
+        ui.label(tr(label));
         ui.add_sized(
             [ui.available_width().min(540.), 38.],
             egui::TextEdit::singleline(page.values.entry(name.into()).or_default())
@@ -3418,12 +3839,12 @@ impl App {
     }
     fn account_check(ui: &mut egui::Ui, page: &mut account::Page, name: &str, label: &str) {
         let mut value = page.values.get(name).is_some_and(|v| v == "true");
-        if ui.checkbox(&mut value, label).changed() {
+        if ui.checkbox(&mut value, tr(label)).changed() {
             page.values.insert(name.into(), value.to_string());
         }
     }
     fn account_combo(ui: &mut egui::Ui, page: &mut account::Page, name: &str, label: &str) {
-        ui.label(label);
+        ui.label(tr(label));
         let options = page.options.get(name).cloned().unwrap_or_default();
         let current = page.values.entry(name.into()).or_default();
         let selected = options
@@ -3444,20 +3865,20 @@ impl App {
     fn discussion_ui(&mut self, ui: &mut egui::Ui, detail: &Detail) {
         let p = self.p();
         ui.add_space(16.);
-        ui.heading("Opiniones de la comunidad");
+        ui.heading(tr("Opiniones de la comunidad"));
         if detail.discussion.reviews.is_empty()
             && !self.library.reactions.contains_key(&detail.item.key)
         {
             ui.label(
-                RichText::new(if self.busy {
+                RichText::new(tr(if self.busy {
                     "Consultando opiniones…"
                 } else {
                     "No hay opiniones publicadas en esta ficha."
-                })
+                }))
                 .color(p.muted),
             );
         }
-        ui.label(RichText::new("Tus corazones destacan comentarios; los dislikes los envían al final. Se guardan en este equipo.").size(12.).color(p.muted));
+        ui.label(RichText::new(tr("Tus corazones destacan comentarios; los dislikes los envían al final. Se guardan en este equipo.")).size(12.).color(p.muted));
         let reviews = reactions::ordered(
             &self.library.reactions,
             &detail.item.key,
@@ -3518,7 +3939,11 @@ impl App {
                             self.save_library();
                         }
                         if vote == 1 {
-                            ui.label(RichText::new("Destacado por vos").size(12.).color(p.accent));
+                            ui.label(
+                                RichText::new(tr("Destacado por vos"))
+                                    .size(12.)
+                                    .color(p.accent),
+                            );
                         }
                     });
                     if !review.body.is_empty() {
@@ -3526,7 +3951,7 @@ impl App {
                         ui.label(&review.body);
                     } else {
                         ui.label(
-                            RichText::new("Valoración sin comentario")
+                            RichText::new(tr("Valoración sin comentario"))
                                 .small()
                                 .color(p.muted),
                         );
@@ -3538,7 +3963,7 @@ impl App {
             if ui
                 .add_enabled(
                     !self.busy && !self.prefs.offline,
-                    egui::Button::new("Más opiniones").min_size(Vec2::new(160., 38.)),
+                    egui::Button::new(tr("Más opiniones")).min_size(Vec2::new(160., 38.)),
                 )
                 .clicked()
             {
@@ -3552,7 +3977,7 @@ impl App {
         egui::ScrollArea::vertical()
             .id_salt("notification-inbox")
             .show(ui, |ui| {
-                if !self.verified && ui.button("Conectar cuenta").clicked() {
+                if !self.verified && ui.button(tr("Conectar cuenta")).clicked() {
                     self.show_login = true;
                 }
                 if activities.is_empty() {
@@ -3565,7 +3990,7 @@ impl App {
                 for activity in activities {
                     self.setting_card(ui, Icon::Bell, &activity.user, |app, ui| {
                         ui.label(&activity.message);
-                        if ui.button("Ver perfil").clicked() {
+                        if ui.button(tr("Ver perfil")).clicked() {
                             app.open_profile(social::User {
                                 username: activity.user.clone(),
                                 name: activity.user.clone(),
@@ -3586,7 +4011,7 @@ impl App {
                     });
                 }
                 ui.label(
-                    RichText::new("Actividad de amigos obtenida de Whakoom.")
+                    RichText::new(tr("Actividad de amigos obtenida de Whakoom."))
                         .small()
                         .color(p.muted),
                 );
@@ -3598,40 +4023,53 @@ impl App {
             self.update_cache(false);
         }
         egui::ScrollArea::vertical().id_salt("settings-page").show(ui, |ui| {
-            ui.columns(2, |columns| {
+            let count=if ui.available_width()>=740. {2}else{1};
+            ui.columns(count, |columns| {
+                let secondary=count-1;
                 self.setting_card(&mut columns[0], Icon::Sun, "Apariencia", |app, ui| {
                     let dark = app.prefs.dark;
-                    ui.horizontal_wrapped(|ui| { ui.selectable_value(&mut app.prefs.dark, true, "Oscuro"); ui.selectable_value(&mut app.prefs.dark, false, "Claro"); });
+                    ui.horizontal_wrapped(|ui| { ui.selectable_value(&mut app.prefs.dark, true, tr("Oscuro")); ui.selectable_value(&mut app.prefs.dark, false, tr("Claro")); });
                     if dark != app.prefs.dark { theme::apply(ui.ctx(), app.prefs.dark, app.prefs.animations); app.save_prefs(); }
                     ui.add_space(10.);
-                    if ui.checkbox(&mut app.prefs.animations, "Animaciones y efecto holográfico").changed() { theme::apply(ui.ctx(), app.prefs.dark, app.prefs.animations); app.save_prefs(); }
-                    ui.label(RichText::new("Zoom, reflejo e inclinación desde los 150 ms sobre la portada.").size(11.).color(p.muted));
-                    if ui.checkbox(&mut app.prefs.compact_sidebar, "Menú lateral compacto").changed() { app.save_prefs(); }
-                    if ui.add(egui::Slider::new(&mut app.prefs.cover_width, 110.0..=210.0).text("Portadas")).changed() { app.save_prefs(); }
+                    if ui.checkbox(&mut app.prefs.animations, tr("Animaciones y efecto holográfico")).changed() { theme::apply(ui.ctx(), app.prefs.dark, app.prefs.animations); app.save_prefs(); }
+                    ui.label(RichText::new(tr("Zoom, reflejo e inclinación desde los 150 ms sobre la portada.")).size(11.).color(p.muted));
+                    if ui.checkbox(&mut app.prefs.compact_sidebar, tr("Menú lateral compacto")).changed() { app.save_prefs(); }
+                    if ui.add(egui::Slider::new(&mut app.prefs.cover_width, 110.0..=210.0).text(tr("Portadas"))).changed() { app.save_prefs(); }
+                });
+                self.setting_card(&mut columns[0],Icon::Compass,"Idioma de la aplicación",|app,ui| {
+                    let before=app.prefs.language;
+                    egui::ComboBox::from_id_salt("app-language").selected_text(app.prefs.language.name()).show_ui(ui,|ui|{for language in i18n::Language::ALL {ui.selectable_value(&mut app.prefs.language,language,language.name());}});
+                    ui.label(RichText::new(tr("Cambia los controles de la app. Los títulos y comentarios conservan su idioma original.")).small().color(p.muted));
+                    if before!=app.prefs.language {i18n::set_language(app.prefs.language);app.save_prefs();}
+                    if ui.checkbox(&mut app.prefs.friends_carousel,tr("Carrusel automático de amigos")).changed(){app.save_prefs();}
                 });
                 self.setting_card(&mut columns[0], Icon::Cloud, "Conexión", |app, ui| {
-                    if ui.checkbox(&mut app.prefs.offline, "Trabajar sin conexión").changed() {
+                    if ui.checkbox(&mut app.prefs.offline, tr("Trabajar sin conexión")).changed() {
                         app.failed.clear(); app.save_prefs();
                         if !app.prefs.offline { app.retry_sync(); }
                     }
-                    ui.label(RichText::new("Los cambios quedan pendientes sin red y se envían al reconectar.").size(12.).color(p.muted));
+                    ui.label(RichText::new(tr("Los cambios quedan pendientes sin red y se envían al reconectar.")).size(12.).color(p.muted));
                     ui.add_space(10.);
-                    ui.label("La caché de miniaturas se configura en la tarjeta de almacenamiento.");
+                    ui.label(tr("La caché de miniaturas se configura en la tarjeta de almacenamiento."));
                     if icons::action(ui, Icon::Refresh, "Reintentar imágenes", p).clicked() { app.failed.clear(); app.metadata_failed.clear(); }
                     if !app.failed.is_empty() { ui.collapsing(format!("{} imágenes pendientes", app.failed.len()), |ui| { for error in app.failed.values().take(4) { ui.label(RichText::new(error).size(11.).color(p.muted)); } }); }
                 });
-                self.cache_settings(&mut columns[1]);
-                self.setting_card(&mut columns[1], Icon::Download, "Respaldo", |app, ui| {
-                    ui.label(RichText::new("Incluye biblioteca, notas, corazones, dislikes, favoritos y cambios pendientes. No incluye la contraseña ni las cookies.").size(12.).color(p.muted));
+                self.cache_settings(&mut columns[secondary]);
+                self.setting_card(&mut columns[secondary], Icon::Download, "Respaldo", |app, ui| {
+                    ui.label(RichText::new(tr("Incluye biblioteca, notas, corazones, dislikes, favoritos y cambios pendientes. No incluye la contraseña ni las cookies.")).size(12.).color(p.muted));
                     if icons::action(ui, Icon::Download, "Guardar JSON", p).clicked() && let Some(path) = rfd::FileDialog::new().set_file_name("whakoom-biblioteca.json").add_filter("JSON", &["json"]).save_file() {
                         match serde_json::to_vec_pretty(&app.library) { Ok(bytes) => { app.writer.file(path, bytes); app.status = "Guardando respaldo…".into(); }, Err(error) => app.error = error.to_string() }
                     }
                     if icons::action(ui, Icon::Chart, "Exportar CSV", p).clicked() && let Some(path) = rfd::FileDialog::new().set_file_name("whakoom-coleccion.csv").add_filter("CSV", &["csv"]).save_file() { app.writer.file(path, app.library.csv().into_bytes()); }
-                    if ui.button("Restaurar respaldo").clicked() && let Some(path) = rfd::FileDialog::new().add_filter("JSON", &["json"]).pick_file() {
+                    if ui.button(tr("Restaurar respaldo")).clicked() && let Some(path) = rfd::FileDialog::new().add_filter("JSON", &["json"]).pick_file() {
                         match Library::import(&path, &app.library.owner) { Ok(lib) => {
                             let old = app.library.entries.clone();
                             let old_editions = app.library.editions.clone();
-                            app.library.entries.extend(lib.entries); app.library.editions.extend(lib.editions);
+                            let mut merged=app.library.clone();
+                            merged.entries.extend(lib.entries);merged.editions.extend(lib.editions);merged.attachments.extend(lib.attachments);
+                            merged.reading_order=lib.reading_order;merged.recent=lib.recent;
+                            if let Err(error)=merged.validate(){app.error=error;return;}
+                            app.library=merged;
                             for (title, reactions) in lib.reactions { app.library.reactions.entry(title).or_default().extend(reactions); } app.library_valid = true;
                             let imported: Vec<_> = app.library.entries.values().cloned().collect();
                             for entry in imported { app.queue_entry_differences(old.get(&entry.item.key), &entry); }
@@ -3666,37 +4104,37 @@ impl App {
         self.setting_card(ui, Icon::Book, "Caché de miniaturas", |app, ui| {
             let before = app.prefs.cover_cache.clone();
             let cache = &mut app.prefs.cover_cache;
-            ui.checkbox(&mut cache.enabled, "Guardar miniaturas en este equipo");
-            ui.label(RichText::new("Las portadas guardadas abren más rápido y funcionan sin conexión.").size(12.).color(p.muted));
+            ui.checkbox(&mut cache.enabled, tr("Guardar miniaturas en este equipo"));
+            ui.label(RichText::new(tr("Las portadas guardadas abren más rápido y funcionan sin conexión.")).size(12.).color(p.muted));
             ui.add_space(10.);
             ui.add_enabled_ui(cache.enabled, |ui| {
-                ui.label(RichText::new("Espacio máximo en disco").strong());
+                ui.label(RichText::new(tr("Espacio máximo en disco")).strong());
                 ui.horizontal(|ui| {
                     if cache.unit_gb {
                         let mut gb = cache.limit_mb as f64 / 1024.;
                         if ui.add(egui::DragValue::new(&mut gb).range(0.016..=64.).speed(0.1).max_decimals(3)).changed() { cache.limit_mb = (gb * 1024.).round() as u64; }
                     } else { ui.add(egui::DragValue::new(&mut cache.limit_mb).range(16..=65_536).speed(16.)); }
-                    ui.selectable_value(&mut cache.unit_gb, false, "MB"); ui.selectable_value(&mut cache.unit_gb, true, "GB");
+                    ui.selectable_value(&mut cache.unit_gb, false, tr("MB")); ui.selectable_value(&mut cache.unit_gb, true, tr("GB"));
                 });
                 ui.horizontal_wrapped(|ui| {
-                    ui.label("Máximo de miniaturas");
+                    ui.label(tr("Máximo de miniaturas"));
                     ui.add(egui::DragValue::new(&mut cache.max_files).range(0..=100_000).speed(25.));
                 });
-                ui.label(RichText::new("0 = sin límite de cantidad; siempre se respeta el espacio elegido.").size(11.).color(p.muted));
+                ui.label(RichText::new(tr("0 = sin límite de cantidad; siempre se respeta el espacio elegido.")).size(11.).color(p.muted));
             });
             ui.add_space(10.);
             ui.horizontal_wrapped(|ui| {
-                ui.label("Resolución");
-                egui::ComboBox::from_id_salt("thumbnail-quality").selected_text(cache.quality.label()).show_ui(ui, |ui| {
-                    for quality in [whakoom_desktop::covers::Quality::Low, whakoom_desktop::covers::Quality::Balanced, whakoom_desktop::covers::Quality::High] { ui.selectable_value(&mut cache.quality, quality, quality.label()); }
+                ui.label(tr("Resolución"));
+                egui::ComboBox::from_id_salt("thumbnail-quality").selected_text(tr(cache.quality.label())).show_ui(ui, |ui| {
+                    for quality in [whakoom_desktop::covers::Quality::Low, whakoom_desktop::covers::Quality::Balanced, whakoom_desktop::covers::Quality::High] { ui.selectable_value(&mut cache.quality, quality, tr(quality.label())); }
                 });
             });
-            ui.horizontal_wrapped(|ui| { ui.label("Miniaturas en memoria"); ui.add(egui::DragValue::new(&mut cache.memory_images).range(16..=256).speed(4.)); });
-            ui.label(RichText::new("Mayor resolución usa más memoria. La nitidez depende de la imagen original de Whakoom.").size(11.).color(p.muted));
+            ui.horizontal_wrapped(|ui| { ui.label(tr("Miniaturas en memoria")); ui.add(egui::DragValue::new(&mut cache.memory_images).range(16..=256).speed(4.)); });
+            ui.label(RichText::new(tr("Mayor resolución usa más memoria. La nitidez depende de la imagen original de Whakoom.")).size(11.).color(p.muted));
             let memory_mb = cache.quality.width() as u64 * (cache.quality.width() * 3 / 2) as u64 * 4 * cache.memory_limit() as u64 / 1_048_576;
-            ui.label(RichText::new(format!("RAM de portadas: hasta ≈{memory_mb} MB")).size(11.).color(p.muted));
+            ui.label(RichText::new(i18n::trf("RAM de portadas: hasta ≈{0} MB",&[memory_mb.to_string()])).size(11.).color(p.muted));
             ui.add_space(10.);
-            ui.label(RichText::new(format!("{} guardadas · {:.1} MB en disco", app.cache_info.files, app.cache_info.bytes as f64 / 1_048_576.)).color(p.accent));
+            ui.label(RichText::new(i18n::trf("{0} guardadas · {1} MB en disco",&[app.cache_info.files.to_string(),format!("{:.1}",app.cache_info.bytes as f64 / 1_048_576.)])).color(p.accent));
             if before != app.prefs.cover_cache {
                 if before.quality != app.prefs.cover_cache.quality { app.textures.clear(); app.texture_order.clear(); app.texture_birth.clear(); app.failed.clear(); }
                 while app.textures.len() > app.prefs.cover_cache.memory_limit() {
@@ -3705,8 +4143,8 @@ impl App {
                 app.save_prefs(); app.next_cache = Instant::now(); app.update_cache(false);
             }
             ui.horizontal_wrapped(|ui| {
-                if ui.add_enabled(!app.cache_pending, egui::Button::new("Vaciar caché de disco")).clicked() { app.update_cache(true); }
-                if ui.add_enabled(!app.cache_pending, egui::Button::new("Comprobar espacio")).clicked() { app.update_cache(false); }
+                if ui.add_enabled(!app.cache_pending, egui::Button::new(tr("Vaciar caché de disco"))).clicked() { app.update_cache(true); }
+                if ui.add_enabled(!app.cache_pending, egui::Button::new(tr("Comprobar espacio"))).clicked() { app.update_cache(false); }
             });
         });
     }
@@ -3788,7 +4226,7 @@ impl App {
         if self.busy {
             page.horizontal(|ui| {
                 ui.spinner();
-                ui.label("Consultando la ficha…");
+                ui.label(tr("Consultando la ficha…"));
             });
         }
         egui::ScrollArea::vertical()
@@ -3808,7 +4246,7 @@ impl App {
                             ui.vertical(|ui| {
                                 ui.set_width(ui.available_width());
                                 ui.label(
-                                    RichText::new("TOMO · MI BIBLIOTECA")
+                                    RichText::new(tr("TOMO · MI BIBLIOTECA"))
                                         .size(10.)
                                         .color(p.accent),
                                 );
@@ -3833,7 +4271,7 @@ impl App {
                                 });
                                 ui.separator();
                                 ui.label(
-                                    RichText::new("MI COLECCIÓN")
+                                    RichText::new(tr("MI COLECCIÓN"))
                                         .size(11.)
                                         .color(p.accent),
                                 );
@@ -3844,7 +4282,7 @@ impl App {
                                     changed |= icons::toggle(ui, Icon::Read, "Leído", &mut e.read, p).changed();
                                 });
                                 ui.add_space(8.);
-                                ui.label("Mi valoración");
+                                ui.label(tr("Mi valoración"));
                                 changed |= rating::edit(ui, &mut e.rating, self.prefs.dark);
                             });
                         });
@@ -3853,7 +4291,7 @@ impl App {
                 if !d.description.is_empty() {
                     egui::Frame::new().fill(p.surface).corner_radius(14).inner_margin(22).show(ui, |ui| {
                         ui.set_width(ui.available_width());
-                        ui.heading("Sinopsis"); ui.add_space(10.);
+                        ui.heading(tr("Sinopsis")); ui.add_space(10.);
                         for paragraph in d.description.split("\n\n") {
                             ui.label(RichText::new(paragraph).size(17.).color(if self.prefs.dark { egui::Color32::from_rgb(175, 217, 240) } else { egui::Color32::from_rgb(27, 92, 133) })); ui.add_space(6.);
                         }
@@ -3862,29 +4300,39 @@ impl App {
                 }
                 egui::Frame::new().fill(p.surface).stroke(egui::Stroke::new(1., p.border)).corner_radius(14).inner_margin(22).show(ui, |ui| {
                     ui.set_width(ui.available_width());
-                    ui.heading("Tu lectura y tus notas"); ui.add_space(12.);
+                    ui.heading(tr("Tu lectura y tus notas")); ui.add_space(12.);
                     let e = self.library.ensure(&d.item);
                     ui.horizontal_wrapped(|ui| {
                         let (rect, _) = ui.allocate_exact_size(Vec2::splat(20.), egui::Sense::hover());
                         icons::paint(ui.painter(), rect, Icon::Calendar, p.accent);
-                        ui.label("Fecha de lectura");
+                        ui.label(tr("Fecha de lectura"));
                         changed |= calendar::picker(ui, &d.item.key, &mut e.read_date);
-                        ui.add_space(16.); ui.label("Importe pagado (manual)");
+                        ui.add_space(16.); ui.label(tr("Importe pagado (manual)"));
                         changed |= ui.add(egui::DragValue::new(&mut e.cost).range(0.0..=100_000_000.0).speed(1.)).changed();
                     });
                     ui.add_space(8.);
-                    ui.label(RichText::new("Etiquetas").strong());
-                    changed |= ui.add(egui::TextEdit::singleline(&mut e.tags).hint_text("Favoritos, para releer, pendientes…").desired_width(f32::INFINITY)).changed();
+                    ui.label(RichText::new(tr("Etiquetas")).strong());
+                    changed |= ui.add(egui::TextEdit::singleline(&mut e.tags).hint_text(tr("Favoritos, para releer, pendientes…")).desired_width(f32::INFINITY)).changed();
                     ui.add_space(8.);
-                    ui.label(RichText::new("Notas personales").strong());
+                    ui.label(RichText::new(tr("Notas personales")).strong());
                     changed |= note_editor(ui, &d.item.key, &mut e.notes, p);
                     ui.add_space(8.);
-                    ui.label(RichText::new("Guardado automático · etiquetas y gastos locales · lecturas y cambios de colección se envían a tu cuenta.").size(12.).color(p.muted));
+                    ui.label(RichText::new(tr("Guardado automático · etiquetas y gastos locales · lecturas y cambios de colección se envían a tu cuenta.")).size(12.).color(p.muted));
                 });
+                self.local_extras(ui,&d.item);
                 self.discussion_ui(ui, &d);
                 if !self.error.is_empty() { ui.colored_label(p.accent, &self.error); }
             });
         if changed {
+            if !before.read
+                && self.library.ensure(&d.item).read
+                && storage::reading_month(&self.library.ensure(&d.item).read_date).is_some()
+            {
+                let e = self.library.ensure(&d.item);
+                if !e.readings.contains(&e.read_date) {
+                    e.readings.push(e.read_date.clone());
+                }
+            }
             let after = self.library.ensure(&d.item).clone();
             if before.owned != after.owned {
                 self.queue_change(&d.item, sync::Change::Owned(after.owned));
@@ -3923,10 +4371,10 @@ impl App {
         }
         let mut open = true;
         let p = self.p();
-        egui::Window::new("Conectar con Whakoom").fade_in(self.prefs.animations).fade_out(self.prefs.animations).open(&mut open).default_width(390.).collapsible(false).resizable(false).show(ctx,|ui|{ui.label("Ingresá tu usuario o email y contraseña. La sesión se guarda cifrada; la contraseña no se guarda.");ui.add_space(10.);ui.label("Usuario o email");ui.add(egui::TextEdit::singleline(&mut self.login_user).desired_width(f32::INFINITY));ui.label("Contraseña");let pass=ui.add(egui::TextEdit::singleline(&mut self.login_password).password(!self.show_password).desired_width(f32::INFINITY));ui.checkbox(&mut self.show_password,"Mostrar contraseña");let enter=pass.lost_focus()&&ui.input(|i|i.key_pressed(egui::Key::Enter));if(ui.add_enabled(!self.prefs.offline&&!self.login_busy&&!self.busy&&!self.login_user.trim().is_empty()&&!self.login_password.is_empty(),egui::Button::new("Iniciar sesión").fill(p.selected)).clicked()||enter&&!self.prefs.offline&&!self.login_busy&&!self.busy)&&!self.login_user.trim().is_empty()&&!self.login_password.is_empty(){let password=Zeroizing::new(std::mem::take(&mut self.login_password));self.login_busy=true;self.send(Job::Credentials(self.login_user.trim().into(),password));}
-if self.prefs.offline{ui.label("Desactivá Trabajar sin conexión en Ajustes para conectar tu cuenta.");}
-if self.login_busy{ui.horizontal(|ui|{ui.spinner();ui.label("Conectando…");});}
-if !self.error.is_empty(){ui.colored_label(p.accent,&self.error);}ui.add_space(10.);ui.label(RichText::new("Si el sitio exige una comprobación adicional, completala dentro de Whakoom Desktop.").small().color(p.muted));#[cfg(windows)]if ui.add_enabled(!self.prefs.offline&&!self.login_busy&&!self.busy,egui::Button::new("Verificar acceso")).clicked(){self.verify_requested=true;}});
+        egui::Window::new(tr("Conectar con Whakoom")).fade_in(self.prefs.animations).fade_out(self.prefs.animations).open(&mut open).default_width(390.).collapsible(false).resizable(false).show(ctx,|ui|{ui.label(tr("Ingresá tu usuario o email y contraseña. La sesión se guarda cifrada; la contraseña no se guarda."));ui.add_space(10.);ui.label(tr("Usuario o email"));ui.add(egui::TextEdit::singleline(&mut self.login_user).desired_width(f32::INFINITY));ui.label(tr("Contraseña"));let pass=ui.add(egui::TextEdit::singleline(&mut self.login_password).password(!self.show_password).desired_width(f32::INFINITY));ui.checkbox(&mut self.show_password,tr("Mostrar contraseña"));let enter=pass.lost_focus()&&ui.input(|i|i.key_pressed(egui::Key::Enter));if(ui.add_enabled(!self.prefs.offline&&!self.login_busy&&!self.busy&&!self.login_user.trim().is_empty()&&!self.login_password.is_empty(),egui::Button::new(tr("Iniciar sesión")).fill(p.selected)).clicked()||enter&&!self.prefs.offline&&!self.login_busy&&!self.busy)&&!self.login_user.trim().is_empty()&&!self.login_password.is_empty(){let password=Zeroizing::new(std::mem::take(&mut self.login_password));self.login_busy=true;self.send(Job::Credentials(self.login_user.trim().into(),password));}
+if self.prefs.offline{ui.label(tr("Desactivá Trabajar sin conexión en Ajustes para conectar tu cuenta."));}
+if self.login_busy{ui.horizontal(|ui|{ui.spinner();ui.label(tr("Conectando…"));});}
+if !self.error.is_empty(){ui.colored_label(p.accent,&self.error);}ui.add_space(10.);ui.label(RichText::new(tr("Si el sitio exige una comprobación adicional, completala dentro de Whakoom Desktop.")).small().color(p.muted));#[cfg(windows)]if ui.add_enabled(!self.prefs.offline&&!self.login_busy&&!self.busy,egui::Button::new(tr("Verificar acceso"))).clicked(){self.verify_requested=true;}});
         if !open {
             self.show_login = false;
             use zeroize::Zeroize;
@@ -4022,12 +4470,12 @@ if !self.error.is_empty(){ui.colored_label(p.accent,&self.error);}ui.add_space(1
             .frame(egui::Frame::new().fill(self.p().surface).inner_margin(15))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.heading("Verificación de Whakoom");
-                    if ui.button("Volver al programa").clicked() {
+                    ui.heading(tr("Verificación de Whakoom"));
+                    if ui.button(tr("Volver al programa")).clicked() {
                         self.login_view = None;
                         self.login_busy = false;
                     }
-                    if !self.error.is_empty() && ui.button("Reintentar conexión").clicked() {
+                    if !self.error.is_empty() && ui.button(tr("Reintentar conexión")).clicked() {
                         self.browser_attempted = false;
                         self.error.clear();
                     }
@@ -4088,6 +4536,7 @@ impl eframe::App for App {
         let _ = self.writer.flush();
     }
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        i18n::set_language(self.prefs.language);
         let ctx = ui.ctx().clone();
         self.poll(&ctx);
         if self.persist && self.verified && self.prefs.desktop_notifications && !self.prefs.offline
@@ -4130,14 +4579,14 @@ impl eframe::App for App {
             .frame(egui::Frame::new().fill(p.surface).inner_margin(7))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new(&self.status).size(11.).color(p.muted));
+                    ui.label(RichText::new(tr(&self.status)).size(11.).color(p.muted));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(
-                            RichText::new(if self.prefs.offline {
+                            RichText::new(tr(if self.prefs.offline {
                                 "SIN CONEXIÓN · Whakoom Desktop 1.0"
                             } else {
                                 "Whakoom Desktop 1.0"
-                            })
+                            }))
                             .size(11.)
                             .color(p.muted),
                         );
@@ -4318,7 +4767,10 @@ mod ui_tests {
         assert!(app.selected_series.is_some());
         assert_eq!(app.query, "Conservar");
         assert_eq!(app.items.len(), 3);
-        assert_eq!(serde_json::to_vec(&app.library).unwrap(), before);
+        let mut without_history = app.library.clone();
+        assert_eq!(without_history.recent.visited.len(), 1);
+        without_history.recent = Default::default();
+        assert_eq!(serde_json::to_vec(&without_history).unwrap(), before);
     }
     #[test]
     fn back_ignores_late_network_detail_and_profile_stays_at_bottom() {

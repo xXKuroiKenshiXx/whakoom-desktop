@@ -19,7 +19,7 @@ $distRoot = Join-Path $projectRoot 'dist'
 $prefix = "Whakoom-Desktop-$tag"
 $exe = "$prefix.exe"
 Copy-Item -LiteralPath $built -Destination (Join-Path $distRoot $exe) -Force
-$docs = @('README.md','LICENSE','CHANGELOG.md','VALIDATION.md')
+$docs = @('README.md','LICENSE','THIRD_PARTY_NOTICES.md','CHANGELOG.md','VALIDATION.md')
 foreach ($file in $docs) { Copy-Item -LiteralPath (Join-Path $projectRoot $file) -Destination (Join-Path $distRoot $file) -Force }
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem

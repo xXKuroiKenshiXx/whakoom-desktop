@@ -23,6 +23,9 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 ## Funciones
 
 - Catálogo, fichas, portadas y opiniones reales de tomos y ediciones.
+- Explorar: populares, mejor valorados, novelas gráficas y todos los cómics; Buscados conectado a tu cuenta.
+- Listas: descubrir, favoritas, propias y creación online con tomos ordenados, privacidad y tipo de lista.
+- Historial local de búsquedas y títulos visitados. Miniaturas rápidas que mejoran su resolución en segundo plano.
 - Biblioteca por tomos o series; añadir y quitar series completas. Actualización automática al entrar y al abrir fichas.
 - Colección, deseados, lectura y valoración personal con cola persistente y reintentos online.
 - Perfil, amigos, actividad y ajustes de cuenta conectados a Whakoom.
@@ -31,6 +34,18 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 - Caché configurable por espacio, cantidad, resolución y uso de memoria.
 - Notas, calendario, emojis, etiquetas, objetivos, estadísticas y respaldos JSON/CSV.
 - Destacar o relegar opiniones para tu propia biblioteca.
+- Español, inglés, portugués, ruso y chino; fuentes de respaldo sin reemplazar la tipografía principal.
+- Amigos con zoom, carrusel opcional y desplazamiento horizontal; ajustes adaptables al ancho de ventana.
+- Relecturas, orden de lectura, ubicación, conservación y fotos de firmas en el respaldo. [Comparación con herramientas Pro](docs/local-features.md).
+
+<details>
+<summary>Catálogo y listas</summary>
+
+![Catálogo integrado](assets/catalog.png)
+
+![Listas públicas](assets/lists.png)
+
+</details>
 
 ## Conexión y datos
 
@@ -61,3 +76,5 @@ Empaquetado: `tools/package.ps1` genera el portable Windows; `makensis tools/ins
 ## Licencia
 
 Código bajo [MIT](LICENSE). La marca Whakoom, portadas, avatares y contenido de terceros pertenecen a sus titulares. La licencia del código no concede derechos sobre esos recursos.
+
+Las fuentes incluyen licencias propias, detalladas en [avisos de terceros](THIRD_PARTY_NOTICES.md).

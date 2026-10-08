@@ -23,6 +23,7 @@ pub enum Icon {
     Calendar,
     Smile,
     ThumbDown,
+    Compass,
 }
 pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
     let s = Stroke::new(1.6, c);
@@ -31,6 +32,14 @@ pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
         p.line_segment([at(a.0, a.1), at(b.0, b.1)], s);
     };
     match icon {
+        Icon::Compass => {
+            p.circle_stroke(r.center(), r.width() * 0.42, s);
+            p.add(egui::Shape::convex_polygon(
+                vec![at(0.7, 0.2), at(0.55, 0.55), at(0.3, 0.8), at(0.45, 0.45)],
+                c,
+                Stroke::NONE,
+            ));
+        }
         Icon::HeartFilled => {
             p.circle_filled(at(0.31, 0.34), r.width() * 0.22, c);
             p.circle_filled(at(0.69, 0.34), r.width() * 0.22, c);
@@ -254,6 +263,8 @@ pub fn button(
     selected: bool,
     p: crate::theme::Palette,
 ) -> egui::Response {
+    let translated = crate::i18n::tr(label);
+    let label = translated.as_str();
     let width = if compact { 40. } else { ui.available_width() };
     let (rect, response) = ui.allocate_exact_size(egui::vec2(width, 42.), egui::Sense::click());
     let hover = ui.ctx().animate_bool_with_time(
@@ -307,6 +318,8 @@ pub fn action(
     label: &str,
     p: crate::theme::Palette,
 ) -> egui::Response {
+    let translated = crate::i18n::tr(label);
+    let label = translated.as_str();
     let text = ui
         .painter()
         .layout_no_wrap(label.into(), egui::FontId::proportional(13.), p.text);
@@ -342,6 +355,8 @@ pub fn toggle(
     value: &mut bool,
     p: crate::theme::Palette,
 ) -> egui::Response {
+    let translated = crate::i18n::tr(label);
+    let label = translated.as_str();
     let text = ui
         .painter()
         .layout_no_wrap(label.into(), egui::FontId::proportional(14.), p.text);
