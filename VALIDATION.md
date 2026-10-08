@@ -14,7 +14,7 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 - Explorar y Listas: cuatro categorías con 56 fichas por página, listas propias/favoritas y lista pública de 54 tomos en dos páginas comprobadas contra el sitio actual. Creación y favoritos se verifican con contratos y validación de solicitudes; no se crean listas personales como prueba.
 - Tipografía: presencia de los glifos matemáticos solicitados, chino y cirílico en las fuentes incluidas. Capturas del catálogo en inglés y de Ajustes en chino.
 - Herramientas locales: relecturas, ubicación, conservación, orden de lectura y fotos sobreviven al respaldo; referencias de fotos y fechas corruptas se rechazan.
-- Seguidores: 6 personas y el primer perfil comprobados en el sitio real; pestañas, respaldos y aislamiento de respuestas de otra cuenta verificados.
+- Seguidores y perfiles comprobados en el sitio real; pestañas, respaldos y aislamiento de respuestas de otra cuenta verificados. No se publican los resultados personales de la consulta.
 - Hover: margen exterior de 18 px que mantiene el zoom sin activarlo desde fuera; desvanecimiento al salir y desactivación inmediata de animaciones.
 - Compresión sin pérdida: mismos píxeles tras guardar, archivo igual o menor, caché borrada no recreada por el optimizador. Ajustes organizado por secciones y capturas de Almacenamiento.
 - Miniaturas progresivas: un tamaño pequeño permanece visible mientras falta la resolución final, incluso si su caché está corrupta; no se agranda antes de descargar la imagen final.
