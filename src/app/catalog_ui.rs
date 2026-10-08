@@ -58,6 +58,24 @@ impl App {
         ui.add_space(14.);
         if self.catalog_mode == CatalogMode::Search {
             ui.horizontal(|ui| {
+                for (users, label) in [(false, "Cómics"), (true, "Usuarios")] {
+                    if ui
+                        .selectable_label(self.search_users == users, tr(label))
+                        .clicked()
+                        && self.search_users != users
+                    {
+                        self.search_users = users;
+                        self.found_users.clear();
+                        self.items.clear();
+                        self.next = None;
+                        self.generation += 1;
+                        self.busy = false;
+                        self.refresh(1);
+                    }
+                }
+            });
+            ui.add_space(8.);
+            ui.horizontal(|ui| {
                 let width = (ui.available_width() - 54.).max(100.);
                 let input = ui.add_sized(
                     [width, 44.],

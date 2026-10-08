@@ -1,10 +1,17 @@
-# Validación de 2.0.0
+# Validación de 2.0.5
 
 Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y rutas comprobadas; no constituyen una garantía de ausencia de errores.
 
+## Comprobaciones de 2.0.5
+
+- Deseados: consulta autenticada de `/buscados` y del servicio completo, unión sin duplicados y aceptación de su marcador de fin numérico. La consulta real no modifica la cuenta.
+- Perfiles: Comicteca (primera y segunda página), Buscados, Listas y búsqueda de usuarios contrastados con el sitio. Prueba aislada de resultados tardíos y perfiles de otra persona: no se importan a la biblioteca propia.
+- Fechas de compra: nuevas altas de series registran el día y conservan sin fecha los tomos que ya estaban adquiridos. No se encontró una fecha histórica fiable en las páginas consultadas.
+- Interfaz: botones sociales mayores, actividad de ambas relaciones, carrusel ampliado, controles de año centrados y tarjetas de Ajustes con ancho uniforme.
+
 ## Comprobaciones automatizadas
 
-100 pruebas aprobadas en Windows x64/MSVC y 100 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
+104 pruebas aprobadas en Windows x64/MSVC y 104 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
 
 - Visor: en búsqueda, tanto portadas como lista abren la ficha al pulsar una imagen. El visor se abre únicamente desde la portada dentro de la ficha; Escape lo cierra conservando el cómic abierto. Capturas nativas de zoom en Windows y AppImage Linux.
 - Carrusel: un contacto y ventana de 760 px mantienen el movimiento y los límites de la sección; los controles de animación conservan su comportamiento.
@@ -33,8 +40,8 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 
 ## Ejecución y paquetes
 
-- Windows: interfaz nativa y ejecutable 2.0 comprobados con capturas de catálogo, estadísticas, ficha, visor, asistente de calidad y ayuda pública. El instalador se compiló con NSIS y su ejecutable extraído coincide por SHA-256 con el binario final; la instalación/desinstalación en una carpeta temporal fue comprobada en 1.0.
-- Linux: ejecución en Ubuntu 24.04 dentro de WSL con Xvfb y renderizado software X11. La AppImage 2.0.0 abrió el catálogo reorganizado y el visor de portada; asistente de calidad, biblioteca y Ajustes en chino se comprobaron en las revisiones anteriores. Wayland y otras distribuciones no se probaron de forma interactiva.
+- Windows: interfaz nativa y ejecutable 2.0.5 comprobados con capturas de catálogo, estadísticas, ficha, visor, asistente de calidad y ayuda pública. El instalador se compiló con NSIS y su ejecutable extraído coincide por SHA-256 con el binario final; la instalación/desinstalación en una carpeta temporal fue comprobada en 1.0.
+- Linux: ejecución en Ubuntu 24.04 dentro de WSL con Xvfb y renderizado software X11. La AppImage 2.0.5 abrió Seguidores y su actividad con el carrusel ampliado; catálogo y visor se comprobaron en 2.0.0; asistente de calidad, biblioteca y Ajustes en chino se comprobaron en las revisiones anteriores. Wayland y otras distribuciones no se probaron de forma interactiva.
 - Secret Service: una sesión ficticia se guardó, recuperó y borró en un llavero aislado. La fecha de lectura utiliza la zona horaria del sistema.
 - Conector Linux: sesión real transferida únicamente por stdin, sin archivo ni argumentos con credenciales; lectura de colección, amigos y siete secciones de cuenta.
 - Capturas Windows: biblioteca y ficha con sinopsis de color, controles de colección y separación de portada. Notas largas quedan dentro de un área con scroll.

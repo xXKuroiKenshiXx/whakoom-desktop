@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use std::{collections::HashSet, io::Read, time::Duration};
 
 pub const BASE: &str = "https://www.whakoom.com";
-pub const USER_AGENT: &str = "WhakoomDesktop/2.0 (unofficial desktop client)";
+pub const USER_AGENT: &str = "WhakoomDesktop/2.0.5 (unofficial desktop client)";
 const MAX_BODY: u64 = 4 * 1024 * 1024;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -145,6 +145,11 @@ pub fn parse_items(html: &str) -> Vec<Item> {
                 .select(&sel(".issue-number"))
                 .next()
                 .map(text)
+                .or_else(|| {
+                    a.select(&sel("span"))
+                        .map(text)
+                        .find(|t| t.starts_with('#'))
+                })
                 .unwrap_or_default();
             if let Some(result) = result
                 && let Some(link) = result.select(&sel(".title a")).next()
@@ -723,6 +728,10 @@ impl Api {
             "Whakoom devolvió HTML en lugar de datos; reconectá tu sesión".to_owned()
         })?)
     }
+    pub fn post_referred(&self, path: &str, body: Value, referer: &str) -> Result<Value, String> {
+        let raw = self.request_referred(path, Some(body), Some(referer))?;
+        unwrap_response(serde_json::from_str(&raw).map_err(|_| "Respuesta de perfil inválida")?)
+    }
     pub fn profile(&self) -> Result<String, String> {
         parse_profile(&self.request("/", None)?).ok_or_else(|| "Todavía no hay una sesión autenticada. Completá el login oficial y pulsá Conectar sesión".into())
     }
@@ -773,9 +782,13 @@ impl Api {
             )
         };
         let data = self.post(path, body)?;
+        let end = data
+            .get("ExtraInfo")
+            .is_some_and(|value| value.as_str() == Some("0") || value.as_u64() == Some(0));
         let html = data
             .get("Html")
             .and_then(Value::as_str)
+            .or_else(|| end.then_some(""))
             .ok_or("Cambió el formato de tu colección")?;
         if html.is_empty()
             && data
@@ -787,7 +800,12 @@ impl Api {
         }
         let items = parse_items(html);
         // List endpoints do not all supply nextPage. An empty next page ends pagination.
-        let next = if items.is_empty() || data.get("ExtraInfo").and_then(Value::as_str) == Some("0")
+        let next = if items.is_empty()
+            || end
+            || (wishlist
+                && data
+                    .get("ExtraInfo")
+                    .is_some_and(|v| v.as_str() == Some("2") || v.as_u64() == Some(2)))
         {
             None
         } else {

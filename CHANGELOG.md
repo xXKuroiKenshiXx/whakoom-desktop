@@ -1,5 +1,15 @@
 # Cambios
 
+## 2.0.5
+
+- Deseados combina la página Buscados y el servicio paginado; reconoce el final numérico de la respuesta para evitar descartar la actualización completa.
+- Perfiles con Actividad, Comicteca, Buscados y Listas, paginación y búsqueda de usuarios desde Catálogo.
+- Actividad de seguidores y consultas sociales en tandas de hasta tres perfiles.
+- Carrusel siempre habilitado con las animaciones, tarjetas mayores y botones de Amigos/Seguidores más visibles.
+- Nuevas altas de tomos y series registran el día en la fecha de compra, manteniendo intactas las fechas históricas desconocidas.
+- Objetivo de lectura al final de Estadísticas, controles de año alineados, Ajustes con tarjetas de ancho completo e icono de recarga más claro.
+- Paquetes Windows y Linux con el número completo 2.0.5.
+
 ## 2.0.0
 
 - Iconos propios en las siete opciones de cuenta, con selección destacada.

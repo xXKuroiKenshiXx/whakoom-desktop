@@ -9,7 +9,7 @@
 | `api.rs`, `catalog.rs`, `discover.rs`, `lists.rs` | HTTPS, servicios web, lectura de fichas y paginación |
 | `sync.rs` | Intenciones pendientes, reintentos y reconciliación |
 | `storage.rs`, `session.rs` | Biblioteca, respaldos, escritura atómica y credenciales |
-| `account.rs`, `social.rs` | Formularios de cuenta, perfiles y actividad |
+| `account.rs`, `social.rs`, `profile_sections.rs` | Formularios de cuenta, perfiles y actividad |
 | `discussion.rs`, `reviews.rs`, `reactions.rs` | Lectura, publicación verificada y prioridades personales de opiniones |
 | `statistics.rs`, `help.rs` | Compras/lecturas por mes y API pública de comunidad Zendesk |
 | `covers.rs`, `photos.rs` | Portadas progresivas, caché y fotos personales con límites |
@@ -31,11 +31,11 @@ Cada acción cambia primero la biblioteca y genera una intención durable de la 
 
 Las series prueban la operación conjunta y vuelven a leer el servidor. Los faltantes se reanudan en tandas de hasta 12, con hasta tres escrituras simultáneas y comprobación final. Los cambios individuales tienen prioridad frente a un reintento antiguo de la serie.
 
-Colección y deseados se consultan completos. Lecturas y valoraciones se recuperan al consultar fichas, sin descargar todo el historial. Las notas se envían sólo cuando el servicio concede permisos. Etiquetas, importes, objetivos y reacciones son locales y están incluidos en el respaldo.
+Colección y deseados se consultan completos. `wishlist.rs` combina `/buscados` y el servicio paginado; el final de lista admite los indicadores numéricos y de texto que devuelve el sitio. Los perfiles ajenos mantienen sus resultados fuera de la biblioteca propia y paginan con el referente de su sección. Lecturas y valoraciones se recuperan al consultar fichas, sin descargar todo el historial. Las notas se envían sólo cuando el servicio concede permisos. Etiquetas, importes, objetivos y reacciones son locales y están incluidos en el respaldo.
 
 Las opiniones se escriben mediante los contratos actuales `/wkws.asmx/updateComicReview` y `/wkws.asmx/UpdateEditionReview`. Antes de editar se consulta el formulario personal; después de enviar se vuelve a leer para confirmar texto y valoración. Los reintentos editan la misma opinión. El límite de 1000 unidades UTF-16 coincide con el formulario web.
 
-`statistics.rs` acepta únicamente gráficos de lectura que la cuenta pueda consultar en `/mycollection/read/statistics`. Si el servidor restringe el informe, conserva las estadísticas locales. Las compras usan `purchase_date`; la marca temporal de importación nunca se interpreta como fecha de compra.
+`statistics.rs` acepta únicamente gráficos de lectura que la cuenta pueda consultar en `/mycollection/read/statistics`. Si el servidor restringe el informe, conserva las estadísticas locales. Las nuevas altas con «Lo tengo» asignan el día local a `purchase_date` si estaba vacío. Importar una colección o encontrar un tomo ya adquirido no agrega una fecha histórica ficticia. Las compras usan `purchase_date`; la marca temporal de importación nunca se interpreta como fecha de compra.
 
 `help.rs` usa un cliente independiente sin cookies, limitado a HTTPS en `whakoom.zendesk.com`, respuestas de 2 MiB y tiempo máximo de 20 segundos. El HTML público se presenta como texto. Los formularios no exponen IPC nativo ni reciben cookies de la API: Windows usa un contexto WebView2 independiente e incógnito; Linux abre los enlaces oficiales en el navegador del usuario.
 

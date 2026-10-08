@@ -71,6 +71,15 @@ fn full_series_follows_pages_deduplicates_and_keeps_personal_edits() {
     assert!(library.entries["comicb"].read);
     assert_eq!(library.entries["comicb"].rating, 5);
     assert!(library.editions["edicion123"].favorite);
+    let (year, month, day) = whakoom_desktop::calendar::today();
+    assert_eq!(
+        library.entries["comica"].purchase_date,
+        format!("{year:04}-{month:02}-{day:02}")
+    );
+    assert!(
+        library.entries["comicb"].purchase_date.is_empty(),
+        "An already owned, undated comic must not become a purchase today"
+    );
 }
 #[test]
 fn failed_repeated_or_cancelled_pages_never_produce_a_partial_series() {

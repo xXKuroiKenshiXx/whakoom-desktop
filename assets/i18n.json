@@ -2374,5 +2374,53 @@
     "O Whakoom não fornece estatísticas de leitura para esta conta. Seus registros locais são exibidos.",
     "Whakoom не предоставляет статистику чтения этому аккаунту. Показаны локальные записи.",
     "Whakoom 未为此账号提供阅读统计。当前显示本地记录。"
+  ],
+  "Carrusel": [
+    "Carousel",
+    "Carrossel",
+    "Карусель",
+    "轮播"
+  ],
+  "Comicteca": [
+    "Comic collection",
+    "Comicteca",
+    "Коллекция комиксов",
+    "漫画收藏"
+  ],
+  "Usuarios": [
+    "Users",
+    "Usuários",
+    "Пользователи",
+    "用户"
+  ],
+  "ACTIVIDAD DE TUS SEGUIDORES": [
+    "YOUR FOLLOWERS’ ACTIVITY",
+    "ATIVIDADE DOS SEUS SEGUIDORES",
+    "АКТИВНОСТЬ ВАШИХ ПОДПИСЧИКОВ",
+    "关注者动态"
+  ],
+  "No hay contenido disponible en esta sección.": [
+    "No content is available in this section.",
+    "Não há conteúdo disponível nesta seção.",
+    "В этом разделе нет доступного содержимого.",
+    "此部分没有可用内容。"
+  ],
+  "Buscá personas por su nombre de usuario.": [
+    "Search people by username.",
+    "Busque pessoas pelo nome de usuário.",
+    "Ищите людей по имени пользователя.",
+    "按用户名搜索用户。"
+  ],
+  "Whakoom Desktop 2.0.5": [
+    "Whakoom Desktop 2.0.5",
+    "Whakoom Desktop 2.0.5",
+    "Whakoom Desktop 2.0.5",
+    "Whakoom Desktop 2.0.5"
+  ],
+  "SIN CONEXIÓN · Whakoom Desktop 2.0.5": [
+    "OFFLINE · Whakoom Desktop 2.0.5",
+    "SEM CONEXÃO · Whakoom Desktop 2.0.5",
+    "ОФЛАЙН · Whakoom Desktop 2.0.5",
+    "离线 · Whakoom Desktop 2.0.5"
   ]
 }

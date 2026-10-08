@@ -6,17 +6,17 @@ Cliente de escritorio **no oficial** de [Whakoom](https://www.whakoom.com), escr
 
 La captura usa títulos públicos y una biblioteca de ejemplo; no contiene una sesión real.
 
-## Descargar 2.0.0
+## Descargar 2.0.5
 
-[Descargas y notas de la versión](https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/tag/v2.0.0)
+[Descargas y notas de la versión](https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/tag/v2.0.5)
 
 | Sistema | Archivo | Requisitos |
 | --- | --- | --- |
-| Windows | `Whakoom-Desktop-2.0-setup.exe` | Windows 10/11, x64 |
-| Windows portable | `Whakoom-Desktop-2.0.exe` o ZIP | Mismos requisitos; no requiere instalación |
-| Linux | `Whakoom-Desktop-2.0-x86_64.AppImage` | x86_64, glibc 2.39 o posterior, OpenGL, X11/Wayland |
+| Windows | `Whakoom-Desktop-2.0.5-setup.exe` | Windows 10/11, x64 |
+| Windows portable | `Whakoom-Desktop-2.0.5.exe` o ZIP | Mismos requisitos; no requiere instalación |
+| Linux | `Whakoom-Desktop-2.0.5-x86_64.AppImage` | x86_64, glibc 2.39 o posterior, OpenGL, X11/Wayland |
 
-En Linux: `chmod +x Whakoom-Desktop-2.0-x86_64.AppImage` y ejecutá el archivo. Si FUSE no está disponible, usá `./Whakoom-Desktop-2.0-x86_64.AppImage --appimage-extract-and-run`. Para recordar la sesión necesitás un servicio Secret Service desbloqueado, como GNOME Keyring o KWallet compatible. La verificación adicional mediante navegador integrado está disponible únicamente en Windows y requiere WebView2; el inicio con credenciales usa HTTPS en ambos sistemas.
+En Linux: `chmod +x Whakoom-Desktop-2.0.5-x86_64.AppImage` y ejecutá el archivo. Si FUSE no está disponible, usá `./Whakoom-Desktop-2.0.5-x86_64.AppImage --appimage-extract-and-run`. Para recordar la sesión necesitás un servicio Secret Service desbloqueado, como GNOME Keyring o KWallet compatible. La verificación adicional mediante navegador integrado está disponible únicamente en Windows y requiere WebView2; el inicio con credenciales usa HTTPS en ambos sistemas.
 
 Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA256SUMS.txt` de la misma publicación. Portable significa que no necesita instalador: los datos siguen en la carpeta de usuario, separados del ejecutable.
 
@@ -25,14 +25,14 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 - Catálogo ordenado en Buscar, Explorar y Listas; historial de búsquedas y visitas.
 - Fichas con ISBN, cantidad de personas que tienen el título, votos y opiniones reales. Escribir y editar tu opinión pública con confirmación online.
 - Visor de portadas en primer plano: rueda, arrastre, controles de zoom y cierre con Escape. La tarjeta del catálogo, incluida su portada, abre la ficha interna. El visor se abre al pulsar la portada dentro de la ficha.
-- Estadísticas anuales de compras y lecturas, comparación mensual y fechas de compra explícitas.
+- Estadísticas anuales de compras y lecturas, comparación mensual y fecha de compra automática al marcar «Lo tengo», editable desde la ficha.
 - Comunidad y ayuda oficial: categorías, publicaciones y respuestas públicas; formularios para reportar, proponer y comentar.
-- Explorar: populares, mejor valorados, novelas gráficas y todos los cómics. Deseados reúne la lista online antes duplicada como Buscados.
+- Explorar: populares, mejor valorados, novelas gráficas y todos los cómics. Deseados reúne `/buscados` y el servicio paginado, conservando tomos y series sin duplicados.
 - Listas: descubrir, favoritas, propias y creación online con tomos ordenados, privacidad y tipo de lista.
 - Historial local de búsquedas y títulos visitados. Miniaturas rápidas que mejoran su resolución en segundo plano.
 - Biblioteca por tomos o series; añadir y quitar series completas. Actualización automática al entrar y al abrir fichas.
 - Colección, deseados, lectura y valoración personal con cola persistente y reintentos online.
-- Perfil, seguidos, seguidores, actividad y ajustes de cuenta conectados a Whakoom.
+- Búsqueda de usuarios y perfiles con Actividad, Comicteca, Buscados y Listas; seguidos, seguidores y ajustes de cuenta conectados a Whakoom.
 - Estrellas doradas de comunidad y violetas personales; votos visibles en las fichas.
 - Tema claro/oscuro, transiciones y portadas holográficas con marco iridiscente. Animaciones desactivables.
 - Inicio guiado para elegir caché y calidad de las imágenes; alta calidad por defecto. Configuración por espacio, cantidad, resolución y uso de memoria, con ejemplos visuales de calidad.
@@ -40,7 +40,7 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 - Notas, calendario, emojis, etiquetas, objetivos, estadísticas y respaldos JSON/CSV.
 - Destacar o relegar opiniones para tu propia biblioteca.
 - Español, inglés, portugués, ruso y chino; fuentes de respaldo sin reemplazar la tipografía principal.
-- Amigos y Seguidores con zoom, carruseles infinitos opcionales y desplazamiento horizontal; ajustes adaptables al ancho de ventana.
+- Amigos y Seguidores con zoom, carruseles infinitos y desplazamiento horizontal; ajustes adaptables al ancho de ventana.
 - Relecturas, orden de lectura, ubicación, conservación y fotos de firmas en el respaldo. [Comparación con herramientas Pro](docs/local-features.md).
 
 <details>
@@ -54,6 +54,8 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 
 ![Listas públicas](assets/lists.png)
 
+![Amigos y actividad de ejemplo](assets/friends.png)
+
 ![Ajustes de almacenamiento](assets/settings.png)
 
 ![Asistente inicial de imágenes](assets/onboarding.png)
@@ -66,7 +68,7 @@ La aplicación utiliza HTTPS, los servicios internos del cliente web de Whakoom 
 
 La interfaz aplica los cambios localmente al momento. Con sesión y conexión, intenta enviarlos automáticamente; sólo los confirma cuando se verifica el estado del servidor. Las operaciones grandes usan tandas limitadas y conservan los pendientes ante errores. No puede garantizar una confirmación online instantánea ni eludir permisos del servidor.
 
-Las estadísticas locales funcionan sin Pro. Las compras usan la fecha que registres en cada ficha; importar un título no supone que lo hayas comprado ese día. Las lecturas originales se consultan sólo si la cuenta tiene permiso: el servidor puede exigir Pro. Los datos mensuales autorizados reemplazan los registros locales de ese mes, sin sumarlos dos veces.
+Las estadísticas locales funcionan sin Pro. Las nuevas altas con «Lo tengo» usan la fecha del día, que podés editar en la ficha; las compras históricas conservan sus fechas conocidas. Importar un título no supone que lo hayas comprado ese día. Las lecturas originales se consultan sólo si la cuenta tiene permiso: el servidor puede exigir Pro. Los datos mensuales autorizados reemplazan los registros locales de ese mes, sin sumarlos dos veces.
 
 La sección Ayuda consulta la API pública de Zendesk sin enviar cookies de Whakoom. Reportes y comentarios usan los formularios oficiales y su propia sesión: en Windows se muestran dentro de la aplicación mediante WebView2; en Linux se abren en el navegador. No se reutiliza la contraseña ni se comparten credenciales entre los dos servicios.
 

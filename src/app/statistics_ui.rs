@@ -3,9 +3,10 @@ impl App {
     pub(super) fn annual_statistics_ui(&mut self, ui: &mut egui::Ui) {
         let p = self.p();
         self.setting_card(ui, Icon::Chart, "Tus ritmos de compra y lectura", |app, ui| {
-            ui.horizontal_wrapped(|ui| {
+            ui.horizontal(|ui| {
+                ui.set_min_height(42.);
                 ui.label(tr("Año"));
-                ui.add(egui::DragValue::new(&mut app.stats_year).range(1900..=2100).speed(1.).max_decimals(0));
+                ui.add_sized([90.,42.], egui::DragValue::new(&mut app.stats_year).range(1900..=2100).speed(1.).max_decimals(0));
                 if icons::refresh(ui,p).clicked() { app.refresh(1); }
                 if app.online_stats_pending { ui.spinner(); }
             });

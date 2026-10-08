@@ -26,7 +26,7 @@ impl App {
         egui::ScrollArea::vertical().id_salt("settings-page").show(ui, |ui| {
             match self.settings_section {
                 SettingsSection::General => {
-                    let count = if ui.available_width() >= 740. { 2 } else { 1 };
+                    let count = 1;
                     ui.columns(count, |columns| {
                         let secondary = count - 1;
                 self.setting_card(&mut columns[0], Icon::Sun, "Apariencia", |app, ui| {
@@ -36,7 +36,6 @@ impl App {
                     ui.add_space(10.);
                     if ui.checkbox(&mut app.prefs.animations, tr("Animaciones y efecto holográfico")).changed() { theme::apply(ui.ctx(), app.prefs.dark, app.prefs.animations); app.save_prefs(); }
                     ui.label(RichText::new(tr("Zoom, reflejo e inclinación desde los 150 ms sobre la portada.")).size(11.).color(p.muted));
-                    if ui.checkbox(&mut app.prefs.friends_carousel,tr("Carrusel automático de amigos")).changed(){app.save_prefs();}
                     if ui.checkbox(&mut app.prefs.compact_sidebar, tr("Menú lateral compacto")).changed() { app.save_prefs(); }
                     if ui.add(egui::Slider::new(&mut app.prefs.cover_width, 110.0..=210.0).text(tr("Portadas"))).changed() { app.save_prefs(); }
                 });
@@ -112,7 +111,7 @@ impl App {
     fn cache_settings(&mut self, ui: &mut egui::Ui) {
         let p = self.p();
         let before = self.prefs.cover_cache.clone();
-        let count = if ui.available_width() >= 740. { 2 } else { 1 };
+        let count = 1;
         ui.columns(count, |columns| {
             self.setting_card(&mut columns[0], Icon::Book, "Imágenes guardadas", |app, ui| {
                 let cache = &mut app.prefs.cover_cache;

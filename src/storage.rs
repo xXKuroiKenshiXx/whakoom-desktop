@@ -256,6 +256,10 @@ impl Library {
                 metadata.publisher.clone_from(&item.publisher);
             }
             let entry = candidate.ensure(&metadata);
+            if !entry.owned && entry.purchase_date.is_empty() {
+                let (year, month, day) = crate::calendar::today();
+                entry.purchase_date = format!("{year:04}-{month:02}-{day:02}");
+            }
             added += usize::from(!entry.owned);
             entry.owned = true;
         }

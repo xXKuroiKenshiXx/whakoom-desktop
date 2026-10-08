@@ -107,9 +107,11 @@ pub fn profile(html: &str, username: &str) -> Result<User, String> {
 }
 pub fn friends(html: &str) -> Vec<User> {
     let h = Html::parse_document(html);
-    h.select(&selector("ul.users-list > li"))
+    h.select(&selector("ul.users-list > li, .sresult-user"))
         .filter_map(|entry| {
-            let a = entry.select(&selector("a.avatar[href]")).next()?;
+            let a = entry
+                .select(&selector("a.avatar[href], p.img a[href]"))
+                .next()?;
             let url = api::safe_url(a.value().attr("href")?).ok()?;
             let username = url::Url::parse(&url)
                 .ok()?
@@ -118,7 +120,9 @@ pub fn friends(html: &str) -> Vec<User> {
                 .to_owned();
             user_path(&username).ok()?;
             let name = entry
-                .select(&selector(".user-name, .username, .name, a.username, a.un"))
+                .select(&selector(
+                    ".user-name, .username, .name, a.username, a.un, strong",
+                ))
                 .next()
                 .map(text)
                 .filter(|n| !n.is_empty())

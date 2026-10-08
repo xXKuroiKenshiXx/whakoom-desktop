@@ -3,6 +3,7 @@ mod collection_ui;
 mod cover_viewer;
 mod help_ui;
 mod onboarding;
+mod profile_ui;
 mod reviews_ui;
 mod settings_ui;
 mod statistics_ui;
@@ -27,7 +28,7 @@ use whakoom_desktop::{
     discover, discussion, help, holographic,
     i18n::{self, tr},
     icons::{self, Icon},
-    lists, rating, reactions, reviews,
+    lists, profile_sections, rating, reactions, reviews,
     series::{self, Series},
     session, social, statistics,
     storage::{self, Library, Preferences, Stats, Writer},
@@ -137,6 +138,8 @@ enum Job {
     Metadata(Item, String),
     Friends(String, social::Relation),
     Profile(String),
+    ProfileSection(String, profile_sections::Section, u32),
+    SearchUsers(String, u32),
     Account(account::Section, String),
     SaveAccount(account::Submission, String),
     Avatar(PathBuf, String),
@@ -170,6 +173,8 @@ enum Data {
     Metadata(String, Item, Result<Box<Detail>, String>),
     Friends(String, social::Relation, Vec<social::User>),
     Profile(social::User),
+    ProfileSection(String, profile_sections::Section, profile_sections::Content),
+    Users(Vec<social::User>, Option<u32>),
     Account(String, account::Page),
     AccountSaved(String, account::Page, social::User),
     Reviews(String, discussion::Discussion),
@@ -547,10 +552,7 @@ fn worker(
                             |p| api.collection(p, "", false),
                             || cancel.load(Ordering::Relaxed),
                         )?;
-                        let wanted = sync::pages(
-                            |p| api.collection(p, "", true),
-                            || cancel.load(Ordering::Relaxed),
-                        )?;
+                        let wanted = api.wanted_all(|| cancel.load(Ordering::Relaxed))?;
                         Ok((owned, wanted))
                     })();
                     Ok(match result {
@@ -572,18 +574,28 @@ fn worker(
                 }
                 Job::Friends(username, relation) => {
                     api.connections(&username, relation).map(|mut friends| {
-                        for friend in friends
-                            .iter_mut()
-                            .filter(|_| relation == social::Relation::Following)
-                        {
-                            if let Ok(profile) = api.user_profile(&friend.username) {
-                                *friend = profile;
-                            }
+                        for batch in friends.chunks_mut(3) {
+                            std::thread::scope(|scope| {
+                                for friend in batch {
+                                    let api = &api;
+                                    scope.spawn(move || {
+                                        if let Ok(profile) = api.user_profile(&friend.username) {
+                                            *friend = profile;
+                                        }
+                                    });
+                                }
+                            });
                         }
                         Data::Friends(username, relation, friends)
                     })
                 }
                 Job::Profile(username) => api.user_profile(&username).map(Data::Profile),
+                Job::ProfileSection(user, section, page) => api
+                    .profile_section(&user, section, page)
+                    .map(|content| Data::ProfileSection(user, section, content)),
+                Job::SearchUsers(query, page) => api
+                    .search_users(&query, page)
+                    .map(|(users, next)| Data::Users(users, next)),
                 Job::Account(section, owner) => {
                     api.account_page(section).map(|p| Data::Account(owner, p))
                 }
@@ -671,6 +683,10 @@ struct App {
     metadata_failed: HashSet<String>,
     metadata_fetched: HashSet<String>,
     profile: Option<social::User>,
+    profile_section: profile_sections::Section,
+    profile_content: profile_sections::Content,
+    search_users: bool,
+    found_users: Vec<social::User>,
     account_page: account::Page,
     account_loaded: bool,
     confirm_cancellation: bool,
@@ -865,6 +881,10 @@ impl App {
             metadata_failed: HashSet::new(),
             metadata_fetched: HashSet::new(),
             profile: None,
+            profile_section: Default::default(),
+            profile_content: Default::default(),
+            search_users: false,
+            found_users: Vec::new(),
             account_page: account::Page::default(),
             account_loaded: false,
             confirm_cancellation: false,
@@ -1174,6 +1194,8 @@ impl App {
         self.review_loading = false;
         self.review_error.clear();
         self.profile = None;
+        self.profile_section = Default::default();
+        self.profile_content = Default::default();
         self.list_detail = None;
         self.list_editor = false;
         if tab == Tab::Account {
@@ -1201,6 +1223,13 @@ impl App {
         self.send(Job::Pull(self.library.owner.clone()));
     }
     fn queue_change(&mut self, item: &Item, change: sync::Change) {
+        if matches!(change, sync::Change::Owned(true)) {
+            let entry = self.library.ensure(item);
+            if entry.purchase_date.is_empty() {
+                let (year, month, day) = calendar::today();
+                entry.purchase_date = format!("{year:04}-{month:02}-{day:02}");
+            }
+        }
         sync::enqueue(&mut self.library, item, change);
         self.next_push = Instant::now();
         self.save_library();
@@ -1467,6 +1496,17 @@ impl App {
             return;
         }
         if self.tab == Tab::Friends {
+            if let Some(user) = self.profile.clone() {
+                if !self.prefs.offline {
+                    if self.profile_section == profile_sections::Section::Activity {
+                        self.send(Job::Profile(user.username));
+                    } else {
+                        self.profile_content = Default::default();
+                        self.send(Job::ProfileSection(user.username, self.profile_section, 1));
+                    }
+                }
+                return;
+            }
             if !self.prefs.offline && self.verified {
                 self.send(Job::Friends(
                     self.username.clone().unwrap_or_default(),
@@ -1505,8 +1545,17 @@ impl App {
                     if self.prefs.offline {
                         self.local_items();
                     } else {
-                        self.send(Job::Search(self.submitted.clone(), page));
+                        if self.search_users {
+                            self.send(Job::SearchUsers(self.submitted.clone(), page));
+                        } else {
+                            self.send(Job::Search(self.submitted.clone(), page));
+                        }
                     }
+                }
+                CatalogMode::Search if self.search_users => {
+                    self.found_users.clear();
+                    self.next = None;
+                    self.busy = false;
                 }
                 CatalogMode::Search => {
                     self.items = self.library.recent.visited.clone();
@@ -1755,6 +1804,63 @@ impl App {
                         self.save_library();
                     }
                     self.profile = Some(profile);
+                    self.busy = false;
+                }
+                Ok(Data::ProfileSection(user, section, content))
+                    if relevant
+                        && self.profile.as_ref().is_some_and(|p| p.username == user)
+                        && self.profile_section == section =>
+                {
+                    if section == profile_sections::Section::Lists {
+                        let mut ids: HashSet<_> = self
+                            .profile_content
+                            .lists
+                            .lists
+                            .iter()
+                            .map(|l| l.id)
+                            .collect();
+                        self.profile_content
+                            .lists
+                            .lists
+                            .extend(content.lists.lists.into_iter().filter(|l| ids.insert(l.id)));
+                        self.profile_content.lists.next = content.lists.next;
+                    } else if self.profile_content.comics.items.is_empty() {
+                        self.profile_content = content;
+                    } else {
+                        let mut keys: HashSet<_> = self
+                            .profile_content
+                            .comics
+                            .items
+                            .iter()
+                            .map(|i| i.key.clone())
+                            .collect();
+                        self.profile_content.comics.items.extend(
+                            content
+                                .comics
+                                .items
+                                .into_iter()
+                                .filter(|i| keys.insert(i.key.clone())),
+                        );
+                        self.profile_content.comics.next = content.comics.next;
+                    }
+                    self.busy = false;
+                }
+                Ok(Data::Users(users, next)) if relevant && self.search_users => {
+                    if self.append {
+                        let mut names: HashSet<_> = self
+                            .found_users
+                            .iter()
+                            .map(|u| u.username.clone())
+                            .collect();
+                        self.found_users.extend(
+                            users
+                                .into_iter()
+                                .filter(|u| names.insert(u.username.clone())),
+                        );
+                    } else {
+                        self.found_users = users;
+                    }
+                    self.next = next;
                     self.busy = false;
                 }
 
@@ -2786,7 +2892,7 @@ impl App {
                         self.stats_ui(ui);
                         return;
                     }
-                    Tab::Friends | Tab::Profile => {
+                    Tab::Friends | Tab::Profile if self.edition.is_none() => {
                         let progress = self.transition(ui.ctx());
                         let rect = ui.available_rect_before_wrap();
                         let mut page = ui.new_child(
@@ -2819,6 +2925,14 @@ impl App {
                         self.lists_ui(ui);
                         return;
                     }
+                }
+                if self.tab == Tab::Catalog
+                    && self.catalog_mode == CatalogMode::Search
+                    && self.search_users
+                    && self.edition.is_none()
+                {
+                    self.users_ui(ui);
+                    return;
                 }
                 if self.tab == Tab::Library && self.selected_series.is_none() {
                     ui.horizontal_wrapped(|ui| {
@@ -2981,6 +3095,14 @@ impl App {
                             self.submitted = self.query.trim().into();
                             self.refresh(1);
                         }
+                    }
+                    if self.tab == Tab::Catalog
+                        && self.catalog_mode == CatalogMode::Search
+                        && self.search_users
+                        && self.edition.is_none()
+                    {
+                        self.users_ui(ui);
+                        return;
                     }
                     if self.tab == Tab::Library && self.selected_series.is_none() {
                         for (label, series) in [("Series", true), ("Tomos", false)] {
@@ -3417,51 +3539,6 @@ impl App {
                 }
                 ui.add_space(12.);
                 self.annual_statistics_ui(ui);
-                self.setting_card(ui, Icon::Read, "Objetivo de lectura", |app, ui| {
-                    let goal = app.prefs.reading_goal.max(1);
-                    let fraction = (s.read as f32 / goal as f32).min(1.);
-                    ui.add(
-                        egui::ProgressBar::new(fraction)
-                            .desired_width(ui.available_width())
-                            .desired_height(26.)
-                            .text(format!(
-                                "{} de {} lecturas · {:.0}%",
-                                s.read,
-                                goal,
-                                fraction * 100.
-                            )),
-                    );
-                    ui.add_space(14.);
-                    ui.horizontal_wrapped(|ui| {
-                        ui.label(tr("Meta de lecturas"));
-                        let before = app.prefs.reading_goal;
-                        if ui
-                            .add(egui::Button::new(tr("−")).min_size(Vec2::splat(38.)))
-                            .clicked()
-                        {
-                            app.prefs.reading_goal = before.saturating_sub(1).max(1);
-                        }
-                        ui.add_sized(
-                            [100., 38.],
-                            egui::DragValue::new(&mut app.prefs.reading_goal).range(1..=10000),
-                        );
-                        if ui
-                            .add(egui::Button::new(tr("+")).min_size(Vec2::splat(38.)))
-                            .clicked()
-                        {
-                            app.prefs.reading_goal =
-                                app.prefs.reading_goal.saturating_add(1).min(10000);
-                        }
-                        if before != app.prefs.reading_goal {
-                            app.save_prefs();
-                        }
-                    });
-                    ui.label(
-                        RichText::new(tr("Cuenta los tomos marcados como leídos en tu biblioteca."))
-                            .small()
-                            .color(p.muted),
-                    );
-                });
                 self.setting_card(ui, Icon::Chart, "Tu colección en cifras", |_, ui| {
                     ui.horizontal_wrapped(|ui| {
                         ui.label(
@@ -3509,6 +3586,51 @@ impl App {
                         app.stat_bar(ui, label, *count, max);
                     }
                 });
+                self.setting_card(ui, Icon::Read, "Objetivo de lectura", |app, ui| {
+                    let goal = app.prefs.reading_goal.max(1);
+                    let fraction = (s.read as f32 / goal as f32).min(1.);
+                    ui.add(
+                        egui::ProgressBar::new(fraction)
+                            .desired_width(ui.available_width())
+                            .desired_height(26.)
+                            .text(format!(
+                                "{} de {} lecturas · {:.0}%",
+                                s.read,
+                                goal,
+                                fraction * 100.
+                            )),
+                    );
+                    ui.add_space(14.);
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(tr("Meta de lecturas"));
+                        let before = app.prefs.reading_goal;
+                        if ui
+                            .add(egui::Button::new(tr("−")).min_size(Vec2::splat(38.)))
+                            .clicked()
+                        {
+                            app.prefs.reading_goal = before.saturating_sub(1).max(1);
+                        }
+                        ui.add_sized(
+                            [100., 38.],
+                            egui::DragValue::new(&mut app.prefs.reading_goal).range(1..=10000),
+                        );
+                        if ui
+                            .add(egui::Button::new(tr("+")).min_size(Vec2::splat(38.)))
+                            .clicked()
+                        {
+                            app.prefs.reading_goal =
+                                app.prefs.reading_goal.saturating_add(1).min(10000);
+                        }
+                        if before != app.prefs.reading_goal {
+                            app.save_prefs();
+                        }
+                    });
+                    ui.label(
+                        RichText::new(tr("Cuenta los tomos marcados como leídos en tu biblioteca."))
+                            .small()
+                            .color(p.muted),
+                    );
+                });
             });
     }
     fn stat_bar(&self, ui: &mut egui::Ui, label: &str, count: usize, max: usize) {
@@ -3535,13 +3657,10 @@ impl App {
         if let Some(texture) = self.textures.get(url) {
             self.texture_order.retain(|u| u != url);
             self.texture_order.push_back(url.into());
-            ui.put(
-                rect,
-                egui::Image::new(texture)
-                    .corner_radius(255)
-                    .fit_to_exact_size(rect.size())
-                    .sense(egui::Sense::hover()),
-            );
+            egui::Image::new(texture)
+                .corner_radius(255)
+                .fit_to_exact_size(rect.size())
+                .paint_at(ui, rect);
         } else {
             ui.painter()
                 .circle_filled(rect.center(), rect.width() / 2., self.p().selected);
@@ -3578,6 +3697,9 @@ impl App {
         self.selected_series = None;
         self.busy = false;
         self.profile = Some(user.clone());
+        self.profile_section = Default::default();
+        self.profile_content = Default::default();
+        self.list_detail = None;
         self.begin_transition(1.);
         if !self.prefs.offline {
             self.send(Job::Profile(user.username));
@@ -3623,18 +3745,22 @@ impl App {
                                 ui.label(&user.bio);
                             }
                             if icons::refresh(ui, p).clicked() && !self.prefs.offline {
-                                self.send(Job::Profile(user.username.clone()));
+                                if self.profile_section == profile_sections::Section::Activity {
+                                    self.send(Job::Profile(user.username.clone()));
+                                } else {
+                                    self.profile_content = Default::default();
+                                    self.send(Job::ProfileSection(
+                                        user.username.clone(),
+                                        self.profile_section,
+                                        1,
+                                    ));
+                                }
                             }
                         });
                     });
                 });
             ui.add_space(16.);
-            ui.label(
-                RichText::new(tr("ACTIVIDAD RECIENTE"))
-                    .size(11.)
-                    .color(p.accent),
-            );
-            self.activity_ui(ui, user.activity);
+            self.profile_sections_ui(ui, &user);
         } else {
             if self.username.is_none() {
                 ui.label(tr(
@@ -3647,8 +3773,11 @@ impl App {
             }
             ui.horizontal_wrapped(|ui| {
                 for relation in [social::Relation::Following, social::Relation::Followers] {
-                    let button =
-                        ui.selectable_label(self.social_relation == relation, tr(relation.title()));
+                    let button = ui.add_sized(
+                        [160., 44.],
+                        egui::Button::new(RichText::new(tr(relation.title())).size(17.))
+                            .selected(self.social_relation == relation),
+                    );
                     #[cfg(test)]
                     {
                         self.ui_rects
@@ -3669,15 +3798,19 @@ impl App {
                 social::Relation::Following => self.library.friends.clone(),
                 social::Relation::Followers => self.library.followers.clone(),
             };
-            ui.horizontal_wrapped(|ui| {
-                ui.label(i18n::trf(
-                    if self.social_relation == social::Relation::Following {
-                        "{0} personas que seguís"
-                    } else {
-                        "{0} personas te siguen"
-                    },
-                    &[friends.len().to_string()],
-                ));
+            ui.horizontal(|ui| {
+                ui.set_min_height(44.);
+                ui.label(
+                    RichText::new(i18n::trf(
+                        if self.social_relation == social::Relation::Following {
+                            "{0} personas que seguís"
+                        } else {
+                            "{0} personas te siguen"
+                        },
+                        &[friends.len().to_string()],
+                    ))
+                    .size(16.),
+                );
                 if icons::refresh(ui, p).clicked() && !self.prefs.offline {
                     self.refresh(1);
                 }
@@ -3693,19 +3826,13 @@ impl App {
                 if ui.button("›").on_hover_text(tr("Más amigos")).clicked() {
                     self.friend_scroll += 200.;
                 }
-                if ui
-                    .checkbox(&mut self.prefs.friends_carousel, tr("Carrusel automático"))
-                    .changed()
-                {
-                    self.save_prefs();
-                }
+                ui.label(tr("Carrusel"));
             });
             let now = ui.input(|i| i.time);
             let delta = (now - self.friend_scroll_at).clamp(0., 0.1) as f32;
             self.friend_scroll_at = now;
-            let automatic =
-                self.prefs.animations && self.prefs.friends_carousel && !friends.is_empty();
-            let period = friends.len() as f32 * (178. + ui.spacing().item_spacing.x);
+            let automatic = self.prefs.animations && !friends.is_empty();
+            let period = friends.len() as f32 * (220. + ui.spacing().item_spacing.x);
             let repeats = if automatic {
                 (ui.available_width() / period).ceil() as usize + 2
             } else {
@@ -3714,16 +3841,22 @@ impl App {
             let mut hovered = false;
             let strip = egui::ScrollArea::horizontal()
                 .id_salt(("friends-strip", self.social_relation.path()))
-                .max_height(116.)
+                .max_height(160.)
                 .max_width(ui.available_width())
                 .auto_shrink([false, true])
                 .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
                 .horizontal_scroll_offset(self.friend_scroll)
                 .show(ui, |ui| {
+                    // Reserve the entire repeated strip while clipping to the viewport.
+                    ui.set_width(
+                        friends.len() as f32
+                            * repeats as f32
+                            * (220. + ui.spacing().item_spacing.x),
+                    );
                     ui.horizontal_top(|ui| {
                         for friend in friends.iter().cycle().take(friends.len() * repeats) {
                             let (rect, response) =
-                                ui.allocate_exact_size(Vec2::new(178., 94.), egui::Sense::click());
+                                ui.allocate_exact_size(Vec2::new(220., 136.), egui::Sense::click());
                             if !ui.is_rect_visible(rect) {
                                 continue;
                             }
@@ -3748,20 +3881,20 @@ impl App {
                                 egui::StrokeKind::Inside,
                             );
                             let avatar = egui::Rect::from_center_size(
-                                rect.min + Vec2::new(36., 37.),
-                                Vec2::splat(42. * (1. + hover * 0.18)),
+                                rect.min + Vec2::new(45., 51.),
+                                Vec2::splat(64. * (1. + hover * 0.12)),
                             );
                             self.avatar_at(ui, &friend.avatar, avatar);
                             let galley = ui.painter().layout(
                                 friend.username.clone(),
-                                egui::FontId::proportional(14. + hover),
+                                egui::FontId::proportional(16. + hover),
                                 p.text,
-                                104.,
+                                123.,
                             );
                             ui.painter()
-                                .galley(rect.min + Vec2::new(66., 22.), galley, p.text);
+                                .galley(rect.min + Vec2::new(85., 31.), galley, p.text);
                             ui.painter().text(
-                                rect.min + Vec2::new(16., 75.),
+                                rect.min + Vec2::new(16., 113.),
                                 egui::Align2::LEFT_CENTER,
                                 if friend.comics.is_empty() {
                                     tr("Ver perfil")
@@ -3810,14 +3943,15 @@ impl App {
                     .color(p.muted),
                 );
             }
-            if self.social_relation == social::Relation::Followers {
-                return;
-            }
             ui.add_space(16.);
             ui.label(
-                RichText::new(tr("ACTIVIDAD DE TUS AMIGOS"))
-                    .size(11.)
-                    .color(p.accent),
+                RichText::new(tr(if self.social_relation == social::Relation::Following {
+                    "ACTIVIDAD DE TUS AMIGOS"
+                } else {
+                    "ACTIVIDAD DE TUS SEGUIDORES"
+                }))
+                .size(11.)
+                .color(p.accent),
             );
             let mut activity: Vec<_> = friends.iter().flat_map(|u| u.activity.clone()).collect();
             activity.sort_by_key(|a| std::cmp::Reverse(a.id.parse::<u64>().unwrap_or_default()));
@@ -3865,6 +3999,7 @@ impl App {
                                         .library
                                         .friends
                                         .iter()
+                                        .chain(self.library.followers.iter())
                                         .find(|u| u.username == entry.user)
                                         .cloned()
                                 {
@@ -4810,9 +4945,9 @@ impl eframe::App for App {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(
                             RichText::new(tr(if self.prefs.offline {
-                                "SIN CONEXIÓN · Whakoom Desktop 2.0"
+                                "SIN CONEXIÓN · Whakoom Desktop 2.0.5"
                             } else {
-                                "Whakoom Desktop 2.0"
+                                "Whakoom Desktop 2.0.5"
                             }))
                             .size(11.)
                             .color(p.muted),
@@ -4962,6 +5097,23 @@ mod ui_tests {
             Some(fixture),
         );
         app.username = Some(app.library.owner.clone());
+        let avatar_url = "https://i1.whakoom.com/avatar/test.png";
+        for user in app
+            .library
+            .friends
+            .iter_mut()
+            .chain(app.library.followers.iter_mut())
+        {
+            user.avatar = avatar_url.into();
+        }
+        app.textures.insert(
+            avatar_url.into(),
+            ctx.load_texture(
+                "avatar-test",
+                egui::ColorImage::filled([2, 2], egui::Color32::WHITE),
+                Default::default(),
+            ),
+        );
         app.select(Tab::Friends);
         let sample = |app: &mut App, time: f64, width: f32| {
             let mut output = ctx.run_ui(
@@ -4991,7 +5143,21 @@ mod ui_tests {
                 app.friend_scroll > 20.,
                 "Carousel did not advance: {relation:?}"
             );
-            let period = 3. * (178. + ctx.style_of(egui::Theme::Dark).spacing.item_spacing.x);
+            let mut cards: Vec<_> = app
+                .ui_rects
+                .iter()
+                .filter(|(key, _)| key.starts_with("friend-friend"))
+                .map(|(_, rect)| *rect)
+                .collect();
+            assert!(cards.len() >= 2);
+            cards.sort_by(|a, b| a.left().total_cmp(&b.left()));
+            for pair in cards.windows(2) {
+                assert!(
+                    pair[1].left() >= pair[0].right(),
+                    "Loaded avatars must not reset the horizontal cursor"
+                );
+            }
+            let period = 3. * (220. + ctx.style_of(egui::Theme::Dark).spacing.item_spacing.x);
             app.friend_scroll = period - 0.5;
             sample(&mut app, 1., 1280.);
             assert!(app.friend_scroll < 4., "Carousel did not wrap");
@@ -5388,6 +5554,67 @@ mod ui_tests {
         let position = app.ui_rects["profile"].center();
         click(&mut app, &ctx, position);
         assert_eq!(app.tab, Tab::Account);
+    }
+    #[test]
+    fn foreign_profile_sections_do_not_import_comics_or_accept_stale_results() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        app.prefs.animations = false;
+        app.prefs.offline = false;
+        let (jobs, queue) = mpsc::channel();
+        app.tx = jobs;
+        app.open_profile(social::User {
+            username: "friend".into(),
+            name: "Friend".into(),
+            ..Default::default()
+        });
+        assert!(matches!(queue.try_recv().unwrap().1, Job::Profile(_)));
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let point = app.ui_rects["profile-section-Collection"].center();
+        click(&mut app, &ctx, point);
+        assert!(
+            matches!(queue.try_recv().unwrap().1, Job::ProfileSection(user, profile_sections::Section::Collection, 1) if user=="friend")
+        );
+        let count = app.library.entries.len();
+        let (sender, events) = mpsc::channel();
+        app.rx = events;
+        let content = profile_sections::Content {
+            comics: Page {
+                items: vec![Item {
+                    key: "comicFOREIGN".into(),
+                    title: "Foreign".into(),
+                    ..Default::default()
+                }],
+                next: Some(2),
+            },
+            ..Default::default()
+        };
+        for (id, user) in [
+            (app.generation - 1, "friend"),
+            (app.generation, "other"),
+            (app.generation, "friend"),
+        ] {
+            sender
+                .send(Event {
+                    id,
+                    data: Ok(Data::ProfileSection(
+                        user.into(),
+                        profile_sections::Section::Collection,
+                        content.clone(),
+                    )),
+                })
+                .unwrap();
+        }
+        app.poll(&ctx);
+        assert_eq!(app.profile_content.comics.items.len(), 1);
+        assert_eq!(app.profile_content.comics.next, Some(2));
+        assert_eq!(app.library.entries.len(), count);
+        assert!(!app.library.entries.contains_key("comicFOREIGN"));
     }
     #[test]
     fn followers_tab_opens_profiles_and_rejects_stale_or_other_account_results() {

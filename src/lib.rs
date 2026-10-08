@@ -23,6 +23,8 @@ pub mod theme;
 
 pub mod calendar;
 pub mod help;
+pub mod profile_sections;
 pub mod reactions;
 pub mod reviews;
 pub mod statistics;
+pub mod wishlist;

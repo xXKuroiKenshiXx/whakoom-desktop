@@ -1,5 +1,51 @@
 use whakoom_desktop::api::Api;
 fn main() {
+    if std::env::args().any(|a| a == "--verify-205") {
+        let result = (|| -> Result<(), String> {
+            let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;
+            let api = Api::with_user_agent(saved.cookie, &saved.user_agent)?;
+            let first = whakoom_desktop::wishlist::initial(&api.html("/buscados")?)?;
+            let service =
+                whakoom_desktop::sync::pages(|page| api.collection(page, "", true), || false)?;
+            println!(
+                "Deseados: página inicial {}, servicio {}, unión {}",
+                first.len(),
+                service.len(),
+                whakoom_desktop::wishlist::merge(first, service).len()
+            );
+            let owner = api.identity()?.username;
+            for section in [
+                whakoom_desktop::profile_sections::Section::Collection,
+                whakoom_desktop::profile_sections::Section::Wanted,
+                whakoom_desktop::profile_sections::Section::Lists,
+            ] {
+                let content = api.profile_section(&owner, section, 1)?;
+                println!(
+                    "{}: {} elementos, siguiente {:?}",
+                    section.title(),
+                    content.comics.items.len() + content.lists.lists.len(),
+                    content.comics.next.or(content.lists.next)
+                );
+                if let Some(next) = content.comics.next {
+                    let more = api.profile_section(&owner, section, next)?;
+                    if more.comics.items.is_empty() {
+                        return Err("La página siguiente del perfil está vacía".into());
+                    }
+                }
+            }
+            let (users, _) = api.search_users(&owner, 1)?;
+            if users.is_empty() {
+                return Err("La búsqueda no devolvió usuarios".into());
+            }
+            println!("Búsqueda de usuarios verificada. Lectura sin modificaciones de cuenta.");
+            Ok(())
+        })();
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if std::env::args().any(|a| a == "--verify-v2") {
         let result = (|| -> Result<(), String> {
             let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;

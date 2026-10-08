@@ -1,7 +1,7 @@
 use eframe::egui::{self, Color32, Rect, Stroke, Vec2};
 
 pub const NAME: &str = "Whakoom Desktop";
-pub const VERSION: &str = "2.0";
+pub const VERSION: &str = "2.0.5";
 pub const BLUE: Color32 = Color32::from_rgb(0, 137, 174);
 
 // Vector adaptation of the supplied circular W. Drawn at native resolution.

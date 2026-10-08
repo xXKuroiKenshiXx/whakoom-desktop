@@ -310,9 +310,17 @@ pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
             line((0.2, 0.5), (0.48, 0.78));
         }
         Icon::Refresh => {
-            p.circle_stroke(at(0.5, 0.5), r.width() * 0.32, s);
-            line((0.82, 0.25), (0.82, 0.5));
-            line((0.82, 0.5), (0.6, 0.45));
+            let points = (0..=32)
+                .map(|step| {
+                    let angle = -0.8 + step as f32 / 32. * 5.1;
+                    at(0.5 + 0.34 * angle.cos(), 0.5 + 0.34 * angle.sin())
+                })
+                .collect();
+            p.add(egui::Shape::line(points, s));
+            let angle: f32 = 4.3;
+            let end = (0.5 + 0.34 * angle.cos(), 0.5 + 0.34 * angle.sin());
+            line(end, (end.0 - 0.04, end.1 + 0.23));
+            line(end, (end.0 - 0.22, end.1 + 0.05));
         }
         Icon::Read => {
             line((0.15, 0.52), (0.4, 0.8));
