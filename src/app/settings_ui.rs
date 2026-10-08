@@ -214,6 +214,9 @@ impl App {
                 {
                     app.update_cache(false);
                 }
+                if ui.button(tr("Configurar imágenes paso a paso")).clicked() {
+                    app.onboarding = Some(onboarding::Wizard::new(&app.prefs.cover_cache, false));
+                }
                 if ui
                     .add_enabled(
                         !app.cache_pending && app.prefs.cover_cache.enabled,

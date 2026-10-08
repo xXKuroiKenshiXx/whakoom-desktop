@@ -17,7 +17,7 @@ impl Relation {
     }
     pub fn title(self) -> &'static str {
         match self {
-            Self::Following => "Seguidos",
+            Self::Following => "Amigos",
             Self::Followers => "Seguidores",
         }
     }

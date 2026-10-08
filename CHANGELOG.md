@@ -4,6 +4,12 @@
 
 Versión en iteración; se actualizan los mismos archivos sin generar otra versión.
 
+- Inicio guiado con fondo atenuado: elegir caché y calidad, avanzar y volver; alta calidad por defecto. Se puede repetir desde Almacenamiento.
+- Carruseles infinitos de Amigos y Seguidores, también con pocos contactos; pausa al interactuar y animaciones desactivables.
+- Un único botón con icono alterna portadas y lista. Barra lateral animada con Favoritos, Lecturas, Deseados y Amigos en ese orden.
+- Título y gasto de estadísticas en dorado, con contraste para ambos temas.
+- La sincronización de colección no bloquea la navegación desde Notificaciones; los errores tardíos liberan el estado de actualización sin cambiar la sección abierta.
+
 - Seguidos y seguidores separados en Amigos, con perfiles internos y caché por cuenta.
 - Hover conservado hasta 18 px fuera de la portada; salida gradual en 220 ms.
 - Ajustes con secciones General, Almacenamiento y Respaldo; límite explícito de imágenes separado del espacio y la resolución.

@@ -51,6 +51,7 @@ pub struct Preferences {
     pub cover_cache: crate::covers::CachePolicy,
     pub language: crate::i18n::Language,
     pub friends_carousel: bool,
+    pub setup_complete: bool,
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -67,6 +68,7 @@ impl Default for Preferences {
             cover_cache: Default::default(),
             language: Default::default(),
             friends_carousel: true,
+            setup_complete: false,
         }
     }
 }

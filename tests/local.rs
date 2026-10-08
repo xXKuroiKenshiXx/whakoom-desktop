@@ -101,7 +101,7 @@ fn cached_covers_load_offline_and_corrupt_cache_reports_error() {
         .unwrap();
     let client = CoverClient::at(dir.path().into()).unwrap();
     let decoded = client.get(url, true).unwrap();
-    assert_eq!(decoded.dimensions(), (225, 450));
+    assert_eq!(decoded.dimensions(), (300, 600));
     fs::write(&path, b"not an image").unwrap();
     assert!(client.get(url, true).unwrap_err().contains("no guardada"));
     assert!(

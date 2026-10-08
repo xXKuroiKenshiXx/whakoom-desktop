@@ -31,12 +31,12 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 - Perfil, seguidos, seguidores, actividad y ajustes de cuenta conectados a Whakoom.
 - Estrellas doradas de comunidad y violetas personales; votos visibles en las fichas.
 - Tema claro/oscuro, transiciones y portadas holográficas con marco iridiscente. Animaciones desactivables.
-- Caché configurable por espacio, cantidad, resolución y uso de memoria.
+- Inicio guiado para elegir caché y calidad de las imágenes; alta calidad por defecto. Configuración por espacio, cantidad, resolución y uso de memoria.
 - Ajustes separados en General, Almacenamiento y Respaldo. Optimización de imágenes sin pérdida en segundo plano, conservando el original cuando ocupa menos.
 - Notas, calendario, emojis, etiquetas, objetivos, estadísticas y respaldos JSON/CSV.
 - Destacar o relegar opiniones para tu propia biblioteca.
 - Español, inglés, portugués, ruso y chino; fuentes de respaldo sin reemplazar la tipografía principal.
-- Amigos con zoom, carrusel opcional y desplazamiento horizontal; ajustes adaptables al ancho de ventana.
+- Amigos y Seguidores con zoom, carruseles infinitos opcionales y desplazamiento horizontal; ajustes adaptables al ancho de ventana.
 - Relecturas, orden de lectura, ubicación, conservación y fotos de firmas en el respaldo. [Comparación con herramientas Pro](docs/local-features.md).
 
 <details>
@@ -47,6 +47,8 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 ![Listas públicas](assets/lists.png)
 
 ![Ajustes de almacenamiento](assets/settings.png)
+
+![Asistente inicial de imágenes](assets/onboarding.png)
 
 </details>
 

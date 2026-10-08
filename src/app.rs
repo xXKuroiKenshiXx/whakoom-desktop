@@ -1,5 +1,6 @@
 mod catalog_ui;
 mod collection_ui;
+mod onboarding;
 mod settings_ui;
 use eframe::egui::{self, RichText, Vec2};
 use std::{
@@ -155,6 +156,7 @@ enum Data {
     EditionAdded(Item, Vec<Item>, String),
     Progress(String),
     Snapshot(String, Vec<Item>, Vec<Item>),
+    PullFailed(String, String),
     Pushed(String, sync::Pending, Result<(), String>),
     Metadata(String, Item, Result<Box<Detail>, String>),
     Friends(String, social::Relation, Vec<social::User>),
@@ -522,17 +524,23 @@ fn worker(
                     api = Api::new(String::new()).unwrap();
                     Ok(Data::Logout(session::clear().err()))
                 }
-                Job::Pull(owner) => (|| {
-                    let owned = sync::pages(
-                        |p| api.collection(p, "", false),
-                        || cancel.load(Ordering::Relaxed),
-                    )?;
-                    let wanted = sync::pages(
-                        |p| api.collection(p, "", true),
-                        || cancel.load(Ordering::Relaxed),
-                    )?;
-                    Ok(Data::Snapshot(owner, owned, wanted))
-                })(),
+                Job::Pull(owner) => {
+                    let result = (|| {
+                        let owned = sync::pages(
+                            |p| api.collection(p, "", false),
+                            || cancel.load(Ordering::Relaxed),
+                        )?;
+                        let wanted = sync::pages(
+                            |p| api.collection(p, "", true),
+                            || cancel.load(Ordering::Relaxed),
+                        )?;
+                        Ok((owned, wanted))
+                    })();
+                    Ok(match result {
+                        Ok((owned, wanted)) => Data::Snapshot(owner, owned, wanted),
+                        Err(error) => Data::PullFailed(owner, error),
+                    })
+                }
                 Job::Cache(policy, clear) => Ok(Data::Cache(
                     whakoom_desktop::covers::maintain(&policy, clear),
                     clear,
@@ -663,10 +671,10 @@ struct App {
     filter_read: Option<bool>,
     filter_rating: u8,
     friend_scroll: f32,
-    friend_scroll_at: Instant,
-    friend_forward: bool,
+    friend_scroll_at: f64,
     social_relation: social::Relation,
     settings_section: SettingsSection,
+    onboarding: Option<onboarding::Wizard>,
     query: String,
     submitted: String,
     month: String,
@@ -836,10 +844,10 @@ impl App {
             filter_read: None,
             filter_rating: 0,
             friend_scroll: 0.,
-            friend_scroll_at: Instant::now(),
-            friend_forward: true,
+            friend_scroll_at: 0.,
             social_relation: social::Relation::Following,
             settings_section: SettingsSection::General,
+            onboarding: None,
             query: String::new(),
             submitted: String::new(),
             month: String::new(),
@@ -974,6 +982,18 @@ impl App {
             app.open_item(item);
             app.edition_reviews = std::env::args().any(|a| a == "--preview-opinions");
         }
+        if !preview && !app.prefs.setup_complete {
+            app.onboarding = Some(onboarding::Wizard::new(&app.prefs.cover_cache, true));
+        }
+        if std::env::args()
+            .any(|a| a == "--preview-onboarding" || a == "--preview-onboarding-quality")
+        {
+            let mut wizard = onboarding::Wizard::new(&app.prefs.cover_cache, true);
+            if std::env::args().any(|a| a == "--preview-onboarding-quality") {
+                wizard.step = 1;
+            }
+            app.onboarding = Some(wizard);
+        }
         app
     }
     fn remove_series_dialog(&mut self, ctx: &egui::Context) {
@@ -1073,7 +1093,7 @@ impl App {
     fn select(&mut self, tab: Tab) {
         self.begin_transition(1.);
         self.generation += 1;
-        self.busy = self.syncing;
+        self.busy = false;
         self.tab = tab;
         self.profile = None;
         self.list_detail = None;
@@ -1450,9 +1470,11 @@ impl App {
             let relevant = event.id == self.generation || event.id == 0;
             match event.data {
                 Ok(Data::Snapshot(owner, owned, wanted)) => {
-                    self.syncing = false;
-                    self.busy = false;
                     if owner == self.library.owner {
+                        self.syncing = false;
+                        if relevant {
+                            self.busy = false;
+                        }
                         self.metadata_fetched.clear();
                         self.metadata_failed.clear();
                         sync::reconcile(&mut self.library, &owned, &wanted);
@@ -1467,6 +1489,15 @@ impl App {
                             self.library.outbox.len()
                         );
                     }
+                }
+                Ok(Data::PullFailed(owner, error)) if owner == self.library.owner => {
+                    self.syncing = false;
+                    if relevant {
+                        self.busy = false;
+                    }
+                    self.error = error;
+                    self.status =
+                        "La colección no se pudo actualizar; tus cambios siguen guardados".into();
                 }
                 Ok(Data::Cache(result, clear)) => {
                     self.cache_pending = false;
@@ -1969,6 +2000,7 @@ impl App {
             );
         }
         if ui.is_rect_visible(rect)
+            && self.onboarding.is_none()
             && !key.is_empty()
             && !self.pending.contains(key)
             && !failed
@@ -2405,22 +2437,24 @@ impl App {
                             Tab::Library,
                             Tab::Favorites,
                             Tab::Reading,
-                            Tab::Friends,
                             Tab::Wanted,
+                            Tab::Friends,
                             Tab::Stats,
                             Tab::Settings,
                         ] {
-                            if icons::button(
+                            let button = icons::button(
                                 ui,
                                 tab.icon(),
                                 tab.title(),
                                 compact,
                                 self.tab == tab,
                                 p,
-                            )
-                            .clicked()
-                                && !self.syncing
+                            );
+                            #[cfg(test)]
                             {
+                                self.ui_rects.insert(format!("nav-{tab:?}"), button.rect);
+                            }
+                            if button.clicked() {
                                 self.select(tab);
                             }
                         }
@@ -2785,16 +2819,10 @@ impl App {
                         }
                     }
                     ui.separator();
-                    for (label, list) in [("Portadas", false), ("Lista", true)] {
-                        if ui
-                            .selectable_label(self.prefs.list_view == list, tr(label))
-                            .clicked()
-                            && self.prefs.list_view != list
-                        {
-                            self.prefs.list_view = list;
-                            self.save_prefs();
-                            self.begin_transition(1.);
-                        }
+                    if icons::view_toggle(ui, self.prefs.list_view, p).clicked() {
+                        self.prefs.list_view = !self.prefs.list_view;
+                        self.save_prefs();
+                        self.begin_transition(1.);
                     }
                     if ui
                         .add_enabled_ui(!self.busy, |ui| {
@@ -3250,7 +3278,7 @@ impl App {
                         ui.label(
                             RichText::new(format!("{:.2}", s.spending))
                                 .size(30.)
-                                .strong(),
+                                .strong().color(if p.bg.r() < 100 { egui::Color32::from_rgb(255, 205, 83) } else { egui::Color32::from_rgb(137, 83, 0) }),
                         );
                         ui.label(RichText::new(tr("Importes cargados manualmente")).color(p.muted));
                     });
@@ -3335,6 +3363,7 @@ impl App {
                 self.p().accent,
             );
             if !url.is_empty()
+                && self.onboarding.is_none()
                 && !self.pending.contains(url)
                 && !self.failed.contains_key(url)
                 && self.pending.len() < 16
@@ -3442,7 +3471,7 @@ impl App {
                         self.generation += 1;
                         self.busy = false;
                         self.friend_scroll = 0.;
-                        self.friend_forward = true;
+                        self.friend_scroll_at = ui.input(|i| i.time);
                         self.begin_transition(1.);
                         self.refresh(1);
                     }
@@ -3485,8 +3514,18 @@ impl App {
                     self.save_prefs();
                 }
             });
-            let delta = self.friend_scroll_at.elapsed().as_secs_f32().min(0.1);
-            self.friend_scroll_at = Instant::now();
+            let now = ui.input(|i| i.time);
+            let delta = (now - self.friend_scroll_at).clamp(0., 0.1) as f32;
+            self.friend_scroll_at = now;
+            let automatic =
+                self.prefs.animations && self.prefs.friends_carousel && !friends.is_empty();
+            let period = friends.len() as f32 * (178. + ui.spacing().item_spacing.x);
+            let repeats = if automatic {
+                (ui.available_width() / period).ceil() as usize + 2
+            } else {
+                1
+            };
+            let mut hovered = false;
             let strip = egui::ScrollArea::horizontal()
                 .id_salt(("friends-strip", self.social_relation.path()))
                 .max_height(116.)
@@ -3494,9 +3533,13 @@ impl App {
                 .horizontal_scroll_offset(self.friend_scroll)
                 .show(ui, |ui| {
                     ui.horizontal_top(|ui| {
-                        for friend in &friends {
+                        for friend in friends.iter().cycle().take(friends.len() * repeats) {
                             let (rect, response) =
                                 ui.allocate_exact_size(Vec2::new(178., 94.), egui::Sense::click());
+                            if !ui.is_rect_visible(rect) {
+                                continue;
+                            }
+                            hovered |= response.hovered();
                             let hover = if self.prefs.animations {
                                 ui.ctx().animate_bool_with_time(
                                     response.id.with("friend-hover"),
@@ -3556,24 +3599,12 @@ impl App {
                 });
             let maximum = (strip.content_size.x - strip.inner_rect.width()).max(0.);
             self.friend_scroll = strip.state.offset.x.min(maximum);
-            let paused = ui
-                .ctx()
-                .pointer_hover_pos()
-                .is_some_and(|pos| strip.inner_rect.expand(20.).contains(pos))
-                || ui.ctx().input(|i| i.pointer.any_down());
-            if self.prefs.animations && self.prefs.friends_carousel && maximum > 0. && !paused {
-                let step = 18. * delta;
-                if self.friend_forward {
-                    self.friend_scroll = (self.friend_scroll + step).min(maximum);
-                    if self.friend_scroll >= maximum {
-                        self.friend_forward = false;
-                    }
-                } else {
-                    self.friend_scroll = (self.friend_scroll - step).max(0.);
-                    if self.friend_scroll <= 0. {
-                        self.friend_forward = true;
-                    }
-                }
+            let paused = hovered
+                || ui
+                    .ctx()
+                    .input(|i| i.pointer.any_down() || i.smooth_scroll_delta != Vec2::ZERO);
+            if automatic && maximum > 0. && !paused {
+                self.friend_scroll = (self.friend_scroll + 28. * delta).rem_euclid(period);
                 ui.ctx().request_repaint_after(Duration::from_millis(33));
             }
             if friends.is_empty() {
@@ -3685,8 +3716,26 @@ impl App {
                 ui.set_width(ui.available_width());
                 ui.horizontal(|ui| {
                     let (rect, _) = ui.allocate_exact_size(Vec2::splat(22.), egui::Sense::hover());
-                    icons::paint(ui.painter(), rect, icon, p.accent);
-                    ui.label(RichText::new(tr(title)).size(19.).strong());
+                    let heading = if title == "Tu colección en cifras" {
+                        if self.prefs.dark {
+                            egui::Color32::from_rgb(255, 205, 83)
+                        } else {
+                            egui::Color32::from_rgb(137, 83, 0)
+                        }
+                    } else {
+                        p.text
+                    };
+                    icons::paint(
+                        ui.painter(),
+                        rect,
+                        icon,
+                        if title == "Tu colección en cifras" {
+                            heading
+                        } else {
+                            p.accent
+                        },
+                    );
+                    ui.label(RichText::new(tr(title)).size(19.).strong().color(heading));
                 });
                 ui.add_space(12.);
                 contents(self, ui);
@@ -4563,8 +4612,12 @@ impl eframe::App for App {
             });
         self.sidebar(ui);
         self.body(ui);
-        self.login_form(&ctx);
-        self.remove_series_dialog(&ctx);
+        if self.onboarding.is_some() {
+            self.onboarding_ui(&ctx);
+        } else {
+            self.login_form(&ctx);
+            self.remove_series_dialog(&ctx);
+        }
         #[cfg(windows)]
         if self.verify_requested {
             self.verify_requested = false;
@@ -4596,6 +4649,102 @@ pub fn run() -> eframe::Result {
 #[cfg(test)]
 mod ui_tests {
     use super::*;
+    #[test]
+    fn notifications_navigation_stays_available_during_collection_refresh() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        app.prefs.animations = false;
+        app.select(Tab::Notifications);
+        app.syncing = true;
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        assert!(app.ui_rects["nav-Favorites"].top() < app.ui_rects["nav-Reading"].top());
+        assert!(app.ui_rects["nav-Reading"].top() < app.ui_rects["nav-Wanted"].top());
+        assert!(app.ui_rects["nav-Wanted"].top() < app.ui_rects["nav-Friends"].top());
+        let position = app.ui_rects["nav-Library"].center();
+        click(&mut app, &ctx, position);
+        assert_eq!(app.tab, Tab::Library);
+        let (tx, rx) = mpsc::channel();
+        app.rx = rx;
+        tx.send(Event {
+            id: app.generation - 1,
+            data: Ok(Data::PullFailed(
+                app.library.owner.clone(),
+                "offline test".into(),
+            )),
+        })
+        .unwrap();
+        app.poll(&ctx);
+        assert!(!app.syncing);
+        assert_eq!(app.tab, Tab::Library);
+    }
+    #[test]
+    fn both_carousels_move_and_wrap_even_when_contacts_fit_the_window() {
+        let ctx = egui::Context::default();
+        let mut fixture = library();
+        for index in 0..3 {
+            fixture.friends.push(social::User {
+                username: format!("friend{index}"),
+                ..Default::default()
+            });
+        }
+        fixture.followers = fixture.friends.clone();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(fixture),
+        );
+        app.username = Some(app.library.owner.clone());
+        app.select(Tab::Friends);
+        let sample = |app: &mut App, time: f64| {
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    time: Some(time),
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        Vec2::new(1280., 900.),
+                    )),
+                    events: vec![egui::Event::PointerGone],
+                    ..Default::default()
+                },
+                |ui| {
+                    eframe::App::ui(app, ui, &mut eframe::Frame::_new_kittest());
+                },
+            );
+            output.textures_delta.clear();
+        };
+        for relation in [social::Relation::Following, social::Relation::Followers] {
+            app.social_relation = relation;
+            app.friend_scroll = 0.;
+            app.friend_scroll_at = 0.;
+            for frame in 0..20 {
+                sample(&mut app, frame as f64 * 0.05);
+            }
+            assert!(
+                app.friend_scroll > 20.,
+                "Carousel did not advance: {relation:?}"
+            );
+            let period = 3. * (178. + ctx.style_of(egui::Theme::Dark).spacing.item_spacing.x);
+            app.friend_scroll = period - 0.5;
+            sample(&mut app, 1.);
+            assert!(app.friend_scroll < 4., "Carousel did not wrap");
+        }
+        app.prefs.animations = false;
+        sample(&mut app, 1.1);
+        let offset = app.friend_scroll;
+        sample(&mut app, 1.2);
+        assert_eq!(app.friend_scroll, offset);
+        app.prefs.animations = true;
+        app.library.followers.truncate(1);
+        app.friend_scroll = 0.;
+        for frame in 0..20 {
+            sample(&mut app, 1.3 + frame as f64 * 0.05);
+        }
+        assert!(app.friend_scroll > 20., "A single contact should also move");
+    }
     fn edition_item() -> Item {
         Item {
             key: "edicion123".into(),

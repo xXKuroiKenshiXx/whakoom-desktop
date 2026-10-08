@@ -4,9 +4,12 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 
 ## Comprobaciones automatizadas
 
-90 pruebas aprobadas en Windows x64/MSVC y 90 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
+93 pruebas aprobadas en Windows x64/MSVC y 93 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
 
 - Formato, pruebas de todos los targets y Clippy con advertencias como errores en Windows y Linux.
+- Navegación desde Notificaciones durante una actualización de colección, orden de la barra lateral y liberación del estado de sincronización ante un error tardío.
+- Carruseles infinitos de Amigos y Seguidores: avance con pocos contactos, vuelta al inicio sin invertir el sentido, un único contacto y desactivación de animaciones.
+- Asistente inicial: elección de caché, calidad alta por defecto, volver conservando la elección y aplicar únicamente al finalizar. Capturas nativas de ambos pasos con fondo atenuado.
 - Calendario: clics que avanzan tres meses sin cerrar el selector ni modificar la fecha hasta elegir un día.
 - Biblioteca: eliminación de una serie conserva notas y lecturas, actualiza la vista y genera cambios pendientes.
 - Sincronización: errores parciales, confirmaciones tardías, cambios nuevos durante una tanda, aislamiento de cuentas y paginación incompleta.
@@ -24,7 +27,7 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 ## Ejecución y paquetes
 
 - Windows: interfaz nativa, instalador por usuario y ejecutable portable. Instalación en una carpeta temporal, identidad del binario instalado, apertura y desinstalación comprobadas.
-- Linux: ejecución en Ubuntu 24.04 dentro de WSL con Xvfb y renderizado software X11. Se abrió el catálogo integrado y Ajustes en chino desde la AppImage actual; la biblioteca también se comprobó en la revisión anterior. Wayland y otras distribuciones no se probaron de forma interactiva.
+- Linux: ejecución en Ubuntu 24.04 dentro de WSL con Xvfb y renderizado software X11. La AppImage actual abrió el asistente inicial de calidad; el catálogo integrado, la biblioteca y Ajustes en chino se comprobaron en las revisiones anteriores. Wayland y otras distribuciones no se probaron de forma interactiva.
 - Secret Service: una sesión ficticia se guardó, recuperó y borró en un llavero aislado. La fecha de lectura utiliza la zona horaria del sistema.
 - Conector Linux: sesión real transferida únicamente por stdin, sin archivo ni argumentos con credenciales; lectura de colección, amigos y siete secciones de cuenta.
 - Capturas Windows: biblioteca y ficha con sinopsis de color, controles de colección y separación de portada. Notas largas quedan dentro de un área con scroll.

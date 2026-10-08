@@ -8,8 +8,8 @@ use std::{fs, io::Read, path::PathBuf, time::Duration};
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub enum Quality {
     Low,
-    #[default]
     Balanced,
+    #[default]
     High,
 }
 
@@ -99,7 +99,7 @@ impl Default for CachePolicy {
             limit_mb: 512,
             max_files: 0,
             memory_images: 48,
-            quality: Quality::Balanced,
+            quality: Quality::High,
             unit_gb: false,
             lossless_optimization: true,
         }

@@ -2014,5 +2014,101 @@
     "Processando armazenamento em segundo plano…",
     "Обработка хранилища в фоне…",
     "正在后台处理存储…"
+  ],
+  "Ver portadas": [
+    "Show covers",
+    "Ver capas",
+    "Показать обложки",
+    "显示封面"
+  ],
+  "Ver lista": [
+    "Show list",
+    "Ver lista",
+    "Показать список",
+    "显示列表"
+  ],
+  "TU APP, A TU MANERA": [
+    "YOUR APP, YOUR WAY",
+    "SEU APP, DO SEU JEITO",
+    "ПРИЛОЖЕНИЕ ПО ВАШИМ ПРАВИЛАМ",
+    "你的应用，由你设置"
+  ],
+  "¿Guardamos las miniaturas?": [
+    "Save thumbnails?",
+    "Salvar as miniaturas?",
+    "Сохранять миниатюры?",
+    "保存缩略图吗？"
+  ],
+  "Elegí la calidad de las portadas": [
+    "Choose cover quality",
+    "Escolha a qualidade das capas",
+    "Выберите качество обложек",
+    "选择封面画质"
+  ],
+  "Guardar en caché en este equipo": [
+    "Cache on this device",
+    "Salvar no cache deste dispositivo",
+    "Кэшировать на этом устройстве",
+    "在此设备上缓存"
+  ],
+  "Ocupan espacio, pero vuelven a abrir más rápido y están disponibles sin conexión.": [
+    "Uses disk space, but images reopen faster and remain available offline.",
+    "Ocupa espaço, mas as imagens reabrem mais rápido e ficam disponíveis offline.",
+    "Занимает место, но изображения открываются быстрее и доступны без интернета.",
+    "占用磁盘空间，但再次打开更快，并可离线查看。"
+  ],
+  "Descargar de nuevo al abrir la app": [
+    "Download again when opening the app",
+    "Baixar novamente ao abrir o app",
+    "Загружать заново при запуске",
+    "每次打开应用时重新下载"
+  ],
+  "No se guardan en disco. Se reutilizan en memoria mientras la app está abierta y necesitan conexión.": [
+    "Not saved to disk. Images are reused in memory while the app is open and require a connection.",
+    "Não salva no disco. Reutiliza na memória enquanto o app estiver aberto e precisa de conexão.",
+    "Не сохраняются на диск. Пока приложение открыто, изображения повторно используются в памяти. Нужен интернет.",
+    "不保存到磁盘。应用打开期间在内存中复用图片，需要联网。"
+  ],
+  "A mayor calidad, mejor se ven las portadas, pero tardan más en descargarse y usan más espacio y memoria. Primero mostramos una miniatura rápida; después mejora la nitidez.": [
+    "Higher quality looks better, but takes longer to download and uses more space and memory. A small thumbnail appears first, then sharpens.",
+    "Qualidade maior melhora as capas, mas demora mais para baixar e usa mais espaço e memória. Uma miniatura aparece primeiro e depois ganha nitidez.",
+    "Высокое качество выглядит лучше, но требует больше времени, места и памяти. Сначала появляется миниатюра, затем чёткая обложка.",
+    "画质越高，封面越清晰，但下载更慢，占用更多空间和内存。先显示小缩略图，再提升清晰度。"
+  ],
+  "Podés cambiar estas opciones después en Ajustes → Almacenamiento.": [
+    "You can change these options later in Settings → Storage.",
+    "Você pode alterar depois em Ajustes → Armazenamento.",
+    "Позже это можно изменить в Настройки → Хранилище.",
+    "稍后可在设置 → 存储中修改。"
+  ],
+  "Atrás": [
+    "Back",
+    "Voltar",
+    "Назад",
+    "上一步"
+  ],
+  "Comenzar": [
+    "Get started",
+    "Começar",
+    "Начать",
+    "开始"
+  ],
+  "Siguiente": [
+    "Next",
+    "Próximo",
+    "Далее",
+    "下一步"
+  ],
+  "Configurar imágenes paso a paso": [
+    "Set up images step by step",
+    "Configurar imagens passo a passo",
+    "Настроить изображения пошагово",
+    "逐步设置图片"
+  ],
+  "La colección no se pudo actualizar; tus cambios siguen guardados": [
+    "Could not refresh the collection; your changes are still saved",
+    "Não foi possível atualizar a coleção; suas alterações continuam salvas",
+    "Не удалось обновить коллекцию; изменения сохранены",
+    "无法更新藏书；你的更改仍已保存"
   ]
 }

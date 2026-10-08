@@ -24,6 +24,7 @@ pub enum Icon {
     Smile,
     ThumbDown,
     Compass,
+    List,
 }
 pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
     let s = Stroke::new(1.6, c);
@@ -32,6 +33,12 @@ pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
         p.line_segment([at(a.0, a.1), at(b.0, b.1)], s);
     };
     match icon {
+        Icon::List => {
+            for y in [0.25, 0.5, 0.75] {
+                p.circle_filled(at(0.15, y), r.width() * 0.05, c);
+                line((0.34, y), (0.9, y));
+            }
+        }
         Icon::Compass => {
             p.circle_stroke(r.center(), r.width() * 0.42, s);
             p.add(egui::Shape::convex_polygon(
@@ -272,44 +279,68 @@ pub fn button(
         response.hovered(),
         ui.style().animation_time,
     );
-    if selected || hover > 0. {
+    let active = ui.ctx().animate_bool_with_time(
+        response.id.with("selected"),
+        selected,
+        ui.style().animation_time,
+    );
+    let pressed = ui.ctx().animate_bool_with_time(
+        response.id.with("pressed"),
+        response.is_pointer_button_down_on(),
+        ui.style().animation_time,
+    );
+    let visual = rect.shrink(pressed * 1.5);
+    if active > 0. || hover > 0. {
         ui.painter().rect_filled(
-            rect,
+            visual,
             10,
-            if selected {
-                p.selected
-            } else {
-                p.bg.linear_multiply(hover)
-            },
+            p.surface
+                .lerp_to_gamma(p.selected, active.max(hover * 0.65)),
         );
     }
-    if selected {
+    if active > 0. {
         ui.painter().rect_filled(
             egui::Rect::from_center_size(
                 egui::pos2(rect.left() + 2., rect.center().y),
-                egui::vec2(3., 18.),
+                egui::vec2(3., 18. * active),
             ),
             2,
             p.accent,
         );
     }
-    let c = if selected { p.accent } else { p.muted };
+    let c = p.muted.lerp_to_gamma(p.accent, active.max(hover));
     paint(
         ui.painter(),
-        egui::Rect::from_min_size(rect.min + egui::vec2(10., 11.), egui::vec2(20., 20.)),
+        egui::Rect::from_min_size(
+            visual.min + egui::vec2(10. + hover * 2., 11.),
+            egui::vec2(20., 20.),
+        ),
         icon,
         c,
     );
     if !compact {
         ui.painter().text(
-            rect.min + egui::vec2(43., 21.),
+            visual.min + egui::vec2(43. + hover * 3., 21.),
             egui::Align2::LEFT_CENTER,
             label,
             egui::FontId::proportional(14.),
             if selected { p.accent } else { p.text },
         );
     }
-    response.on_hover_text(label)
+    response
+        .on_hover_cursor(egui::CursorIcon::PointingHand)
+        .on_hover_text(label)
+}
+
+pub fn view_toggle(ui: &mut egui::Ui, list: bool, p: crate::theme::Palette) -> egui::Response {
+    let label = crate::i18n::tr(if list { "Ver portadas" } else { "Ver lista" });
+    let response = action(ui, if list { Icon::List } else { Icon::Grid }, "", p);
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), &label)
+    });
+    response
+        .on_hover_cursor(egui::CursorIcon::PointingHand)
+        .on_hover_text(label)
 }
 
 pub fn action(
