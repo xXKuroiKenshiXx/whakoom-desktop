@@ -1,0 +1,32 @@
+name: Verify
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Linux system libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev libssl-dev libx11-dev libxi-dev libxkbcommon-dev libwayland-dev libgl1-mesa-dev
+      - name: Install Rust
+        run: rustup update stable --no-self-update
+      - name: Format
+        run: cargo fmt --check
+      - name: Tests
+        run: cargo test --locked --all-targets
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Release
+        run: cargo build --locked --release --bins
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: cargo install cargo-audit --version 0.22.2 --locked
+      - run: cargo audit

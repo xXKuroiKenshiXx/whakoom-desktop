@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Whakoom Desktop
+Comment=Cliente de escritorio no oficial de Whakoom
+Exec=whakoom-desktop
+Icon=whakoom-desktop
+Categories=Office;
+Terminal=false
+StartupWMClass=WhakoomDesktop
