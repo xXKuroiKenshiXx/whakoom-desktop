@@ -34,3 +34,4 @@ pub mod wishlist;
 
 pub mod missing;
 pub mod money;
+pub mod store_logos;

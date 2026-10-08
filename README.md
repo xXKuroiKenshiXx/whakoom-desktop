@@ -26,26 +26,26 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 
 - Catálogo ordenado en Buscar, Explorar, Listas y Usuarios; historial de búsquedas y visitas.
 - Actualizaciones desde la aplicación: aviso de nuevas versiones, descarga verificada por SHA-256 e instalación con reinicio.
-- Listado Manga dentro de la app: listado, búsqueda real, fichas y enlaces por serie/tomo. Vista nativa en ambos sistemas y página original integrada en Windows.
+- Listado Manga dentro de la app: búsqueda por variantes del título, resultados con portadas, fichas y enlaces por serie/tomo. Vista nativa en ambos sistemas y página original integrada en Windows.
 - Comprar abre un selector de tiendas de Whakoom; Mercado Libre busca el título y número del tomo.
 - Fichas con ISBN, cantidad de personas que tienen el título, votos y opiniones reales. Escribir y editar tu opinión pública con confirmación online.
 - Visor de portadas en primer plano: rueda, arrastre, controles de zoom y cierre con Escape. La tarjeta del catálogo, incluida su portada, abre la ficha interna. El visor se abre al pulsar la portada dentro de la ficha.
 - Estadísticas anuales de compras y lecturas, comparación mensual y fecha de compra automática al marcar «Lo tengo», editable desde la ficha.
 - Comunidad y ayuda oficial: categorías, publicaciones y respuestas públicas; formularios para reportar, proponer y comentar.
-- Explorar: populares, mejor valorados, novelas gráficas y todos los cómics. Deseados reúne `/buscados`, el servicio paginado y el perfil propio, conservando tomos y series sin duplicados.
+- Explorar: populares, mejor valorados, novelas gráficas y todos los cómics. Deseados reúne `/buscados`, el servicio paginado y el perfil propio, conservando tomos y series sin duplicados, con filtros Todos, Series y Tomos. Esta sección reúne el estado «Lo quiero»; no hay un segundo favorito de cómics.
 - Listas: descubrir, favoritas, propias y creación online con tomos ordenados, privacidad y tipo de lista.
 - Historial local de búsquedas y títulos visitados. Miniaturas rápidas que mejoran su resolución en segundo plano.
 - Biblioteca por tomos o series; añadir y quitar series completas. Actualización automática al entrar y al abrir fichas.
 - Colección, deseados, lectura y valoración personal con cola persistente y reintentos online.
 - Búsqueda de usuarios y perfiles con Actividad, Comicteca, Buscados y Listas; seguidos, seguidores y ajustes de cuenta conectados a Whakoom.
-- Estrellas doradas de comunidad y violetas personales; votos visibles en las fichas.
+- Estrellas doradas de comunidad y, debajo, estrellas violetas interactivas con tu puntaje; votos visibles en las fichas.
 - Tema claro/oscuro, transiciones y portadas holográficas con marco iridiscente. Animaciones desactivables.
 - Inicio guiado para elegir caché y calidad de las imágenes; alta calidad por defecto. Configuración por espacio, cantidad, resolución y uso de memoria, con ejemplos visuales de calidad.
 - Ajustes separados en General, Almacenamiento, Respaldo y Actualizaciones. Optimización de imágenes sin pérdida en segundo plano, conservando el original cuando ocupa menos.
 - Notas, calendario, emojis, etiquetas, objetivos, estadísticas y respaldos JSON/CSV.
 - Destacar o relegar opiniones para tu propia biblioteca.
 - Español, inglés, portugués, ruso y chino; fuentes de respaldo sin reemplazar la tipografía principal.
-- Amigos y Seguidores con zoom, carruseles infinitos y desplazamiento horizontal; ajustes adaptables al ancho de ventana.
+- Personas: Seguidos, Seguidores y Favoritos locales con corazón, actividad, carruseles infinitos y desplazamiento horizontal.
 - Relecturas, orden de lectura, ubicación, conservación y fotos de firmas en el respaldo. [Comparación con herramientas Pro](docs/local-features.md).
 
 <details>
@@ -59,7 +59,7 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 
 ![Listas públicas](assets/lists.png)
 
-![Amigos y actividad de ejemplo](assets/friends.png)
+![Personas y actividad de ejemplo](assets/friends.png)
 
 ![Ajustes de almacenamiento](assets/settings.png)
 

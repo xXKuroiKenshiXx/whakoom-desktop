@@ -2677,9 +2677,9 @@
   ],
   "Consultando la colección completa…": [
     "Loading the complete collection…",
-    "Consultando a coleção completa…",
-    "Загрузка всей коллекции…",
-    "正在加载完整系列…"
+    "Carregando a coleção completa…",
+    "Загрузка полной коллекции…",
+    "正在加载完整收藏…"
   ],
   "Sin conexión: se muestran las colecciones completas guardadas.": [
     "Offline: showing saved complete collections.",
@@ -2716,5 +2716,101 @@
     "Volumes publicados em falta nas edições que você coleciona. Abra uma coleção para ver Todos, Tenho e Faltam.",
     "Недостающие опубликованные тома ваших изданий. Откройте коллекцию: Все, Есть и Не хватает.",
     "你收藏的版本中缺少的已出版卷。打开系列可查看全部、已拥有和缺少。"
+  ],
+  "Personas": [
+    "People",
+    "Pessoas",
+    "Люди",
+    "用户"
+  ],
+  "Persona favorita": [
+    "Favorite person",
+    "Pessoa favorita",
+    "Избранный пользователь",
+    "收藏用户"
+  ],
+  "{0} personas favoritas": [
+    "{0} favorite people",
+    "{0} pessoas favoritas",
+    "Избранных пользователей: {0}",
+    "收藏用户：{0}"
+  ],
+  "ACTIVIDAD DE TUS FAVORITOS": [
+    "ACTIVITY OF YOUR FAVORITES",
+    "ATIVIDADE DOS SEUS FAVORITOS",
+    "АКТИВНОСТЬ ИЗБРАННЫХ",
+    "收藏用户动态"
+  ],
+  "ACTIVIDAD DE TUS SEGUIDOS": [
+    "FOLLOWING ACTIVITY",
+    "ATIVIDADE DE QUEM VOCÊ SEGUE",
+    "АКТИВНОСТЬ ПОДПИСОК",
+    "关注用户动态"
+  ],
+  "Completar colección": [
+    "Complete collection",
+    "Completar coleção",
+    "Дополнить коллекцию",
+    "补全收藏"
+  ],
+  "Te faltan {0} tomos": [
+    "{0} volumes missing",
+    "Faltam {0} volumes",
+    "Не хватает томов: {0}",
+    "缺少 {0} 卷"
+  ],
+  "Total no disponible": [
+    "Total unavailable",
+    "Total indisponível",
+    "Общее количество недоступно",
+    "总数不可用"
+  ],
+  "Consultando tomos…": [
+    "Loading volumes…",
+    "Carregando volumes…",
+    "Загрузка томов…",
+    "正在加载卷…"
+  ],
+  "Búsquedas utilizadas": [
+    "Search variants",
+    "Variações de pesquisa",
+    "Варианты поиска",
+    "搜索变体"
+  ],
+  "Opiniones de la serie": [
+    "Series reviews",
+    "Opiniões da série",
+    "Отзывы о серии",
+    "系列评价"
+  ],
+  "Buscá un tomo o una serie en Catálogo y marcá Lo quiero.": [
+    "Find a volume or series in Catalog and select Want it.",
+    "Encontre um volume ou série no Catálogo e marque Quero.",
+    "Найдите том или серию в каталоге и отметьте «Хочу».",
+    "在目录中找到卷或系列并标记为想要。"
+  ],
+  "Personas anteriores": [
+    "Previous people",
+    "Pessoas anteriores",
+    "Предыдущие пользователи",
+    "上一组用户"
+  ],
+  "Personas siguientes": [
+    "Next people",
+    "Próximas pessoas",
+    "Следующие пользователи",
+    "下一组用户"
+  ],
+  "Las personas que seguís, tus seguidores y tus favoritos.": [
+    "People you follow, your followers and favorites.",
+    "Quem você segue, seus seguidores e favoritos.",
+    "Ваши подписки, подписчики и избранные.",
+    "你的关注、关注者和收藏用户。"
+  ],
+  "{0} tomos en tu biblioteca · {1} leídos": [
+    "{0} volumes in your library · {1} read",
+    "{0} volumes na biblioteca · {1} lidos",
+    "Томов в библиотеке: {0} · Прочитано: {1}",
+    "收藏 {0} 卷 · 已读 {1} 卷"
   ]
 }

@@ -4,8 +4,13 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 
 ## Comprobaciones de 3.1.0
 
-124 pruebas aprobadas en Windows x64/MSVC y 124 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. Capturas nativas del perfil, popup y faltantes, incluidas ventanas pequeñas; AppImage ejecutada en X11 con Xvfb y renderizado software. El ejecutable extraído del instalador coincide por SHA-256 con el binario final.
+131 pruebas aprobadas en Windows x64/MSVC y 131 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. Capturas nativas del perfil, popup y faltantes, incluidas ventanas pequeñas; AppImage ejecutada en X11 con Xvfb y renderizado software. El ejecutable extraído del instalador coincide por SHA-256 con el binario final.
 
+- Revisión de interfaz: Deseados filtra Todos, Series y Tomos sin excluir tipos del estado «Lo quiero». Lecturas alterna por clic entre lista y portadas. Los favoritos de Personas persisten en el respaldo sin modificar Seguidos, Seguidores ni la cola de cambios online.
+- Valoraciones personales compactas: clic para votar y repetir clic para quitar la nota. Comprar conserva el tamaño y la alineación de Leído y abrir las tiendas no altera la colección.
+- Listado Manga combina hasta seis variantes con un máximo de tres solicitudes concurrentes, deduplica y prioriza coincidencias. Consulta pública real: seis variantes del título A Returner’s Magic Should Be Special devolvieron 75 resultados únicos; se comprobaron portadas de las primeras seis fichas. Las imágenes usan un cliente sin cookies de Whakoom.
+- Amazon: consulta autenticada de sólo lectura de las tiendas de un tomo; el enlace `clickgotoshop.ashx` devolvió JSON y se resolvió a una URL HTTPS de Amazon con precio. La respuesta rechaza hosts externos ajenos a Amazon; no se efectuaron compras.
+- Progreso de propiedad: el total procede de una edición completa; no se estima usando sólo los tomos adquiridos. Respeta el estado local pendiente y no muestra cifras inventadas cuando falta el total.
 - Consulta autenticada de sólo lectura de la edición 627715: el servicio `EditionComicsPage` con modo 1 y las páginas `/todos`, `/tengo` y `/faltan` coinciden (2 tomos, 1 adquirido y 1 faltante en la cuenta consultada). La ficha del tomo identifica la misma edición. No se efectuaron altas, bajas ni cambios de perfil durante esta comprobación.
 - Tomos faltantes considera sólo colecciones completas, separa ediciones conocidas y conserva cambios locales pendientes de confirmación. Sugiere el siguiente tomo publicado o un hueco anterior; no inventa números de tomos.
 - Filtros de edición: paginación automática, deduplicación y conservación de la última caché completa durante cargas parciales. Respuestas atrasadas o de otra cuenta no se incorporan a la biblioteca.

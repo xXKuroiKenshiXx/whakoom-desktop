@@ -540,13 +540,25 @@ pub fn action(
     label: &str,
     p: crate::theme::Palette,
 ) -> egui::Response {
+    action_with_min_size(ui, icon, label, p, Vec2::ZERO)
+}
+
+pub fn action_with_min_size(
+    ui: &mut egui::Ui,
+    icon: Icon,
+    label: &str,
+    p: crate::theme::Palette,
+    minimum: Vec2,
+) -> egui::Response {
     let translated = crate::i18n::tr(label);
     let label = translated.as_str();
     let text = ui
         .painter()
         .layout_no_wrap(label.into(), egui::FontId::proportional(13.), p.text);
-    let (r, response) =
-        ui.allocate_exact_size(Vec2::new(text.size().x + 48., 32.), egui::Sense::click());
+    let (r, response) = ui.allocate_exact_size(
+        Vec2::new((text.size().x + 48.).max(minimum.x), 32_f32.max(minimum.y)),
+        egui::Sense::click(),
+    );
     ui.painter().rect_filled(
         r,
         8,
@@ -558,7 +570,10 @@ pub fn action(
     );
     paint(
         ui.painter(),
-        egui::Rect::from_min_size(r.min + Vec2::new(10., 8.), Vec2::splat(16.)),
+        egui::Rect::from_min_size(
+            r.min + Vec2::new(10., (r.height() - 16.) / 2.),
+            Vec2::splat(16.),
+        ),
         icon,
         p.muted,
     );

@@ -130,6 +130,38 @@ pub fn edit(ui: &mut egui::Ui, value: &mut u8, dark: bool) -> bool {
     before != *value
 }
 
+/// Compact account rating. Whakoom accepts whole scores from zero to five.
+pub fn compact_edit(ui: &mut egui::Ui, value: &mut u8, dark: bool) -> bool {
+    let before = *value;
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 2.;
+        for i in 1..=5 {
+            let (rect, response) = ui.allocate_exact_size(Vec2::splat(18.), egui::Sense::click());
+            star(
+                ui.painter(),
+                rect.shrink(1.),
+                if i <= *value { 1. } else { 0. },
+                dark,
+                true,
+            );
+            if response
+                .on_hover_cursor(egui::CursorIcon::PointingHand)
+                .on_hover_text(format!("{i}/5 · {}", crate::i18n::tr("Tu valoración")))
+                .clicked()
+            {
+                *value = if *value == i { 0 } else { i };
+            }
+        }
+        ui.add_space(8.);
+        ui.label(egui::RichText::new(format!("{},0", *value)).color(if dark {
+            Color32::from_rgb(201, 155, 255)
+        } else {
+            Color32::from_rgb(125, 72, 183)
+        }));
+    });
+    *value != before
+}
+
 pub fn average(values: impl Iterator<Item = u8>) -> f32 {
     let (sum, count) = values
         .filter(|v| *v > 0)
@@ -174,6 +206,55 @@ mod tests {
         for (position, expected) in [
             (origin + Vec2::new(4. * (28. + spacing) + 14., 14.), 5),
             (origin + Vec2::new(5. * (28. + spacing) + 35., 14.), 0),
+        ] {
+            let mut did_change = false;
+            for pressed in [true, false] {
+                let (_, changed) = run(
+                    vec![
+                        egui::Event::PointerMoved(position),
+                        egui::Event::PointerButton {
+                            pos: position,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        },
+                    ],
+                    &mut value,
+                );
+                did_change |= changed;
+            }
+            assert!(did_change);
+            assert_eq!(value, expected);
+        }
+    }
+    #[test]
+    fn compact_stars_set_five_and_clear_by_clicking_the_same_star() {
+        let ctx = egui::Context::default();
+        let mut value = 0;
+        let mut origin = Pos2::ZERO;
+        let mut changed = false;
+        let mut run = |events, value: &mut u8| {
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(600., 200.))),
+                    events,
+                    ..Default::default()
+                },
+                |ui| {
+                    egui::CentralPanel::default().show(ui, |ui| {
+                        origin = ui.next_widget_position();
+                        changed = compact_edit(ui, value, true);
+                    });
+                },
+            );
+            output.textures_delta.clear();
+            (origin, changed)
+        };
+        let (origin, _) = run(vec![], &mut value);
+        let spacing = 2.;
+        for (position, expected) in [
+            (origin + Vec2::new(4. * (18. + spacing) + 9., 9.), 5),
+            (origin + Vec2::new(4. * (18. + spacing) + 9., 9.), 0),
         ] {
             let mut did_change = false;
             for pressed in [true, false] {

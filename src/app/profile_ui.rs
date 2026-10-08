@@ -1,7 +1,25 @@
 use super::*;
 
 impl App {
+    pub(super) fn toggle_person(&mut self, user: &social::User) {
+        if social::user_path(&user.username).is_err() {
+            return;
+        }
+        let key = user.username.to_ascii_lowercase();
+        if self.library.favorite_people.remove(&key).is_none() {
+            self.library.favorite_people.insert(key, user.clone());
+        }
+        self.save_library();
+    }
     pub(super) fn profile_sections_ui(&mut self, ui: &mut egui::Ui, user: &social::User) {
+        let mut favorite = self
+            .library
+            .favorite_people
+            .contains_key(&user.username.to_ascii_lowercase());
+        if icons::toggle(ui, Icon::Heart, "Persona favorita", &mut favorite, self.p()).changed() {
+            self.toggle_person(user);
+        }
+        ui.add_space(10.);
         ui.horizontal_wrapped(|ui| {
             for section in profile_sections::Section::ALL {
                 let button = ui

@@ -112,16 +112,71 @@ impl Api {
             "/pwkws.asmx/ShopComicShops",
             serde_json::json!({"cguid":full.shop_id}),
         )?;
-        Ok(parse(
+        let mut shops = parse(
             data["Html"]
                 .as_str()
                 .ok_or("No se pudieron leer las tiendas de Whakoom")?,
-        ))
+        );
+        for shop in &mut shops {
+            if url::Url::parse(&shop.url).is_ok_and(|u| {
+                matches!(u.host_str(), Some("www.whakoom.com" | "whakoom.com"))
+                    && (u.path().starts_with("/buy") || u.path() == "/clickgotoshop.ashx")
+            }) {
+                match self.html(&shop.url).and_then(|body| buy_response(&body)) {
+                    Ok((url, price)) => {
+                        shop.url = url;
+                        if !price.is_empty() {
+                            shop.price = price;
+                        }
+                    }
+                    Err(_) => {
+                        shop.url = amazon(&detail.item);
+                        shop.price.clear();
+                        shop.title = "Buscar en Amazon".into();
+                    }
+                }
+            }
+        }
+        Ok(shops)
     }
+}
+pub fn buy_response(body: &str) -> Result<(String, String), String> {
+    let data = crate::api::unwrap_response(
+        serde_json::from_str(body).map_err(|_| "Respuesta de compra inválida")?,
+    )?;
+    let url = data["u"]
+        .as_str()
+        .and_then(safe_url)
+        .ok_or("La tienda no devolvió un enlace seguro")?;
+    let parsed = url::Url::parse(&url).map_err(|_| "Enlace inválido")?;
+    if !matches!(
+        parsed.host_str(),
+        Some("www.amazon.es" | "amazon.es" | "www.amazon.com" | "amazon.com" | "amzn.to")
+    ) {
+        return Err("La respuesta de Amazon indica otra tienda".into());
+    }
+    Ok((url, data["dp"].as_str().unwrap_or_default().to_string()))
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn amazon_json_resolves_the_product_and_rejects_external_hosts() {
+        let (url, price) = buy_response(
+            r#"{"r":"2","u":"https://www.amazon.es/dp/8412930622?tag=whakoom-21","dp":"18,95 €"}"#,
+        )
+        .unwrap();
+        assert!(url.contains("/dp/8412930622"));
+        assert_eq!(price, "18,95 €");
+        for url in [
+            "javascript:alert(1)",
+            "https://evil.example/",
+            "https://www.whakoom.com/buy?a=1",
+            "https://www.amazon.es.evil.example/",
+        ] {
+            assert!(buy_response(&serde_json::json!({"u":url}).to_string()).is_err());
+        }
+    }
     #[test]
     fn market_queries_encode_titles_and_volume_without_external_code() {
         let item = Item {

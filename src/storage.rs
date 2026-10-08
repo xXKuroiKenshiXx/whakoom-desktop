@@ -154,6 +154,8 @@ pub struct Library {
     #[serde(default)]
     pub followers: Vec<crate::social::User>,
     #[serde(default)]
+    pub favorite_people: BTreeMap<String, crate::social::User>,
+    #[serde(default)]
     pub inbox: crate::notifications::Inbox,
     #[serde(default)]
     pub reactions: crate::reactions::Reactions,
@@ -177,6 +179,7 @@ impl Default for Library {
             account: None,
             friends: Vec::new(),
             followers: Vec::new(),
+            favorite_people: BTreeMap::new(),
             inbox: Default::default(),
             reactions: Default::default(),
             recent: Default::default(),
@@ -360,6 +363,18 @@ impl Library {
         s
     }
     pub fn validate(&self) -> Result<(), String> {
+        if self.favorite_people.len() > 10_000
+            || self.favorite_people.iter().any(|(key, user)| {
+                key != &user.username.to_ascii_lowercase()
+                    || crate::social::user_path(&user.username).is_err()
+                    || user.name.len() > 1000
+                    || user.bio.len() > 100_000
+                    || user.activity.len() > 1000
+            })
+        {
+            return Err("Personas favoritas inválidas".into());
+        }
+
         if let Some(online) = &self.online_readings {
             online.validate()?;
         }

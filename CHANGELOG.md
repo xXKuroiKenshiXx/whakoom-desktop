@@ -2,6 +2,13 @@
 
 ## 3.1.0
 
+- Deseados reúne tomos y series con filtros; se elimina la sección redundante Favoritos de cómics. Personas reúne Seguidos, Seguidores y contactos favoritos locales con corazón y carrusel.
+- Lecturas permite alternar lista y portadas. Listado Manga combina variantes del título, ordena coincidencias y carga portadas de resultados en segundo plano.
+- Valoración personal compacta bajo la comunidad; Comprar junto a Leído, acceso a Listado Manga debajo de la portada y selector de tiendas con iconos de marca.
+- Los enlaces Amazon que devolvían JSON se resuelven antes de abrir el navegador; se verifica el dominio y se ofrece búsqueda por título si falla el enlace directo.
+- Progreso de propiedad y tomos faltantes en tarjetas de colecciones completas; panel de serie mayor, botones separados y Opiniones debajo de la acción de colección.
+- Ejemplos de calidad ampliados con detalle de nitidez y filtro de novedades de mis series más visible.
+
 - Cuenta: navegación superior con iconos; Perfil muestra sólo el resumen de tu cuenta. Foto, nombre público y biografía se editan en un diálogo separado después de los controles de desconexión.
 - Mi biblioteca incorpora Tomos faltantes para las ediciones que coleccionás. Sugiere el siguiente tomo publicado y permite consultar los huecos anteriores.
 - Todas las ediciones tienen filtros Todos, Tengo y Faltan con contadores y estado visible por tomo. Se abre la edición exacta desde la biblioteca y las sugerencias.

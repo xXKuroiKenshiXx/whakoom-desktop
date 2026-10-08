@@ -121,7 +121,7 @@ pub(super) fn quality_choices(ui: &mut egui::Ui, selected: &mut whakoom_desktop:
             .zip(&textures)
         {
             column.vertical_centered(|ui| {
-                let width = ui.available_width().min(98.);
+                let width = ui.available_width().min(220.);
                 let response = ui.add(
                     egui::Image::new(texture)
                         .fit_to_exact_size(Vec2::new(width, width * 1.43))
@@ -149,6 +149,17 @@ pub(super) fn quality_choices(ui: &mut egui::Ui, selected: &mut whakoom_desktop:
                     RichText::new(format!("{} px", quality.width()))
                         .size(11.)
                         .weak(),
+                );
+                ui.add_space(6.);
+                ui.add(
+                    egui::Image::new(texture)
+                        .uv(egui::Rect::from_min_max(
+                            egui::pos2(0.18, 0.08),
+                            egui::pos2(0.7, 0.28),
+                        ))
+                        .fit_to_exact_size(Vec2::new(width, width * 0.55))
+                        .maintain_aspect_ratio(false)
+                        .corner_radius(6),
                 );
             });
         }

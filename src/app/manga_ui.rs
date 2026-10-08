@@ -7,7 +7,9 @@ impl App {
         }
         self.manga_loading = true;
         self.manga_error.clear();
-        self.send(Job::Manga(url, query));
+        self.manga_cancel.store(true, Ordering::Relaxed);
+        self.manga_cancel = Arc::new(AtomicBool::new(false));
+        self.send(Job::Manga(url, query, self.manga_cancel.clone()));
     }
     pub(super) fn open_manga_for(&mut self, item: &Item) {
         let title = self
@@ -96,27 +98,92 @@ impl App {
                     ui.heading(&page.title);
                     ui.add_space(12.);
                 }
-                item_rows(
-                    ui,
-                    egui::ScrollArea::vertical(),
-                    true,
-                    44.,
-                    page.results.len(),
-                    |ui, range| {
-                        for index in range {
-                            let link = &page.results[index];
-                            if ui
-                                .add_sized(
-                                    [ui.available_width(), 44.],
-                                    egui::Button::new(&link.title),
-                                )
-                                .clicked()
-                            {
-                                navigate = Some(link.url.clone());
+                if !page.queries.is_empty() {
+                    ui.collapsing(tr("Búsquedas utilizadas"), |ui| {
+                        ui.label(page.queries.join(" · "));
+                    });
+                    ui.add_space(12.);
+                    let columns = (ui.available_width() / 195.).floor().max(1.) as usize;
+                    let width = ((ui.available_width() - 12. * (columns - 1) as f32)
+                        / columns as f32)
+                        .min(220.);
+                    item_rows(
+                        ui,
+                        egui::ScrollArea::vertical(),
+                        true,
+                        (width - 24.) * 1.43 + 96.,
+                        page.results.len().div_ceil(columns),
+                        |ui, range| {
+                            for row in range {
+                                ui.horizontal_top(|ui| {
+                                    for link in
+                                        page.results.iter().skip(row * columns).take(columns)
+                                    {
+                                        egui::Frame::new()
+                                            .fill(p.surface)
+                                            .stroke(egui::Stroke::new(1., p.border))
+                                            .corner_radius(12)
+                                            .inner_margin(12)
+                                            .show(ui, |ui| {
+                                                ui.vertical(|ui| {
+                                                    ui.set_width(width - 24.);
+                                                    let item = Item {
+                                                        title: link.title.clone(),
+                                                        cover: link.cover.clone(),
+                                                        key: link.url.clone(),
+                                                        ..Default::default()
+                                                    };
+                                                    let response = self.cover(
+                                                        ui,
+                                                        &item,
+                                                        Vec2::new(
+                                                            width - 24.,
+                                                            (width - 24.) * 1.43,
+                                                        ),
+                                                    );
+                                                    let button = ui.add_sized(
+                                                        [width - 24., 50.],
+                                                        egui::Button::new(&link.title),
+                                                    );
+                                                    #[cfg(test)]
+                                                    self.ui_rects.insert(
+                                                        format!("manga-result-{}", link.url),
+                                                        response.rect,
+                                                    );
+                                                    if response.clicked() || button.clicked() {
+                                                        navigate = Some(link.url.clone());
+                                                    }
+                                                });
+                                            });
+                                    }
+                                });
+                                ui.add_space(12.);
                             }
-                        }
-                    },
-                );
+                        },
+                    );
+                } else {
+                    item_rows(
+                        ui,
+                        egui::ScrollArea::vertical(),
+                        true,
+                        44.,
+                        page.results.len(),
+                        |ui, range| {
+                            for index in range {
+                                let link = &page.results[index];
+                                if ui
+                                    .add_sized(
+                                        [ui.available_width(), 44.],
+                                        egui::Button::new(&link.title),
+                                    )
+                                    .clicked()
+                                {
+                                    navigate = Some(link.url.clone());
+                                }
+                            }
+                        },
+                    );
+                }
                 for (index, block) in page.blocks.iter().enumerate() {
                     egui::Frame::new()
                         .fill(p.surface)
@@ -196,7 +263,16 @@ impl App {
             let mut links=self.shop_links.clone();
             if links.is_empty() && !self.shop_loading{links.push(shops::Shop{title:tr("Buscar en Amazon"),url:shops::amazon(&detail.item),..Default::default()});}
             links.push(shops::Shop{title:"Mercado Libre".into(),url:shops::mercado(&detail.item,currency),..Default::default()});
-            for shop in links {if ui.add_sized([ui.available_width(),48.],egui::Button::new(if shop.price.is_empty(){shop.title.clone()}else{format!("{} · {}",shop.title,shop.price)})).clicked() && let Some(url)=shops::safe_url(&shop.url) && webbrowser::open(&url).is_err(){self.shop_error=tr("No se pudo abrir la tienda.");}}
+            for shop in links {
+                ui.horizontal(|ui|{
+                    let (rect,_)=ui.allocate_exact_size(Vec2::splat(44.),egui::Sense::hover());
+                    if shop.title.to_ascii_lowercase().contains("amazon") || shop.title == "Mercado Libre" {
+                        whakoom_desktop::store_logos::paint(ui,rect,shop.title.to_ascii_lowercase().contains("amazon"));
+                    } else { icons::paint(ui.painter(),rect.shrink(8.),Icon::Book,p.accent); }
+                    let label=if shop.price.is_empty(){shop.title.clone()}else{format!("{} · {}",shop.title,shop.price)};
+                    if ui.add_sized([ui.available_width(),48.],egui::Button::new(label)).clicked()&&let Some(url)=shops::safe_url(&shop.url)&&webbrowser::open(&url).is_err(){self.shop_error=tr("No se pudo abrir la tienda.");}
+                });ui.add_space(10.);
+            }
             if !self.shop_error.is_empty(){ui.label(&self.shop_error);}
             ui.add_space(12.);ui.label(RichText::new(tr("Las tiendas se abren en tu navegador. Mercado Libre busca el título y número de este tomo.")).size(12.).color(p.muted));
             close=ui.add_sized([ui.available_width(),40.],egui::Button::new(tr("Cerrar"))).clicked()||ui.input(|i|i.key_pressed(egui::Key::Escape));

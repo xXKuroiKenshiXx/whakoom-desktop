@@ -37,6 +37,14 @@ pub fn owned(library: &Library, item: &Item) -> bool {
         .get(&item.key)
         .map_or(item.owned, |e| e.owned)
 }
+pub fn progress(library: &Library, volumes: &[Item]) -> Option<(usize, usize)> {
+    let edition = edition_for(library, volumes)?;
+    let saved = library.editions.get(&edition.key).filter(|e| e.complete)?;
+    Some((
+        saved.volumes.iter().filter(|v| owned(library, v)).count(),
+        saved.volumes.len(),
+    ))
+}
 #[derive(Clone)]
 pub struct Candidate {
     pub representative: Item,
@@ -159,6 +167,25 @@ impl Api {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn collection_progress_requires_a_complete_edition_and_uses_local_ownership() {
+        let mut l = Library::default();
+        let e = Item {
+            key: "edicion12".into(),
+            ..Default::default()
+        };
+        let volumes = vec![volume(1), volume(2), volume(3)];
+        l.ensure(&volumes[0]).owned = true;
+        l.cache_edition(&e, &volumes, false);
+        assert_eq!(progress(&l, &volumes[..1]), None);
+        l.cache_edition(&e, &volumes, true);
+        assert_eq!(progress(&l, &volumes[..1]), Some((1, 3)));
+        l.ensure(&volumes[1]).owned = true;
+        assert_eq!(progress(&l, &volumes[..1]), Some((2, 3)));
+        l.ensure(&volumes[0]).owned = false;
+        assert_eq!(progress(&l, &volumes[..1]), Some((1, 3)));
+    }
+
     use super::*;
     #[test]
     fn known_editions_with_the_same_title_stay_separate() {

@@ -1,5 +1,99 @@
 use whakoom_desktop::api::Api;
 fn main() {
+    if std::env::args().any(|a| a == "--verify-shop-resolution") {
+        let result = (|| -> Result<(), String> {
+            let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;
+            let api = Api::with_user_agent(saved.cookie, &saved.user_agent)?;
+            let item=whakoom_desktop::api::Item {
+                key:"edicion627715".into(),
+                url:"https://www.whakoom.com/ediciones/627715/a_silent_voice_-_complete_collectors_edition-hardcover".into(),
+                ..Default::default()
+            };
+            let volumes = api.edition(&item, 1)?;
+            let comic = volumes.items.first().ok_or("Edición sin tomos")?;
+            let detail = api.full_detail(comic)?;
+            let shops = api.shops(&detail)?;
+            let amazon = shops
+                .iter()
+                .find(|s| s.title.to_lowercase().contains("amazon"))
+                .ok_or("Amazon no disponible")?;
+            let host = url::Url::parse(&amazon.url).map_err(|e| e.to_string())?;
+            if !host
+                .host_str()
+                .is_some_and(|h| h == "www.amazon.es" || h == "amazon.es")
+            {
+                return Err(format!(
+                    "Enlace Amazon sin resolver: host={} path={}",
+                    host.host_str().unwrap_or_default(),
+                    host.path()
+                ));
+            }
+            println!(
+                "Amazon: enlace HTTPS externo resuelto; precio recibido: {}",
+                !amazon.price.is_empty()
+            );
+            println!("Consulta de sólo lectura; ninguna compra ni modificación online");
+            Ok(())
+        })();
+        if let Err(e) = result {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if std::env::args().any(|a| a == "--make-manga-search-preview") {
+        let result = (|| -> Result<(), String> {
+            if std::env::var_os("WHAKOOM_DESKTOP_DATA_DIR").is_none() {
+                return Err("Requiere carpeta aislada".into());
+            }
+            let path = std::env::args()
+                .skip_while(|a| a != "--public-fixture")
+                .nth(1)
+                .ok_or("Falta destino público")?;
+            let mut page = whakoom_desktop::manga_site::fetch(
+                "https://www.listadomanga.es/buscador.php",
+                Some("A Returner's Magic Should Be Special"),
+            )?;
+            if !page
+                .results
+                .iter()
+                .any(|l| l.title.to_lowercase().contains("magic"))
+            {
+                return Err("No se encontró el título con las variantes".into());
+            }
+            println!(
+                "Listado Manga: {} variantes, {} resultados únicos",
+                page.queries.len(),
+                page.results.len()
+            );
+            page.results.truncate(6);
+            let cache = whakoom_desktop::covers::CoverClient::new()?;
+            for link in &mut page.results {
+                let collection = whakoom_desktop::manga_site::fetch(&link.url, None)?;
+                link.cover = collection
+                    .blocks
+                    .iter()
+                    .find_map(|b| (!b.cover.is_empty()).then(|| b.cover.clone()))
+                    .unwrap_or_default();
+                if !link.cover.is_empty() {
+                    cache.get(&link.cover, false)?;
+                }
+            }
+            if !page.results.iter().any(|l| !l.cover.is_empty()) {
+                return Err("No se encontraron portadas públicas".into());
+            }
+            std::fs::write(path, serde_json::to_vec(&page).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
+            println!("Portadas públicas y búsqueda guardadas; cliente sin cookies de Whakoom");
+            Ok(())
+        })();
+        if let Err(e) = result {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
     if std::env::args().any(|a| a == "--cache-preview-edition") {
         let result = (|| -> Result<(), String> {
             if std::env::var_os("WHAKOOM_DESKTOP_DATA_DIR").is_none() {

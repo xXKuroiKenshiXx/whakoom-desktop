@@ -1,6 +1,7 @@
 mod catalog_ui;
 mod collection_ui;
 mod cover_viewer;
+mod edition_ui;
 mod help_ui;
 mod manga_ui;
 mod missing_ui;
@@ -46,7 +47,6 @@ enum Tab {
     News,
     Catalog,
     Library,
-    Favorites,
     Wanted,
     Reading,
     Stats,
@@ -58,18 +58,24 @@ enum Tab {
     Help,
     MangaSite,
 }
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
+enum WantedFilter {
+    #[default]
+    All,
+    Series,
+    Volumes,
+}
 impl Tab {
     fn title(self) -> &'static str {
         match self {
             Self::News => "Novedades",
             Self::Catalog => "Catálogo",
             Self::Library => "Mi biblioteca",
-            Self::Favorites => "Favoritos",
             Self::Wanted => "Deseados",
             Self::Reading => "Lecturas",
             Self::Stats => "Estadísticas",
             Self::Settings => "Ajustes",
-            Self::Friends => "Amigos",
+            Self::Friends => "Personas",
             Self::Profile => "Mi perfil",
             Self::Account => "Cuenta",
             Self::Notifications => "Notificaciones",
@@ -82,7 +88,6 @@ impl Tab {
             Self::News => Icon::Grid,
             Self::Catalog => Icon::Catalog,
             Self::Library => Icon::Book,
-            Self::Favorites => Icon::Star,
             Self::Wanted => Icon::Heart,
             Self::Reading => Icon::Read,
             Self::Stats => Icon::Chart,
@@ -91,14 +96,13 @@ impl Tab {
             Self::Profile | Self::Account => Icon::User,
             Self::Notifications => Icon::Bell,
             Self::Help => Icon::Help,
-            Self::MangaSite => Icon::Book,
+            Self::MangaSite => Icon::Bookmark,
         }
     }
     fn local(self) -> bool {
         matches!(
             self,
             Self::Library
-                | Self::Favorites
                 | Self::Wanted
                 | Self::Reading
                 | Self::Stats
@@ -146,11 +150,12 @@ enum Job {
     Credentials(String, Zeroizing<String>),
     Logout,
     Pull(String, Vec<Item>),
-    Manga(String, Option<String>),
+    Manga(String, Option<String>, Arc<AtomicBool>),
     Shops(Box<Detail>),
     Push(String, sync::Pending),
     Metadata(Item, String),
     Friends(String, social::Relation),
+    FavoritePeople(String, Vec<social::User>),
     Profile(String),
     ProfileSection(String, profile_sections::Section, u32),
     SearchUsers(String, u32),
@@ -190,6 +195,7 @@ enum Data {
     Pushed(String, sync::Pending, Result<(), String>),
     Metadata(String, Item, Result<Box<Detail>, String>),
     Friends(String, social::Relation, Vec<social::User>),
+    FavoritePeople(String, Vec<social::User>),
     Profile(social::User),
     ProfileSection(String, profile_sections::Section, profile_sections::Content),
     Users(Vec<social::User>, Option<u32>),
@@ -201,6 +207,7 @@ enum Data {
     OnlineStats(String, Result<statistics::OnlineReadings, String>),
     Help(Result<help::Page, String>),
     Manga(Result<manga_site::Page, String>),
+    MangaCover(String, String),
     Shops(String, Result<Vec<shops::Shop>, String>),
 }
 struct Event {
@@ -393,6 +400,79 @@ fn worker(
         };
         while let Ok((id, job)) = rx.recv() {
             let job = match job {
+                Job::Manga(url, query, cancelled) => {
+                    let events = etx.clone();
+                    let context = ctx.clone();
+                    std::thread::spawn(move || {
+                        let page = manga_site::fetch(&url, query.as_deref());
+                        if cancelled.load(Ordering::Relaxed) {
+                            return;
+                        }
+                        let links = page.as_ref().map(|p| p.results.clone()).unwrap_or_default();
+                        let _ = events.send(Event {
+                            id,
+                            data: Ok(Data::Manga(page)),
+                        });
+                        context.request_repaint();
+                        if query.is_none() {
+                            return;
+                        }
+                        for batch in links.chunks(3) {
+                            if cancelled.load(Ordering::Relaxed) {
+                                return;
+                            }
+                            std::thread::scope(|scope| {
+                                for link in batch {
+                                    let events = &events;
+                                    let context = &context;
+                                    let cancelled = &cancelled;
+                                    scope.spawn(move || {
+                                        if let Ok(page) = manga_site::fetch(&link.url, None)
+                                            && !cancelled.load(Ordering::Relaxed)
+                                            && let Some(cover) = page
+                                                .blocks
+                                                .iter()
+                                                .find(|b| !b.cover.is_empty())
+                                                .map(|b| b.cover.clone())
+                                        {
+                                            let _ = events.send(Event {
+                                                id,
+                                                data: Ok(Data::MangaCover(link.url.clone(), cover)),
+                                            });
+                                            context.request_repaint();
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                    continue;
+                }
+                Job::FavoritePeople(owner, mut people) => {
+                    let api = api.clone();
+                    let events = etx.clone();
+                    let context = ctx.clone();
+                    std::thread::spawn(move || {
+                        for batch in people.chunks_mut(3) {
+                            std::thread::scope(|scope| {
+                                for user in batch {
+                                    let api = &api;
+                                    scope.spawn(move || {
+                                        if let Ok(profile) = api.user_profile(&user.username) {
+                                            *user = profile;
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                        let _ = events.send(Event {
+                            id,
+                            data: Ok(Data::FavoritePeople(owner, people)),
+                        });
+                        context.request_repaint();
+                    });
+                    continue;
+                }
                 Job::Missing(candidates, owner, epoch, cancelled) => {
                     let api = api.clone();
                     let events = etx.clone();
@@ -663,9 +743,7 @@ fn worker(
                     api = Api::new(String::new()).unwrap();
                     Ok(Data::Logout(session::clear().err()))
                 }
-                Job::Manga(url, query) => {
-                    Ok(Data::Manga(manga_site::fetch(&url, query.as_deref())))
-                }
+                Job::Manga(_, _, _) => unreachable!("Manga se consulta en segundo plano"),
                 Job::Shops(detail) => Ok(Data::Shops(detail.item.key.clone(), api.shops(&detail))),
                 Job::Pull(owner, candidates) => {
                     let result = (|| {
@@ -694,6 +772,7 @@ fn worker(
                     let result = api.detail(&item).map(Box::new);
                     Ok(Data::Metadata(owner, item, result))
                 }
+                Job::FavoritePeople(_, _) => unreachable!("Personas se consultan en segundo plano"),
                 Job::Friends(username, relation) => {
                     api.connections(&username, relation).map(|mut friends| {
                         for batch in friends.chunks_mut(3) {
@@ -800,6 +879,7 @@ struct App {
     manga_page: manga_site::Page,
     manga_query: String,
     manga_loading: bool,
+    manga_cancel: Arc<AtomicBool>,
     manga_error: String,
     manga_origin: Option<(Tab, Item)>,
     shop_item: Option<Detail>,
@@ -874,6 +954,8 @@ struct App {
     friend_scroll: f32,
     friend_scroll_at: f64,
     social_relation: social::Relation,
+    social_favorites: bool,
+    wanted_filter: WantedFilter,
     settings_section: SettingsSection,
     onboarding: Option<onboarding::Wizard>,
     query: String,
@@ -1016,6 +1098,7 @@ impl App {
             manga_page: Default::default(),
             manga_query: String::new(),
             manga_loading: false,
+            manga_cancel: Arc::new(AtomicBool::new(false)),
             manga_error: String::new(),
             manga_origin: None,
             shop_item: None,
@@ -1090,6 +1173,8 @@ impl App {
             friend_scroll: 0.,
             friend_scroll_at: 0.,
             social_relation: social::Relation::Following,
+            social_favorites: false,
+            wanted_filter: WantedFilter::All,
             settings_section: SettingsSection::General,
             onboarding: None,
             query: String::new(),
@@ -1145,7 +1230,8 @@ impl App {
                 "library" => Tab::Library,
                 "settings" => Tab::Settings,
                 "catalog" => Tab::Catalog,
-                "favorites" => Tab::Favorites,
+                "favorites" | "wanted" => Tab::Wanted,
+                "reading" => Tab::Reading,
                 "friends" => Tab::Friends,
                 "profile" => Tab::Profile,
                 "account" => Tab::Account,
@@ -1164,6 +1250,11 @@ impl App {
                 "backup" => SettingsSection::Backup,
                 _ => SettingsSection::General,
             };
+        }
+        if std::env::args().any(|a| a == "--headless-preview")
+            && std::env::args().any(|a| a == "--preview-favorite-people")
+        {
+            app.social_favorites = true;
         }
         if std::env::args().any(|a| a == "--preview-followers") {
             app.social_relation = social::Relation::Followers;
@@ -1390,6 +1481,7 @@ impl App {
         }
     }
     fn select(&mut self, tab: Tab) {
+        self.manga_cancel.store(true, Ordering::Relaxed);
         self.profile_editor = false;
         self.edition_cancel.store(true, Ordering::Relaxed);
         self.missing_cancel.store(true, Ordering::Relaxed);
@@ -1553,25 +1645,6 @@ impl App {
     }
     fn local_items(&mut self) {
         let q = self.query.to_lowercase();
-        if self.tab == Tab::Favorites {
-            self.items = self
-                .library
-                .editions
-                .values()
-                .filter(|e| {
-                    e.favorite
-                        && (q.is_empty()
-                            || format!("{} {}", e.item.title, e.item.publisher)
-                                .to_lowercase()
-                                .contains(&q))
-                })
-                .map(|e| e.item.clone())
-                .collect();
-            self.items.sort_by_cached_key(|i| i.title.to_lowercase());
-            self.groups.clear();
-            self.next = None;
-            return;
-        }
         self.items = self
             .library
             .entries
@@ -1588,7 +1661,14 @@ impl App {
             })
             .filter(|e| match self.tab {
                 Tab::Library => e.owned,
-                Tab::Wanted => e.wanted,
+                Tab::Wanted => {
+                    e.wanted
+                        && match self.wanted_filter {
+                            WantedFilter::All => true,
+                            WantedFilter::Series => e.item.key.starts_with("edicion"),
+                            WantedFilter::Volumes => e.item.key.starts_with("comic"),
+                        }
+                }
                 Tab::Reading => e.owned && !e.read,
                 _ => true,
             })
@@ -1755,6 +1835,15 @@ impl App {
                 }
                 return;
             }
+            if self.social_favorites {
+                if !self.prefs.offline {
+                    self.send(Job::FavoritePeople(
+                        self.library.owner.clone(),
+                        self.library.favorite_people.values().cloned().collect(),
+                    ));
+                }
+                return;
+            }
             if !self.prefs.offline && self.verified {
                 self.send(Job::Friends(
                     self.username.clone().unwrap_or_default(),
@@ -1781,6 +1870,9 @@ impl App {
             self.local_items();
             if matches!(self.tab, Tab::Library | Tab::Wanted) {
                 self.pull_account();
+            }
+            if self.tab == Tab::Library {
+                self.start_missing();
             }
             self.status = i18n::trf(
                 "{0} fichas guardadas en tu biblioteca local",
@@ -1907,6 +1999,11 @@ impl App {
                         }
                     );
                 }
+                Ok(Data::MangaCover(url, cover)) if relevant && self.tab == Tab::MangaSite => {
+                    if let Some(link) = self.manga_page.results.iter_mut().find(|l| l.url == url) {
+                        link.cover = cover;
+                    }
+                }
                 Ok(Data::Manga(result)) if relevant => {
                     self.busy = false;
                     self.manga_loading = false;
@@ -1937,7 +2034,7 @@ impl App {
                         self.stats = self.library.stats();
                         if self.tab.local() && self.edition.is_none() {
                             self.local_items();
-                            if self.tab == Tab::Library && self.library_missing {
+                            if self.tab == Tab::Library {
                                 self.start_missing();
                             }
                         }
@@ -2116,6 +2213,18 @@ impl App {
                 Ok(Data::ListSearch(items)) if relevant => {
                     self.list_candidates = items;
                     self.busy = false;
+                }
+                Ok(Data::FavoritePeople(owner, people))
+                    if relevant && owner == self.library.owner && self.social_favorites =>
+                {
+                    for user in people {
+                        let key = user.username.to_ascii_lowercase();
+                        if let Some(saved) = self.library.favorite_people.get_mut(&key) {
+                            *saved = user;
+                        }
+                    }
+                    self.busy = false;
+                    self.save_library();
                 }
                 Ok(Data::Friends(owner, relation, friends))
                     if relevant
@@ -2742,91 +2851,6 @@ impl App {
                 "Conectate para consultar todos los tomos de esta serie antes de añadirla".into();
         }
     }
-    fn edition_actions(&mut self, ui: &mut egui::Ui) {
-        let Some(item) = self.edition.clone() else {
-            return;
-        };
-        let p = self.p();
-        self.request_metadata(&item);
-        let community = self
-            .library
-            .entries
-            .get(&item.key)
-            .map(|e| e.item.community_rating)
-            .unwrap_or(item.community_rating);
-        let votes = self
-            .library
-            .entries
-            .get(&item.key)
-            .and_then(|e| e.details.as_ref())
-            .map(|d| d.discussion.votes.clone())
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| "—".into());
-        let saved = self.library.editions.get(&item.key);
-        let favorite = saved.is_some_and(|e| e.favorite);
-        let complete = saved.is_some_and(|e| e.complete);
-        let owned = self
-            .items
-            .iter()
-            .filter(|i| self.library.entries.get(&i.key).is_some_and(|e| e.owned))
-            .count();
-        egui::Frame::new().fill(p.surface).stroke(egui::Stroke::new(1., p.border)).corner_radius(12).inner_margin(16).show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ui.horizontal_wrapped(|ui| {
-                let response = ui.add_enabled_ui(self.library_valid && !self.syncing, |ui| {
-                    icons::action(ui, Icon::Star, if favorite { "Quitar de favoritos" } else { "Añadir a favoritos" }, p)
-                }).inner;
-                #[cfg(test)]
-                { self.ui_rects.insert("favorite-edition".into(), response.rect); }
-                if response.clicked() {
-                    let favorite = self.library.favorite_edition(&item);
-                    self.queue_change(&item, sync::Change::EditionFavorite(favorite));
-                    self.status = if favorite { "Serie guardada en Favoritos" } else { "Serie quitada de Favoritos" }.into();
-                }
-                let all_owned = complete && !self.items.is_empty() && owned == self.items.len();
-                let response = ui.add_enabled(!self.busy && !all_owned && self.library_valid && (!self.prefs.offline || complete),
-                    egui::Button::new(if all_owned { "Serie en mi biblioteca" } else { "Agregar serie completa" }).fill(p.selected));
-                #[cfg(test)]
-                { self.ui_rects.insert("add-edition".into(), response.rect); }
-                if response.clicked() { self.add_current_edition(); }
-                if owned > 0 && complete && ui.add_enabled(!self.busy && self.library_valid, egui::Button::new(tr("Quitar serie de mi colección"))).clicked() {
-                    let volumes = self.library.editions.get(&item.key).map(|e| e.volumes.clone()).unwrap_or_default();
-                    for volume in volumes {
-                        if let Some(entry) = self.library.entries.get_mut(&volume.key) { entry.owned = false; }
-                        self.library.outbox.remove(&format!("{}:owned", volume.key));
-                    }
-                    self.queue_change(&item, sync::Change::EditionOwned(false));
-                    self.stats = self.library.stats();
-                }
-                ui.label(RichText::new(if complete {
-                    format!("{} tomos · {owned} en tu biblioteca", self.items.len())
-                } else { format!("{} tomos cargados · serie pendiente de completar", self.items.len()) }).color(p.muted));
-            });
-            ui.add_space(10.);
-            ui.horizontal_wrapped(|ui| {
-                rating::display(ui, community, self.prefs.dark, 18.);
-                ui.label(RichText::new(tr(if community > 0. { format!("{community:.1}") } else { "Sin nota pública".into() })).size(12.).color(p.muted));
-                vote_badge(ui, &votes, self.prefs.dark);
-                ui.add_space(18.);
-                ui.label(tr("Mi valoración"));
-                let mut value = self.library.entries.get(&item.key).map(|e| e.rating).unwrap_or_default();
-                if rating::edit(ui, &mut value, self.prefs.dark) {
-                    self.library.ensure(&item).rating = value;
-                    self.queue_change(&item, sync::Change::Rating(value));
-                }
-            });
-            if icons::action(ui,Icon::Search,"Buscar en Listado Manga",p).clicked(){self.open_manga_for(&item);}
-            ui.label(RichText::new(tr("Agregar o quitar se sincroniza con tu cuenta. Se conservan tus notas y lecturas.")).size(11.).color(p.muted));
-            if let Some(details) = self.library.entries.get(&item.key).and_then(|entry| entry.details.as_ref()) {
-                ui.horizontal_wrapped(|ui| {
-                    if let Some(owners) = details.owners { ui.label(RichText::new(i18n::trf("{0} personas lo tienen", &[owners.to_string()])).color(p.accent)); }
-                    if !details.isbn.is_empty() { ui.label(format!("ISBN · {}", details.isbn.join(" · "))); }
-                });
-            }
-            if self.prefs.offline && !complete { ui.label(RichText::new(tr("Conectate para consultar la serie completa antes de agregarla.")).size(11.).color(p.accent)); }
-        });
-        ui.add_space(14.);
-    }
     fn profile_footer(&mut self, ui: &mut egui::Ui, compact: bool) {
         let p = self.p();
         let (rect, _) =
@@ -3059,7 +3083,6 @@ impl App {
                             Tab::Catalog,
                             Tab::MangaSite,
                             Tab::Library,
-                            Tab::Favorites,
                             Tab::Reading,
                             Tab::Wanted,
                             Tab::Friends,
@@ -3213,11 +3236,10 @@ impl App {
                         Tab::News => "Novedades reales para descubrir, coleccionar y leer.",
                         Tab::Catalog => "Encontrá títulos y ediciones de Whakoom.",
                         Tab::Wanted => "Las historias que querés sumar a tu biblioteca.",
-                        Tab::Favorites => "Las series que guardaste para volver a encontrar.",
                         Tab::Reading => "Tu próxima lectura está acá.",
                         Tab::Stats => "Conocé tu colección y tus hábitos de lectura.",
                         Tab::Settings => "Tu biblioteca, a tu manera.",
-                        Tab::Friends => "Tus amigos y sus últimas incorporaciones.",
+                        Tab::Friends => "Las personas que seguís, tus seguidores y tus favoritos.",
                         Tab::Profile => "Tu identidad y tu colección en Whakoom.",
                         Tab::Account => "Tu perfil, tu sesión y tus preferencias de Whakoom.",
                         Tab::Notifications => "Lo nuevo en las colecciones de tus amigos.",
@@ -3346,7 +3368,7 @@ impl App {
             }
             ui.add_space(12.);
         }
-        if self.tab != Tab::Catalog || self.edition.is_some() {
+        if self.edition.is_none() && self.tab != Tab::Catalog {
             ui.horizontal(|ui| {
                 rating::display(ui, 5., self.prefs.dark, 12.);
                 ui.label(RichText::new(tr("Comunidad")).size(11.).color(p.muted));
@@ -3355,21 +3377,57 @@ impl App {
             });
             ui.add_space(10.);
             self.toolbar(ui);
+        } else if self.edition.is_some() {
+            self.toolbar(ui);
         }
         if self.tab == Tab::Library && self.edition.is_none() {
             self.library_filters(ui);
         }
 
-        if self.tab == Tab::Reading && self.selected_series.is_none() {
+        if self.tab == Tab::Wanted && self.edition.is_none() {
+            let old = self.wanted_filter;
+            ui.horizontal_wrapped(|ui| {
+                for (label, filter) in [
+                    ("Todos", WantedFilter::All),
+                    ("Series", WantedFilter::Series),
+                    ("Tomos", WantedFilter::Volumes),
+                ] {
+                    let response = ui.add_sized(
+                        [120., 40.],
+                        egui::Button::new(tr(label)).selected(self.wanted_filter == filter),
+                    );
+                    #[cfg(test)]
+                    self.ui_rects
+                        .insert(format!("wanted-filter-{filter:?}"), response.rect);
+                    if response.clicked() {
+                        self.wanted_filter = filter;
+                    }
+                }
+            });
+            if old != self.wanted_filter {
+                self.local_items();
+            }
+        }
+        if self.tab == Tab::Reading && self.prefs.list_view && self.selected_series.is_none() {
             self.reading_queue(ui);
             return;
         }
-        if self.tab == Tab::News
-            && ui
-                .checkbox(&mut self.news_owned_only, tr("Novedades de mis series"))
-                .changed()
-        {
-            self.begin_transition(1.);
+        if self.tab == Tab::News {
+            let mut accent = p;
+            accent.surface = p.selected;
+            accent.text = p.accent;
+            accent.muted = p.accent;
+            if icons::toggle(
+                ui,
+                Icon::Book,
+                "Novedades de mis series",
+                &mut self.news_owned_only,
+                accent,
+            )
+            .changed()
+            {
+                self.begin_transition(1.);
+            }
         }
 
         ui.add_space(18.);
@@ -3444,8 +3502,6 @@ impl App {
                                         "Tomos faltantes"
                                     } else if self.tab == Tab::Library {
                                         "Mi biblioteca"
-                                    } else if self.tab == Tab::Favorites {
-                                        "Favoritos"
                                     } else {
                                         "Catálogo"
                                     },
@@ -3517,7 +3573,10 @@ impl App {
                         }
                     }
                     ui.separator();
-                    if icons::view_toggle(ui, self.prefs.list_view, p).clicked() {
+                    let view = icons::view_toggle(ui, self.prefs.list_view, p);
+                    #[cfg(test)]
+                    self.ui_rects.insert("view-toggle".into(), view.rect);
+                    if view.clicked() {
                         self.prefs.list_view = !self.prefs.list_view;
                         self.save_prefs();
                         self.begin_transition(1.);
@@ -3541,22 +3600,6 @@ impl App {
                 .and_then(|e| e.details.as_ref())
                 .and_then(|d| d.edition.clone())
         });
-        if let Some(edition) = edition {
-            let votes = self
-                .library
-                .entries
-                .get(&edition.key)
-                .and_then(|e| e.details.as_ref())
-                .map(|d| d.discussion.votes.as_str())
-                .unwrap_or("—");
-            if ui
-                .button(format!("Opiniones de la serie · {votes} votos"))
-                .clicked()
-            {
-                self.open_item(edition);
-                self.edition_reviews = true;
-            }
-        }
 
         let p = self.p();
         let read = group
@@ -3564,16 +3607,21 @@ impl App {
             .iter()
             .filter(|i| self.library.entries.get(&i.key).is_some_and(|e| e.read))
             .count();
-        egui::Frame::new().fill(p.surface).stroke(egui::Stroke::new(1., p.border)).corner_radius(16).inner_margin(16).show(ui, |ui| {
+        egui::Frame::new().fill(p.surface).stroke(egui::Stroke::new(1., p.border)).corner_radius(16).inner_margin(22).show(ui, |ui| {
             ui.horizontal_top(|ui| {
-                if let Some(item) = group.volumes.first() { self.cover(ui, item, Vec2::new(84., 120.)); }
+                if let Some(item) = group.volumes.first() { self.cover(ui, item, Vec2::new(120., 172.)); }
                 ui.vertical(|ui| {
                     ui.label(RichText::new(tr("MI COLECCIÓN")).size(10.).color(p.accent));
-                    ui.label(RichText::new(&group.publisher).size(17.).strong());
+                    ui.label(RichText::new(&group.publisher).size(22.).strong());
                     ui.add_space(8.);
                     ui.label(format!("{} tomos en tu biblioteca · {} leídos", group.volumes.len(), read));
                     ui.label(RichText::new(tr("Abrí un tomo para ver su ficha, agregar notas o marcar tu lectura.")).size(12.).color(p.muted));
-                    if ui.add_enabled(self.library_valid && !self.pushing, egui::Button::new(tr("Quitar colección de mi biblioteca"))).clicked() { self.remove_series = Some(group.clone()); }
+                    if ui.add_enabled(self.library_valid && !self.pushing, egui::Button::new(tr("Quitar colección de mi biblioteca")).min_size(Vec2::new(280.,46.))).clicked() { self.remove_series = Some(group.clone()); }
+                    ui.add_space(10.);
+                    if let Some(edition) = &edition
+                        && ui.add_sized([280.,46.], egui::Button::new(tr("Opiniones de la serie"))).clicked() {
+                        self.open_item(edition.clone()); self.edition_reviews = true;
+                    }
                     let total = group.volumes.len().max(1);
                     ui.add(egui::ProgressBar::new(read as f32 / total as f32).desired_width(260.).text(format!("{}% de tus tomos leídos", read * 100 / total)));
                 });
@@ -3681,6 +3729,26 @@ impl App {
                     );
                 }
             });
+            if let Some((owned, total)) = missing::progress(&self.library, &group.volumes) {
+                child.add(
+                    egui::ProgressBar::new(owned as f32 / total.max(1) as f32)
+                        .desired_width(cover_width)
+                        .text(i18n::trf(
+                            "Te faltan {0} tomos",
+                            &[total.saturating_sub(owned).to_string()],
+                        )),
+                );
+            } else {
+                child.label(
+                    RichText::new(tr(if self.missing_pending {
+                        "Consultando tomos…"
+                    } else {
+                        "Total no disponible"
+                    }))
+                    .small()
+                    .color(p.muted),
+                );
+            }
         } else {
             child.horizontal(|ui| {
                 ui.label(
@@ -3827,8 +3895,8 @@ impl App {
             ui.label(
                 RichText::new(tr(if self.edition.is_some() && self.prefs.offline {
                     "Esta serie no tiene tomos guardados todavía. Conectate para consultarlos."
-                } else if self.tab == Tab::Favorites && self.query.is_empty() {
-                    "Buscá una serie en Catálogo y pulsá Añadir a favoritos."
+                } else if self.tab == Tab::Wanted && self.query.is_empty() {
+                    "Buscá un tomo o una serie en Catálogo y marcá Lo quiero."
                 } else if self.tab == Tab::Catalog && self.query.is_empty() {
                     "Buscá un título o entrá en Explorar para descubrir cómics. Tus visitas recientes aparecerán acá."
                 } else if self.query.is_empty() {
@@ -3881,7 +3949,9 @@ impl App {
                 .floor()
                 .max(1.) as usize;
             let height = (width - 24.) * 1.43
-                + if grouped || self.edition.is_some() {
+                + if grouped {
+                    205.
+                } else if self.edition.is_some() {
                     177.
                 } else {
                     153.
@@ -4206,7 +4276,7 @@ impl App {
             ui.add_space(16.);
             self.profile_sections_ui(ui, &user);
         } else {
-            if self.username.is_none() {
+            if self.username.is_none() && !self.social_favorites {
                 ui.label(tr(
                     "Conectá tu cuenta para ver a las personas que seguís en Whakoom.",
                 ));
@@ -4220,14 +4290,17 @@ impl App {
                     let button = ui.add_sized(
                         [160., 44.],
                         egui::Button::new(RichText::new(tr(relation.title())).size(17.))
-                            .selected(self.social_relation == relation),
+                            .selected(!self.social_favorites && self.social_relation == relation),
                     );
                     #[cfg(test)]
                     {
                         self.ui_rects
                             .insert(format!("social-{}", relation.path()), button.rect);
                     }
-                    if button.clicked() && self.social_relation != relation {
+                    if button.clicked()
+                        && (self.social_favorites || self.social_relation != relation)
+                    {
+                        self.social_favorites = false;
                         self.social_relation = relation;
                         self.generation += 1;
                         self.busy = false;
@@ -4237,16 +4310,37 @@ impl App {
                         self.refresh(1);
                     }
                 }
+                let favorites = ui.add_sized(
+                    [160., 44.],
+                    egui::Button::new(RichText::new(tr("Favoritos")).size(17.))
+                        .selected(self.social_favorites),
+                );
+                #[cfg(test)]
+                self.ui_rects
+                    .insert("social-favorites".into(), favorites.rect);
+                if favorites.clicked() && !self.social_favorites {
+                    self.social_favorites = true;
+                    self.generation += 1;
+                    self.busy = false;
+                    self.friend_scroll = 0.;
+                    self.refresh(1);
+                }
             });
-            let friends = match self.social_relation {
-                social::Relation::Following => self.library.friends.clone(),
-                social::Relation::Followers => self.library.followers.clone(),
+            let friends = if self.social_favorites {
+                self.library.favorite_people.values().cloned().collect()
+            } else {
+                match self.social_relation {
+                    social::Relation::Following => self.library.friends.clone(),
+                    social::Relation::Followers => self.library.followers.clone(),
+                }
             };
             ui.horizontal(|ui| {
                 ui.set_min_height(44.);
                 ui.label(
                     RichText::new(i18n::trf(
-                        if self.social_relation == social::Relation::Following {
+                        if self.social_favorites {
+                            "{0} personas favoritas"
+                        } else if self.social_relation == social::Relation::Following {
                             "{0} personas que seguís"
                         } else {
                             "{0} personas te siguen"
@@ -4262,7 +4356,7 @@ impl App {
             ui.horizontal(|ui| {
                 if ui
                     .button("‹")
-                    .on_hover_text(tr("Amigos anteriores"))
+                    .on_hover_text(tr("Personas anteriores"))
                     .clicked()
                 {
                     self.friend_scroll = (self.friend_scroll - 200.).max(0.);
@@ -4284,7 +4378,11 @@ impl App {
             };
             let mut hovered = false;
             let strip = egui::ScrollArea::horizontal()
-                .id_salt(("friends-strip", self.social_relation.path()))
+                .id_salt((
+                    "friends-strip",
+                    self.social_favorites,
+                    self.social_relation.path(),
+                ))
                 .max_height(160.)
                 .max_width(ui.available_width())
                 .auto_shrink([false, true])
@@ -4353,9 +4451,39 @@ impl App {
                                 self.ui_rects
                                     .insert(format!("friend-{}", friend.username), rect);
                             }
+                            let key = friend.username.to_ascii_lowercase();
+                            let heart = egui::Rect::from_min_size(
+                                rect.min + Vec2::new(188., 99.),
+                                Vec2::splat(24.),
+                            );
+                            let favorite = ui
+                                .interact(
+                                    heart,
+                                    response.id.with("favorite-person"),
+                                    egui::Sense::click(),
+                                )
+                                .on_hover_cursor(egui::CursorIcon::PointingHand)
+                                .on_hover_text(tr("Persona favorita"));
+                            icons::paint(
+                                ui.painter(),
+                                heart.shrink(3.),
+                                if self.library.favorite_people.contains_key(&key) {
+                                    Icon::HeartFilled
+                                } else {
+                                    Icon::Heart
+                                },
+                                p.accent,
+                            );
+                            #[cfg(test)]
+                            self.ui_rects
+                                .insert(format!("person-favorite-{}", friend.username), heart);
+                            if favorite.clicked() {
+                                self.toggle_person(friend);
+                            }
                             if response
                                 .on_hover_cursor(egui::CursorIcon::PointingHand)
                                 .clicked()
+                                && !favorite.clicked()
                             {
                                 self.open_profile(friend.clone());
                             }
@@ -4389,8 +4517,10 @@ impl App {
             }
             ui.add_space(16.);
             ui.label(
-                RichText::new(tr(if self.social_relation == social::Relation::Following {
-                    "ACTIVIDAD DE TUS AMIGOS"
+                RichText::new(tr(if self.social_favorites {
+                    "ACTIVIDAD DE TUS FAVORITOS"
+                } else if self.social_relation == social::Relation::Following {
+                    "ACTIVIDAD DE TUS SEGUIDOS"
                 } else {
                     "ACTIVIDAD DE TUS SEGUIDORES"
                 }))
@@ -5006,6 +5136,7 @@ impl App {
         };
         let p = self.p();
         let before = self.library.ensure(&d.item).clone();
+        let mut buy_requested = false;
         let mut changed = false;
         let back = ui
             .horizontal(|ui| {
@@ -5061,9 +5192,11 @@ impl App {
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         ui.horizontal_top(|ui| {
+                            ui.vertical(|ui|{ui.set_width(190.);
                             let cover = self.cover(ui, &d.item, Vec2::new(190., 272.)).on_hover_text(tr("Ampliar portada"));
                             #[cfg(test)] { self.ui_rects.insert("comic-cover".into(), cover.rect); }
                             if cover.clicked() { self.open_cover(d.item.clone()); }
+                            ui.add_space(10.);if ui.add_sized([190.,44.],egui::Button::new(tr("Buscar en Listado Manga"))).clicked(){self.open_manga_for(&d.item);} });
                             ui.add_space(18.);
                             ui.vertical(|ui| {
                                 ui.set_width(ui.available_width());
@@ -5090,9 +5223,10 @@ impl App {
                                 if !d.isbn.is_empty() { ui.label(format!("ISBN · {}", d.isbn.join(" · "))); }
                                 ui.horizontal(|ui| {
                                     rating::display(ui, d.item.community_rating, self.prefs.dark, 18.);
-                                    ui.label(RichText::new(if d.item.community_rating > 0. { format!("{:.1}", d.item.community_rating) } else { "Sin nota pública".into() }).size(12.).color(p.muted));
+                                    ui.label(RichText::new(if d.item.community_rating > 0. { format!("{:.1}", d.item.community_rating).replace('.', ",") } else { "Sin nota pública".into() }).size(12.).color(p.muted));
                                     vote_badge(ui, &d.discussion.votes, self.prefs.dark);
                                 });
+                                let e=self.library.ensure(&d.item); changed |= rating::compact_edit(ui,&mut e.rating,self.prefs.dark);
                                 ui.separator();
                                 ui.label(
                                     RichText::new(tr("MI COLECCIÓN"))
@@ -5103,15 +5237,13 @@ impl App {
                                 ui.horizontal_wrapped(|ui| {
                                     changed |= icons::toggle(ui, Icon::Book, "Lo tengo", &mut e.owned, p).changed();
                                     changed |= icons::toggle(ui, Icon::Heart, "Lo quiero", &mut e.wanted, p).changed();
-                                    changed |= icons::toggle(ui, Icon::Read, "Leído", &mut e.read, p).changed();
                                 });
-                                ui.add_space(8.);
-                                ui.label(tr("Mi valoración"));
-                                changed |= rating::edit(ui, &mut e.rating, self.prefs.dark);
-                                ui.add_space(12.);
-                                ui.horizontal_wrapped(|ui| {
-                                    if icons::action(ui,Icon::Book,"Comprar",p).clicked(){self.open_shops(d.clone());}
-                                    if icons::action(ui,Icon::Search,"Buscar en Listado Manga",p).clicked(){self.open_manga_for(&d.item);}
+                                ui.horizontal(|ui| {
+                                    let read = icons::toggle(ui, Icon::Read, "Leído", &mut e.read, p);
+                                    let buy = icons::action_with_min_size(ui,Icon::Book,"Comprar",p,Vec2::new(130.,42.));
+                                    #[cfg(test)] { self.ui_rects.insert("comic-read".into(),read.rect); self.ui_rects.insert("comic-buy".into(),buy.rect); }
+                                    changed |= read.changed();
+                                    if buy.clicked(){buy_requested=true;}
                                 });
                             });
                         });
@@ -5157,6 +5289,9 @@ impl App {
                 self.discussion_ui(ui, &d);
                 if !self.error.is_empty() { ui.colored_label(p.accent, &self.error); }
             });
+        if buy_requested {
+            self.open_shops(d.clone());
+        }
         if changed {
             if !before.read
                 && self.library.ensure(&d.item).read
@@ -5518,6 +5653,107 @@ fn item_rows(
 #[cfg(test)]
 mod ui_tests {
     #[test]
+    fn comic_purchase_matches_read_button_and_opens_without_mutating_the_collection() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        app.prefs.animations = false;
+        app.open_item(app.library.entries["comica"].item.clone());
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let read = app.ui_rects["comic-read"];
+        let buy = app.ui_rects["comic-buy"];
+        assert!((read.top() - buy.top()).abs() < 1.);
+        assert!(
+            (read.height() - buy.height()).abs() < 1. && (read.width() - buy.width()).abs() < 1.
+        );
+        assert!(buy.left() > read.right());
+        let before = serde_json::to_vec(&app.library.entries).unwrap();
+        click(&mut app, &ctx, buy.center());
+        assert!(app.shop_item.is_some());
+        assert_eq!(serde_json::to_vec(&app.library.entries).unwrap(), before);
+        assert!(app.library.outbox.is_empty());
+    }
+
+    #[test]
+    fn desired_filters_keep_both_online_wish_types_and_reading_view_switches() {
+        let ctx = egui::Context::default();
+        let mut l = library();
+        l.ensure(&edition_item()).wanted = true;
+        l.entries.get_mut("comica").unwrap().wanted = true;
+        let mut app = App::new(&eframe::CreationContext::_new_kittest(ctx.clone()), Some(l));
+        app.prefs.animations = false;
+        app.select(Tab::Wanted);
+        assert_eq!(app.items.len(), 2);
+        for (filter, count) in [
+            (WantedFilter::Series, 1),
+            (WantedFilter::Volumes, 1),
+            (WantedFilter::All, 2),
+        ] {
+            for _ in 0..3 {
+                frame(&mut app, &ctx, vec![]);
+            }
+            let pos = app.ui_rects[&format!("wanted-filter-{filter:?}")].center();
+            click(&mut app, &ctx, pos);
+            assert_eq!(app.items.len(), count);
+            assert_eq!(app.wanted_filter, filter);
+        }
+        app.select(Tab::Reading);
+        app.prefs.list_view = true;
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        app.card_rects.clear();
+        let pos = app.ui_rects["view-toggle"].center();
+        click(&mut app, &ctx, pos);
+        frame(&mut app, &ctx, vec![]);
+        assert!(!app.prefs.list_view);
+        assert_eq!(app.card_rects.len(), 3);
+        let pos = app.ui_rects["view-toggle"].center();
+        click(&mut app, &ctx, pos);
+        assert!(app.prefs.list_view);
+    }
+    #[test]
+    fn favorite_people_persist_locally_without_modifying_relationships_or_outbox() {
+        let ctx = egui::Context::default();
+        let user = social::User {
+            username: "Friend".into(),
+            name: "Persona ejemplo".into(),
+            ..Default::default()
+        };
+        let mut l = library();
+        l.friends.push(user.clone());
+        let mut app = App::new(&eframe::CreationContext::_new_kittest(ctx.clone()), Some(l));
+        app.username = Some("isolated-test".into());
+        app.prefs.animations = false;
+        app.select(Tab::Friends);
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let pos = app.ui_rects["person-favorite-Friend"].center();
+        click(&mut app, &ctx, pos);
+        assert!(app.profile.is_none());
+        assert_eq!(app.library.favorite_people.len(), 1);
+        let restored: Library =
+            serde_json::from_slice(&serde_json::to_vec(&app.library).unwrap()).unwrap();
+        assert_eq!(restored.favorite_people["friend"].username, "Friend");
+        assert_eq!(restored.friends.len(), 1);
+        assert!(restored.followers.is_empty() && restored.outbox.is_empty());
+        let pos = app.ui_rects["social-favorites"].center();
+        click(&mut app, &ctx, pos);
+        assert!(app.social_favorites);
+        frame(&mut app, &ctx, vec![]);
+        let pos = app.ui_rects["person-favorite-Friend"].center();
+        click(&mut app, &ctx, pos);
+        assert!(app.library.favorite_people.is_empty());
+        assert_eq!(app.library.friends.len(), 1);
+        assert!(app.library.outbox.is_empty());
+    }
+
+    #[test]
     fn account_navigation_precedes_summary_and_editor_is_separate() {
         let ctx = egui::Context::default();
         let mut app = App::new(
@@ -5842,7 +6078,7 @@ mod ui_tests {
             assert!((left.width() - right.width()).abs() < 1.);
             if width > 1000. {
                 assert!(
-                    left.height() < 580.,
+                    left.height() < 900.,
                     "The layout must converge rather than grow on each repaint"
                 );
                 assert!((left.top() - right.top()).abs() < 1.);
@@ -5926,7 +6162,7 @@ mod ui_tests {
         for _ in 0..3 {
             frame(&mut app, &ctx, vec![]);
         }
-        assert!(app.ui_rects["nav-Favorites"].top() < app.ui_rects["nav-Reading"].top());
+        assert!(!app.ui_rects.contains_key("nav-Favorites"));
         assert!(app.ui_rects["nav-Reading"].top() < app.ui_rects["nav-Wanted"].top());
         assert!(app.ui_rects["nav-Wanted"].top() < app.ui_rects["nav-Friends"].top());
         let position = app.ui_rects["nav-Library"].center();
@@ -6099,7 +6335,7 @@ mod ui_tests {
                 .filter(|e| e.item.key.starts_with("comic"))
                 .all(|e| e.notes == "Conservar esta nota")
         );
-        app.select(Tab::Favorites);
+        app.select(Tab::Wanted);
         assert_eq!(app.items.len(), 1);
         for _ in 0..3 {
             frame(&mut app, &ctx, vec![]);
@@ -6113,7 +6349,7 @@ mod ui_tests {
         assert_eq!(app.items.len(), 3);
         app.leave_edition();
         assert_eq!(app.items.len(), 1);
-        assert_eq!(app.tab, Tab::Favorites);
+        assert_eq!(app.tab, Tab::Wanted);
     }
     #[test]
     fn incomplete_offline_series_cannot_be_added_and_other_account_result_is_ignored() {
@@ -6128,7 +6364,7 @@ mod ui_tests {
             &eframe::CreationContext::_new_kittest(ctx.clone()),
             Some(library),
         );
-        app.select(Tab::Favorites);
+        app.select(Tab::Wanted);
         app.open_item(edition_item());
         let before = serde_json::to_vec(&app.library).unwrap();
         app.add_current_edition();
@@ -6299,6 +6535,10 @@ mod ui_tests {
             matches!(jobs.try_recv().unwrap().1, Job::Pull(owner, _) if owner == "isolated-test")
         );
         assert!(app.syncing);
+        assert!(matches!(
+            jobs.try_recv().unwrap().1,
+            Job::Missing(_, _, _, _)
+        ));
         app.refresh(1);
         assert!(jobs.try_recv().is_err());
         app.syncing = false;
