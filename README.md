@@ -24,7 +24,7 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 
 - Catálogo ordenado en Buscar, Explorar y Listas; historial de búsquedas y visitas.
 - Fichas con ISBN, cantidad de personas que tienen el título, votos y opiniones reales. Escribir y editar tu opinión pública con confirmación online.
-- Visor de portadas en primer plano: rueda, arrastre, controles de zoom y cierre con Escape. La portada abre el visor; el título de la tarjeta abre la ficha interna.
+- Visor de portadas en primer plano: rueda, arrastre, controles de zoom y cierre con Escape. La tarjeta del catálogo, incluida su portada, abre la ficha interna. El visor se abre al pulsar la portada dentro de la ficha.
 - Estadísticas anuales de compras y lecturas, comparación mensual y fechas de compra explícitas.
 - Comunidad y ayuda oficial: categorías, publicaciones y respuestas públicas; formularios para reportar, proponer y comentar.
 - Explorar: populares, mejor valorados, novelas gráficas y todos los cómics. Deseados reúne la lista online antes duplicada como Buscados.

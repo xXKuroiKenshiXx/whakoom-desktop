@@ -2,6 +2,9 @@
 
 ## 2.0.0
 
+- Iconos propios en las siete opciones de cuenta, con selección destacada.
+- Las portadas en las tarjetas abren la ficha o serie; el visor ampliado sólo se abre desde el interior de la ficha.
+
 - Visor de portada con zoom, arrastre, Escape y descarga independiente en alta calidad.
 - Catálogo reorganizado: navegación, búsqueda e historial separados; iconos accesibles para refrescar y alternar vista.
 - Deseados unifica la lista antes duplicada en Buscados y se actualiza al entrar.

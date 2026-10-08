@@ -6,7 +6,7 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 
 100 pruebas aprobadas en Windows x64/MSVC y 100 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
 
-- Visor: clic sobre imagen separado de la navegación a ficha/serie; Escape cierra el visor conservando la sección. Capturas nativas de zoom en Windows y AppImage Linux.
+- Visor: en búsqueda, tanto portadas como lista abren la ficha al pulsar una imagen. El visor se abre únicamente desde la portada dentro de la ficha; Escape lo cierra conservando el cómic abierto. Capturas nativas de zoom en Windows y AppImage Linux.
 - Carrusel: un contacto y ventana de 760 px mantienen el movimiento y los límites de la sección; los controles de animación conservan su comportamiento.
 - Opiniones: contratos actuales de tomos y series, Unicode y límite UTF-16, persistencia del pendiente y actualización de su valoración durante reintentos.
 - Metadatos: ISBN múltiple, cantidad de propietarios y votos son datos distintos; ausencia de información no se convierte en una cifra inventada.

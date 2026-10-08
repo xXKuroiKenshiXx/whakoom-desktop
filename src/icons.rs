@@ -26,6 +26,10 @@ pub enum Icon {
     Compass,
     List,
     Help,
+    Lock,
+    Shield,
+    Globe,
+    Blocked,
 }
 pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
     let s = Stroke::new(1.6, c);
@@ -34,6 +38,58 @@ pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
         p.line_segment([at(a.0, a.1), at(b.0, b.1)], s);
     };
     match icon {
+        Icon::Lock => {
+            p.add(egui::Shape::line(
+                vec![
+                    at(0.28, 0.46),
+                    at(0.28, 0.28),
+                    at(0.36, 0.12),
+                    at(0.64, 0.12),
+                    at(0.72, 0.28),
+                    at(0.72, 0.46),
+                ],
+                s,
+            ));
+            p.rect_stroke(
+                egui::Rect::from_min_max(at(0.15, 0.43), at(0.85, 0.9)),
+                3,
+                s,
+                egui::StrokeKind::Inside,
+            );
+            p.circle_filled(at(0.5, 0.63), r.width() * 0.06, c);
+            line((0.5, 0.63), (0.5, 0.77));
+        }
+        Icon::Shield => {
+            p.add(egui::Shape::closed_line(
+                vec![
+                    at(0.5, 0.07),
+                    at(0.87, 0.23),
+                    at(0.83, 0.6),
+                    at(0.7, 0.79),
+                    at(0.5, 0.93),
+                    at(0.3, 0.79),
+                    at(0.17, 0.6),
+                    at(0.13, 0.23),
+                ],
+                s,
+            ));
+            line((0.31, 0.48), (0.45, 0.62));
+            line((0.45, 0.62), (0.7, 0.35));
+        }
+        Icon::Globe => {
+            p.circle_stroke(r.center(), r.width() * 0.43, s);
+            line((0.07, 0.5), (0.93, 0.5));
+            for x in [0.37, 0.63] {
+                p.add(egui::Shape::line(
+                    vec![at(0.5, 0.07), at(x, 0.24), at(x, 0.76), at(0.5, 0.93)],
+                    s,
+                ));
+            }
+        }
+        Icon::Blocked => {
+            p.circle_stroke(r.center(), r.width() * 0.43, s);
+            line((0.2, 0.2), (0.8, 0.8));
+        }
         Icon::Help => {
             p.circle_stroke(r.center(), r.width() * 0.44, s);
             p.text(

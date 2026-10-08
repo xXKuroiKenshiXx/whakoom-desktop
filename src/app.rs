@@ -3125,9 +3125,7 @@ impl App {
                 );
             }
         }
-        let cover_rect = self
-            .cover(&mut child, item, Vec2::new(cover_width, cover_width * 1.43))
-            .rect;
+        self.cover(&mut child, item, Vec2::new(cover_width, cover_width * 1.43));
         child.add_space(16.);
         child.add(
             egui::Label::new(
@@ -3182,18 +3180,10 @@ impl App {
         }
         self.card_rating(&mut child, item, group);
         let response = ui.interact(slot, id, egui::Sense::click());
-        if response.clicked()
-            && response
-                .interact_pointer_pos()
-                .is_some_and(|pos| cover_rect.contains(pos))
-        {
-            self.open_cover(item.clone());
-            false
-        } else {
-            response
-                .on_hover_text(group.map_or(item.title.as_str(), |g| g.title.as_str()))
-                .clicked()
-        }
+        response
+            .on_hover_cursor(egui::CursorIcon::PointingHand)
+            .on_hover_text(group.map_or(item.title.as_str(), |g| g.title.as_str()))
+            .clicked()
     }
     fn list_row(&mut self, ui: &mut egui::Ui, item: &Item, group: Option<&Series>) -> bool {
         let p = self.p();
@@ -3202,6 +3192,11 @@ impl App {
             .with(group.map_or(item.key.as_str(), |g| g.key.as_str()));
         let (rect, _) =
             ui.allocate_exact_size(Vec2::new(ui.available_width(), 140.), egui::Sense::hover());
+        #[cfg(test)]
+        self.card_rects.insert(
+            group.map_or(item.key.as_str(), |g| g.key.as_str()).into(),
+            rect,
+        );
         let hovered = ui.rect_contains_pointer(rect);
         let hover = ui.ctx().animate_bool_with_time(
             id.with("row-hover"),
@@ -3222,9 +3217,8 @@ impl App {
                 .max_rect(rect.shrink(12.)),
         );
         child.set_clip_rect(ui.clip_rect().intersect(rect));
-        let mut cover_rect = egui::Rect::NOTHING;
         child.horizontal_top(|ui| {
-            cover_rect = self.cover(ui, item, Vec2::new(50., 72.)).rect;
+            self.cover(ui, item, Vec2::new(50., 72.));
             ui.vertical(|ui| {
                 ui.add(
                     egui::Label::new(
@@ -3248,16 +3242,9 @@ impl App {
             });
         });
         let response = ui.interact(rect, id, egui::Sense::click());
-        if response.clicked()
-            && response
-                .interact_pointer_pos()
-                .is_some_and(|pos| cover_rect.contains(pos))
-        {
-            self.open_cover(item.clone());
-            false
-        } else {
-            response.clicked()
-        }
+        response
+            .on_hover_cursor(egui::CursorIcon::PointingHand)
+            .clicked()
     }
     fn items_ui(&mut self, ui: &mut egui::Ui) {
         self.catalog_history(ui);
@@ -3948,6 +3935,17 @@ impl App {
             });
         ui.add_space(14.);
     }
+    fn account_section_icon(section: account::Section) -> Icon {
+        match section {
+            account::Section::Profile => Icon::User,
+            account::Section::Account => Icon::Lock,
+            account::Section::Subscription => Icon::Star,
+            account::Section::Notifications => Icon::Bell,
+            account::Section::Region => Icon::Globe,
+            account::Section::Privacy => Icon::Shield,
+            account::Section::Blocked => Icon::Blocked,
+        }
+    }
     fn account_ui(&mut self, ui: &mut egui::Ui) {
         let p = self.p();
         let mut page = std::mem::take(&mut self.account_page);
@@ -3998,7 +3996,9 @@ impl App {
             if !self.verified { return; }
             ui.horizontal_wrapped(|ui| {
                 for section in account::Section::ALL {
-                    if ui.selectable_label(page.section == section, section.title()).clicked() && page.section != section { next_section = Some(section); }
+                    let mut palette = p;
+                    if page.section == section { palette.surface = p.selected; palette.text = p.accent; palette.muted = p.accent; }
+                    if icons::action(ui, Self::account_section_icon(section), section.title(), palette).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() && page.section != section { next_section = Some(section); }
                 }
             });
             ui.add_space(16.);
@@ -4006,14 +4006,7 @@ impl App {
                 ui.label(if self.prefs.offline { "Conectate para consultar la configuración de tu cuenta." } else { "Consultando tus preferencias en Whakoom…" });
                 return;
             }
-            let icon = match page.section {
-                account::Section::Profile | account::Section::Account => Icon::User,
-                account::Section::Subscription => Icon::Star,
-                account::Section::Notifications => Icon::Bell,
-                account::Section::Region => Icon::Cloud,
-                account::Section::Privacy => Icon::Settings,
-                account::Section::Blocked => Icon::Users,
-            };
+            let icon = Self::account_section_icon(page.section);
             self.setting_card(ui, icon, page.section.title(), |app, ui| {
                 ui.add_enabled_ui(!app.busy && !app.prefs.offline, |ui| {
                     match page.section {
@@ -4467,7 +4460,9 @@ impl App {
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         ui.horizontal_top(|ui| {
-                            if self.cover(ui, &d.item, Vec2::new(190., 272.)).on_hover_text(tr("Ampliar portada")).clicked() { self.open_cover(d.item.clone()); }
+                            let cover = self.cover(ui, &d.item, Vec2::new(190., 272.)).on_hover_text(tr("Ampliar portada"));
+                            #[cfg(test)] { self.ui_rects.insert("comic-cover".into(), cover.rect); }
+                            if cover.clicked() { self.open_cover(d.item.clone()); }
                             ui.add_space(18.);
                             ui.vertical(|ui| {
                                 ui.set_width(ui.available_width());
@@ -4866,39 +4861,57 @@ pub fn run() -> eframe::Result {
 mod ui_tests {
     use super::*;
     #[test]
-    fn cover_click_opens_gallery_and_escape_preserves_the_internal_page() {
-        let ctx = egui::Context::default();
-        let mut app = App::new(
-            &eframe::CreationContext::_new_kittest(ctx.clone()),
-            Some(library()),
-        );
-        app.prefs.animations = false;
-        app.prefs.series_view = false;
-        theme::apply(&ctx, true, false);
-        app.local_items();
-        for _ in 0..3 {
-            frame(&mut app, &ctx, vec![]);
+    fn catalog_cover_opens_details_and_gallery_only_opens_inside_the_comic() {
+        for list_view in [false, true] {
+            let ctx = egui::Context::default();
+            let mut app = App::new(
+                &eframe::CreationContext::_new_kittest(ctx.clone()),
+                Some(library()),
+            );
+            app.prefs.animations = false;
+            app.prefs.series_view = false;
+            app.prefs.list_view = list_view;
+            app.tab = Tab::Catalog;
+            app.query = "prueba".into();
+            app.submitted = app.query.clone();
+            theme::apply(&ctx, true, false);
+            app.local_items();
+            for _ in 0..3 {
+                frame(&mut app, &ctx, vec![]);
+            }
+            let (key, rect) = app
+                .card_rects
+                .iter()
+                .min_by(|a, b| a.1.top().total_cmp(&b.1.top()))
+                .unwrap();
+            let key = key.clone();
+            let position = rect.left_top() + Vec2::new(35., if list_view { 40. } else { 80. });
+            click(&mut app, &ctx, position);
+            assert!(app.cover_viewer.is_none());
+            assert_eq!(app.detail.as_ref().unwrap().item.key, key);
+            assert_eq!(app.tab, Tab::Catalog);
+            for _ in 0..3 {
+                frame(&mut app, &ctx, vec![]);
+            }
+            let position = app.ui_rects["comic-cover"].center();
+            click(&mut app, &ctx, position);
+            assert_eq!(app.cover_viewer.as_ref().unwrap().key, key);
+            assert_eq!(app.detail.as_ref().unwrap().item.key, key);
+            frame(
+                &mut app,
+                &ctx,
+                vec![egui::Event::Key {
+                    key: egui::Key::Escape,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers: egui::Modifiers::default(),
+                }],
+            );
+            assert!(app.cover_viewer.is_none());
+            assert_eq!(app.detail.as_ref().unwrap().item.key, key);
+            assert_eq!(app.tab, Tab::Catalog);
         }
-        let key = app.card_rects.keys().next().unwrap().clone();
-        let position = app.card_rects[&key].left_top() + Vec2::new(40., 80.);
-        click(&mut app, &ctx, position);
-        assert_eq!(app.cover_viewer.as_ref().unwrap().key, key);
-        assert!(app.detail.is_none());
-        assert_eq!(app.tab, Tab::Library);
-        frame(
-            &mut app,
-            &ctx,
-            vec![egui::Event::Key {
-                key: egui::Key::Escape,
-                physical_key: None,
-                pressed: true,
-                repeat: false,
-                modifiers: egui::Modifiers::default(),
-            }],
-        );
-        assert!(app.cover_viewer.is_none());
-        assert!(app.detail.is_none());
-        assert_eq!(app.tab, Tab::Library);
     }
     #[test]
     fn notifications_navigation_stays_available_during_collection_refresh() {
