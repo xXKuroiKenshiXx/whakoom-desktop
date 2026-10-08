@@ -9,8 +9,14 @@ impl App {
         {
             let response = ui.add_enabled(
                 self.username.is_some(),
-                egui::Button::new(tr("Escribir o editar mi opinión"))
-                    .min_size(Vec2::new(190., 38.)),
+                egui::Button::new(
+                    RichText::new(tr("Escribir o editar mi opinión"))
+                        .size(16.)
+                        .strong()
+                        .color(egui::Color32::from_rgb(35, 27, 8)),
+                )
+                .fill(egui::Color32::from_rgb(235, 187, 65))
+                .min_size(Vec2::new(280., 48.)),
             );
             if response.clicked() {
                 let pending = self

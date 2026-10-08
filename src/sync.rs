@@ -42,6 +42,20 @@ impl Pending {
     }
 }
 pub fn enqueue(library: &mut Library, item: &Item, change: Change) {
+    if item.key.starts_with("edicion")
+        && let Change::Wanted(value) | Change::EditionFavorite(value) = &change
+    {
+        library.ensure(item).wanted = *value;
+        let saved = library.editions.entry(item.key.clone()).or_default();
+        saved.item = item.clone();
+        saved.favorite = *value;
+        let alternate = if matches!(change, Change::EditionFavorite(_)) {
+            "wanted"
+        } else {
+            "favorite"
+        };
+        library.outbox.remove(&format!("{}:{alternate}", item.key));
+    }
     if matches!(change, Change::Review(_)) {
         library.outbox.remove(&format!("{}:rating", item.key));
     }
@@ -167,7 +181,9 @@ pub fn reconcile(library: &mut Library, owned: &[Item], wanted: &[Item]) {
         if !library.outbox.contains_key(&format!("{key}:owned")) && !protected.contains(key) {
             entry.owned = owned_keys.contains(key);
         }
-        if !library.outbox.contains_key(&format!("{key}:wanted")) {
+        if !library.outbox.contains_key(&format!("{key}:wanted"))
+            && !library.outbox.contains_key(&format!("{key}:favorite"))
+        {
             entry.wanted = wanted_keys.contains(key);
         }
     }
@@ -177,12 +193,15 @@ pub fn reconcile(library: &mut Library, owned: &[Item], wanted: &[Item]) {
         if !library
             .outbox
             .contains_key(&format!("{}:favorite", item.key))
+            && !library.outbox.contains_key(&format!("{}:wanted", item.key))
         {
             saved.favorite = true;
         }
     }
     for (key, saved) in &mut library.editions {
-        if !library.outbox.contains_key(&format!("{key}:favorite")) {
+        if !library.outbox.contains_key(&format!("{key}:favorite"))
+            && !library.outbox.contains_key(&format!("{key}:wanted"))
+        {
             saved.favorite = wanted_keys.contains(key);
         }
     }

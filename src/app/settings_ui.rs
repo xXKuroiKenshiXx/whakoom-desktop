@@ -11,6 +11,7 @@ impl App {
                 (SettingsSection::General, Icon::Settings, "General"),
                 (SettingsSection::Storage, Icon::Book, "Almacenamiento"),
                 (SettingsSection::Backup, Icon::Download, "Respaldo"),
+                (SettingsSection::Updates, Icon::Refresh, "Actualizaciones"),
             ] {
                 let mut palette = p;
                 if self.settings_section == section {
@@ -61,6 +62,7 @@ impl App {
                 }
                 SettingsSection::Storage => self.cache_settings(ui),
                 SettingsSection::Backup => self.backup_settings(ui),
+                SettingsSection::Updates => self.updates_ui(ui),
             }
             ui.label(RichText::new(format!("{} {} · {}", brand::NAME, brand::VERSION, tr("Cliente no oficial"))).size(11.).color(p.muted));
         });
@@ -111,7 +113,9 @@ impl App {
     fn cache_settings(&mut self, ui: &mut egui::Ui) {
         let p = self.p();
         let before = self.prefs.cover_cache.clone();
-        let count = 1;
+        let count = if ui.available_width() >= 700. { 2 } else { 1 };
+        ui.ctx()
+            .data_mut(|d| d.insert_temp(egui::Id::new("cache-paired"), count == 2));
         ui.columns(count, |columns| {
             self.setting_card(&mut columns[0], Icon::Book, "Imágenes guardadas", |app, ui| {
                 let cache = &mut app.prefs.cover_cache;
@@ -165,6 +169,26 @@ impl App {
                 ui.label(RichText::new(tr("Las imágenes se decodifican al mostrarse y se reutilizan en memoria. No se abre un ZIP para verlas.")).size(11.).color(p.muted));
             });
         });
+        if count == 2 {
+            let heights = ui.ctx().data(|d| {
+                [
+                    d.get_temp::<f32>(egui::Id::new(("card-height", "Imágenes guardadas")))
+                        .unwrap_or_default(),
+                    d.get_temp::<f32>(egui::Id::new(("card-height", "Visualización y memoria")))
+                        .unwrap_or_default(),
+                ]
+            });
+            let pair_height = ui
+                .ctx()
+                .data(|d| d.get_temp::<f32>(egui::Id::new("cache-pair-height")))
+                .unwrap_or(400.);
+            let needed = (heights[0].max(heights[1]) - 38.).max(pair_height);
+            if needed > pair_height + 1. {
+                ui.ctx()
+                    .data_mut(|d| d.insert_temp(egui::Id::new("cache-pair-height"), needed));
+                ui.ctx().request_repaint();
+            }
+        }
         self.setting_card(ui, Icon::Chart, "Uso de almacenamiento", |app, ui| {
             ui.label(
                 RichText::new(i18n::trf(

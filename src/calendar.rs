@@ -142,7 +142,7 @@ pub fn picker(ui: &mut egui::Ui, id: &str, date: &mut String) -> bool {
     };
     let popup = egui::ComboBox::from_id_salt(("date", id))
         .selected_text(caption)
-        .width(160.)
+        .width(220.)
         .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
         .show_ui(ui, |ui| {
             let names = [

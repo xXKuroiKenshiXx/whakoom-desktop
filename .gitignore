@@ -25,3 +25,6 @@ Thumbs.db
 *.session.json
 *.cookies.json
 /support-webview/
+
+/updates/
+*.update-backup

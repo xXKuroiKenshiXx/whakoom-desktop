@@ -38,7 +38,7 @@ function Write-Package([string]$zipPath, [string]$basePath, [string[]]$files, [s
 $sourceFiles = @(git -c core.quotepath=false ls-files --cached --others --exclude-standard)
 if ($LASTEXITCODE -ne 0 -or $sourceFiles.Count -eq 0) { throw 'No se pudo listar el código fuente' }
 foreach ($file in $sourceFiles) {
-    if ($file -match '(^|/)(target|dist|\.git|libraries|covers|pages|webview)/|\.dpapi$|^settings\.json$|^preview.*\.png$') { throw "Dato privado o artefacto incluido: $file" }
+    if ($file -match '(^|/)(target|dist|\.git|libraries|covers|pages|webview|support-webview|updates)/|\.dpapi$|^settings\.json$|^preview.*\.png$') { throw "Dato privado o artefacto incluido: $file" }
 }
 Write-Package (Join-Path $distRoot "$prefix-source.zip") $projectRoot $sourceFiles 'whakoom-desktop/'
 Write-Package (Join-Path $distRoot "$prefix-portable.zip") $distRoot (@($exe) + $docs) ''

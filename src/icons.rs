@@ -30,6 +30,8 @@ pub enum Icon {
     Shield,
     Globe,
     Blocked,
+    Catalog,
+    Bookmark,
 }
 pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
     let s = Stroke::new(1.6, c);
@@ -38,6 +40,38 @@ pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
         p.line_segment([at(a.0, a.1), at(b.0, b.1)], s);
     };
     match icon {
+        Icon::Catalog => {
+            p.rect_stroke(
+                egui::Rect::from_min_max(at(0.1, 0.12), at(0.62, 0.83)),
+                2,
+                s,
+                egui::StrokeKind::Inside,
+            );
+            line((0.23, 0.12), (0.23, 0.83));
+            p.circle_stroke(at(0.66, 0.6), r.width() * 0.2, s);
+            line((0.8, 0.75), (0.96, 0.92));
+        }
+        Icon::Bookmark => {
+            p.rect_stroke(
+                egui::Rect::from_min_max(at(0.16, 0.1), at(0.84, 0.91)),
+                2,
+                s,
+                egui::StrokeKind::Inside,
+            );
+            p.add(egui::Shape::closed_line(
+                vec![
+                    at(0.5, 0.1),
+                    at(0.7, 0.1),
+                    at(0.7, 0.55),
+                    at(0.6, 0.44),
+                    at(0.5, 0.55),
+                ],
+                s,
+            ));
+            line((0.3, 0.66), (0.7, 0.66));
+            line((0.3, 0.78), (0.7, 0.78));
+        }
+
         Icon::Lock => {
             p.add(egui::Shape::line(
                 vec![

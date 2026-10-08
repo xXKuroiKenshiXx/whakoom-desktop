@@ -23,8 +23,13 @@ pub mod theme;
 
 pub mod calendar;
 pub mod help;
+pub mod manga_site;
 pub mod profile_sections;
 pub mod reactions;
 pub mod reviews;
+pub mod shops;
 pub mod statistics;
+pub mod updater;
 pub mod wishlist;
+
+pub mod money;

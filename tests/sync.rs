@@ -13,6 +13,37 @@ fn item(id: &str) -> Item {
     }
 }
 #[test]
+fn edition_wanted_and_favorite_share_the_latest_intent() {
+    let edition = Item {
+        key: "edicion42".into(),
+        url: "https://www.whakoom.com/ediciones/42/test".into(),
+        ..Default::default()
+    };
+    let mut library = Library::default();
+    sync::enqueue(&mut library, &edition, Change::EditionFavorite(true));
+    let old = library.outbox["edicion42:favorite"].clone();
+    sync::enqueue(&mut library, &edition, Change::Wanted(false));
+    sync::confirm(&mut library, &old);
+    sync::reconcile(&mut library, &[], std::slice::from_ref(&edition));
+    assert_eq!(library.outbox.len(), 1);
+    assert_eq!(
+        library.outbox["edicion42:wanted"].change,
+        Change::Wanted(false)
+    );
+    assert!(!library.entries["edicion42"].wanted);
+    assert!(!library.editions["edicion42"].favorite);
+    sync::enqueue(&mut library, &edition, Change::EditionFavorite(true));
+    sync::reconcile(&mut library, &[], &[]);
+    assert_eq!(library.outbox.len(), 1);
+    assert!(library.entries["edicion42"].wanted);
+    assert!(library.editions["edicion42"].favorite);
+    let pending = library.outbox["edicion42:favorite"].clone();
+    sync::confirm(&mut library, &pending);
+    sync::reconcile(&mut library, &[], &[]);
+    assert!(!library.entries["edicion42"].wanted);
+    assert!(!library.editions["edicion42"].favorite);
+}
+#[test]
 fn edition_batches_resume_after_restart_and_never_acknowledge_partial_results() {
     use std::{cell::RefCell, collections::HashSet};
     let volumes: Vec<_> = (0..15).map(|n| item(&n.to_string())).collect();

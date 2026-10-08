@@ -26,9 +26,24 @@ mkdir -p "$appdir/usr/share/doc/whakoom-desktop"
 install -Dm755 "$target/release/whakoom-desktop" "$appdir/usr/bin/whakoom-desktop"
 cp LICENSE "$appdir/usr/share/doc/whakoom-desktop/"
 cp THIRD_PARTY_NOTICES.md "$appdir/usr/share/doc/whakoom-desktop/"
+# Winit loads these at runtime, so ELF dependency discovery cannot find them.
+keyboard_libdir="$(pkg-config --variable=libdir xkbcommon)"
+for library in libxkbcommon.so.0 libxkbcommon-x11.so.0; do
+  if [[ ! -f "$keyboard_libdir/$library" ]]; then
+    echo "Missing $library; install libxkbcommon-x11-dev before packaging" >&2
+    exit 1
+  fi
+done
+for package in libxkbcommon0 libxkbcommon-x11-0 libxcb-xkb1 libxau6 libxdmcp6 libbsd0 libmd0; do
+  if [[ -f "/usr/share/doc/$package/copyright" ]]; then
+    cp "/usr/share/doc/$package/copyright" "$appdir/usr/share/doc/whakoom-desktop/$package-copyright"
+  fi
+done
 dist/tooling/linuxdeploy.AppImage --appimage-extract-and-run \
   --appdir "$appdir" --executable "$target/release/whakoom-desktop" \
+  --library "$keyboard_libdir/libxkbcommon.so.0" \
+  --library "$keyboard_libdir/libxkbcommon-x11.so.0" \
   --desktop-file tools/whakoom-desktop.desktop --icon-file assets/whakoom-desktop.png
 ARCH=x86_64 dist/tooling/appimagetool.AppImage --appimage-extract-and-run \
-  --runtime-file "$root/dist/tooling/runtime-x86_64" "$appdir" "$root/dist/Whakoom-Desktop-2.0.5-x86_64.AppImage"
-sha256sum dist/Whakoom-Desktop-2.0.5-x86_64.AppImage
+  --runtime-file "$root/dist/tooling/runtime-x86_64" "$appdir" "$root/dist/Whakoom-Desktop-3.0.0-x86_64.AppImage"
+sha256sum dist/Whakoom-Desktop-3.0.0-x86_64.AppImage

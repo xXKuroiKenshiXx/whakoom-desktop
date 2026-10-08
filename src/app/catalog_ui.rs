@@ -13,7 +13,8 @@ impl App {
                     for (mode, icon, title) in [
                         (CatalogMode::Search, Icon::Search, "Buscar"),
                         (CatalogMode::Explore, Icon::Compass, "Explorar"),
-                        (CatalogMode::Lists, Icon::Grid, "Listas"),
+                        (CatalogMode::Lists, Icon::Bookmark, "Listas"),
+                        (CatalogMode::Users, Icon::Users, "Usuarios"),
                     ] {
                         let mut palette = p;
                         if self.catalog_mode == mode {
@@ -21,12 +22,18 @@ impl App {
                             palette.text = p.accent;
                             palette.muted = p.accent;
                         }
-                        if icons::action(ui, icon, title, palette).clicked()
-                            && self.catalog_mode != mode
+                        let response = icons::action(ui, icon, title, palette);
+                        #[cfg(test)]
                         {
+                            self.ui_rects
+                                .insert(format!("catalog-{title}"), response.rect);
+                        }
+                        if response.clicked() && self.catalog_mode != mode {
                             self.generation += 1;
                             self.busy = false;
                             self.catalog_mode = mode;
+                            self.search_users = mode == CatalogMode::Users;
+                            self.found_users.clear();
                             self.list_detail = None;
                             self.list_editor = false;
                             self.query.clear();
@@ -46,7 +53,7 @@ impl App {
                             self.failed.clear();
                             self.refresh(1);
                         }
-                        if self.catalog_mode != CatalogMode::Lists
+                        if !matches!(self.catalog_mode, CatalogMode::Lists | CatalogMode::Users)
                             && icons::view_toggle(ui, self.prefs.list_view, p).clicked()
                         {
                             self.prefs.list_view = !self.prefs.list_view;
@@ -56,32 +63,18 @@ impl App {
                 });
             });
         ui.add_space(14.);
-        if self.catalog_mode == CatalogMode::Search {
-            ui.horizontal(|ui| {
-                for (users, label) in [(false, "Cómics"), (true, "Usuarios")] {
-                    if ui
-                        .selectable_label(self.search_users == users, tr(label))
-                        .clicked()
-                        && self.search_users != users
-                    {
-                        self.search_users = users;
-                        self.found_users.clear();
-                        self.items.clear();
-                        self.next = None;
-                        self.generation += 1;
-                        self.busy = false;
-                        self.refresh(1);
-                    }
-                }
-            });
-            ui.add_space(8.);
+        if matches!(self.catalog_mode, CatalogMode::Search | CatalogMode::Users) {
             ui.horizontal(|ui| {
                 let width = (ui.available_width() - 54.).max(100.);
                 let input = ui.add_sized(
                     [width, 44.],
                     egui::TextEdit::singleline(&mut self.query)
                         .font(egui::FontId::proportional(17.))
-                        .hint_text(tr("Buscar cómics, series o autores…")),
+                        .hint_text(tr(if self.search_users {
+                            "Buscar usuarios de Whakoom…"
+                        } else {
+                            "Buscar cómics, series o autores…"
+                        })),
                 );
                 let enter = input.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                 let button = ui
@@ -135,7 +128,10 @@ impl App {
                         .color(p.muted),
                 );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.small_button(tr("Borrar historial")).clicked() {
+                    if ui
+                        .add_sized([160., 38.], egui::Button::new(tr("Borrar historial")))
+                        .clicked()
+                    {
                         self.library.recent = Default::default();
                         self.save_library();
                         self.refresh(1);

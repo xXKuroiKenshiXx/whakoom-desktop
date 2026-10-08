@@ -277,7 +277,7 @@ pub fn normalized_url(input: &str) -> Result<String, String> {
         h.starts_with('i') && h[1..].chars().all(|c| c.is_ascii_digit()) && h.len() > 1
     });
     if url.scheme() != "https"
-        || !(cdn || host == "www.whakoom.com")
+        || !(cdn || host == "www.whakoom.com" || host == "static.listadomanga.com")
         || !url.username().is_empty()
         || url.password().is_some()
         || url.port().is_some()

@@ -170,13 +170,13 @@ impl App {
         let Some(window) = frame.winit_window() else {
             return;
         };
-        if help::safe_url(url).is_err() {
+        if help::safe_url(url).is_err() && manga_site::safe_url(url).is_err() {
             return;
         }
         // Separate browser context: never copy the Whakoom API cookie or passwords.
         match wry::WebViewBuilder::new_with_web_context(self.support_context.get_or_insert_with(|| wry::WebContext::new(Some(session::data_dir().join("support-webview")))))
             .with_url(url).with_incognito(true)
-            .with_navigation_handler(|u| help::safe_url(&u).is_ok() || api::safe_url(&u).is_ok())
+            .with_navigation_handler(|u| help::safe_url(&u).is_ok() || api::safe_url(&u).is_ok() || manga_site::safe_url(&u).is_ok())
             .with_bounds(wry::Rect { position:wry::dpi::LogicalPosition::new(0.,85.).into(),size:wry::dpi::LogicalSize::new(1100.,650.).into() })
             .build_as_child(window.as_ref()) {
                 Ok(view)=>self.support_view=Some(view),Err(_)=>self.help_error="No se pudo abrir el centro de ayuda integrado; verificá que WebView2 esté instalado".into(),
@@ -197,11 +197,17 @@ impl App {
                     if ui.button(tr("Volver a la aplicación")).clicked() {
                         close = true;
                     }
-                    ui.heading(tr("Centro de ayuda de Whakoom"));
+                    ui.heading(tr(if self.tab == Tab::MangaSite {
+                        "Listado Manga"
+                    } else {
+                        "Centro de ayuda de Whakoom"
+                    }));
                 });
-                ui.label(tr(
-                    "Formulario oficial · tu sesión del centro de ayuda es independiente",
-                ));
+                ui.label(tr(if self.tab == Tab::MangaSite {
+                    "Página original de Listado Manga"
+                } else {
+                    "Formulario oficial · tu sesión del centro de ayuda es independiente"
+                }));
             });
         if close {
             self.support_view = None;

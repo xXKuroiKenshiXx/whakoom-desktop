@@ -1,5 +1,7 @@
 # Avisos de terceros
 
+La AppImage incorpora libxkbcommon y su integración X11, libxcb-xkb y las bibliotecas auxiliares Xau, Xdmcp, BSD y MD. Sus archivos de copyright y licencias se conservan dentro de `usr/share/doc/whakoom-desktop/` del paquete, con el nombre de cada biblioteca.
+
 ## Recursos de catálogo en las vistas de ejemplo
 
 `assets/quality-sample.jpg` reproduce una portada pública de Civil War obtenida del [CDN de Whakoom](https://i1.whakoom.com/large/3a/20/9c48dced2384462b84e50b3f592c4e62.jpg) para comparar la nitidez de las miniaturas. Las capturas también muestran portadas públicas con una biblioteca de ejemplo. Las ilustraciones pertenecen a sus titulares; no quedan cubiertas por la licencia MIT del código.

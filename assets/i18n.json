@@ -573,7 +573,7 @@
     "Collections",
     "Coleções",
     "Коллекции",
-    "收藏集"
+    "系列"
   ],
   "Ver colección": [
     "View collection",
@@ -2422,5 +2422,209 @@
     "SEM CONEXÃO · Whakoom Desktop 2.0.5",
     "ОФЛАЙН · Whakoom Desktop 2.0.5",
     "离线 · Whakoom Desktop 2.0.5"
+  ],
+  "Actualizaciones": [
+    "Updates",
+    "Atualizações",
+    "Обновления",
+    "更新"
+  ],
+  "Comprar": [
+    "Buy",
+    "Comprar",
+    "Купить",
+    "购买"
+  ],
+  "Moneda": [
+    "Currency",
+    "Moeda",
+    "Валюта",
+    "货币"
+  ],
+  "Sin moneda definida": [
+    "Currency unspecified",
+    "Moeda não definida",
+    "Валюта не указана",
+    "未指定货币"
+  ],
+  "Buscar usuarios de Whakoom…": [
+    "Search Whakoom users…",
+    "Buscar usuários do Whakoom…",
+    "Поиск пользователей Whakoom…",
+    "搜索 Whakoom 用户…"
+  ],
+  "Buscar en Listado Manga": [
+    "Search Listado Manga",
+    "Buscar no Listado Manga",
+    "Поиск в Listado Manga",
+    "在 Listado Manga 中搜索"
+  ],
+  "Volver a ficha": [
+    "Back to details",
+    "Voltar à ficha",
+    "Назад к описанию",
+    "返回详情"
+  ],
+  "Página original integrada": [
+    "Open original page in app",
+    "Página original no aplicativo",
+    "Открыть оригинал в приложении",
+    "在应用内打开原始网页"
+  ],
+  "Página original de Listado Manga": [
+    "Original Listado Manga page",
+    "Página original do Listado Manga",
+    "Оригинальная страница Listado Manga",
+    "Listado Manga 原始网页"
+  ],
+  "Conectate para consultar Listado Manga.": [
+    "Connect to browse Listado Manga.",
+    "Conecte-se para consultar o Listado Manga.",
+    "Подключитесь для просмотра Listado Manga.",
+    "连接网络以浏览 Listado Manga。"
+  ],
+  "Consultando Listado Manga…": [
+    "Loading Listado Manga…",
+    "Carregando Listado Manga…",
+    "Загрузка Listado Manga…",
+    "正在加载 Listado Manga…"
+  ],
+  "Buscar en Amazon": [
+    "Search Amazon",
+    "Buscar na Amazon",
+    "Поиск на Amazon",
+    "搜索 Amazon"
+  ],
+  "Consultando tiendas de Whakoom…": [
+    "Loading Whakoom shops…",
+    "Carregando lojas do Whakoom…",
+    "Загрузка магазинов Whakoom…",
+    "正在加载 Whakoom 商店…"
+  ],
+  "No se pudo abrir la tienda.": [
+    "Could not open the shop.",
+    "Não foi possível abrir a loja.",
+    "Не удалось открыть магазин.",
+    "无法打开商店。"
+  ],
+  "Las tiendas se abren en tu navegador. Mercado Libre busca el título y número de este tomo.": [
+    "Shops open in your browser. Mercado Libre searches for this title and volume number.",
+    "As lojas abrem no navegador. O Mercado Livre busca o título e o número deste volume.",
+    "Магазины открываются в браузере. Mercado Libre ищет название и номер этого тома.",
+    "商店在浏览器中打开。Mercado Libre 按书名和卷号搜索。"
+  ],
+  "Buscando actualizaciones…": [
+    "Checking for updates…",
+    "Buscando atualizações…",
+    "Проверка обновлений…",
+    "正在检查更新…"
+  ],
+  "Hay una nueva versión disponible": [
+    "A new version is available",
+    "Uma nova versão está disponível",
+    "Доступна новая версия",
+    "有新版本可用"
+  ],
+  "Tenés la versión más reciente": [
+    "You have the latest version",
+    "Você tem a versão mais recente",
+    "У вас последняя версия",
+    "已是最新版本"
+  ],
+  "Descarga verificada. Lista para instalar.": [
+    "Download verified. Ready to install.",
+    "Download verificado. Pronto para instalar.",
+    "Загрузка проверена. Можно установить.",
+    "下载已验证，可以安装。"
+  ],
+  "Nueva versión disponible ·": [
+    "New version available ·",
+    "Nova versão disponível ·",
+    "Доступна новая версия ·",
+    "新版本可用 ·"
+  ],
+  "Ver actualización": [
+    "View update",
+    "Ver atualização",
+    "Посмотреть обновление",
+    "查看更新"
+  ],
+  "Buscar nuevas versiones al abrir la aplicación": [
+    "Check for new versions when the app opens",
+    "Buscar novas versões ao abrir o aplicativo",
+    "Проверять обновления при запуске",
+    "启动时检查新版本"
+  ],
+  "Se consulta la publicación oficial de GitHub. Tus credenciales de Whakoom no se envían.": [
+    "Checks the official GitHub release. Your Whakoom credentials are not sent.",
+    "Consulta a versão oficial no GitHub. Suas credenciais do Whakoom não são enviadas.",
+    "Проверяется официальный выпуск на GitHub. Данные входа в Whakoom не отправляются.",
+    "检查 GitHub 官方发行版，不会发送 Whakoom 登录信息。"
+  ],
+  "Buscar actualizaciones": [
+    "Check for updates",
+    "Buscar atualizações",
+    "Проверить обновления",
+    "检查更新"
+  ],
+  "Versión": [
+    "Version",
+    "Versão",
+    "Версия",
+    "版本"
+  ],
+  "Descargar actualización": [
+    "Download update",
+    "Baixar atualização",
+    "Скачать обновление",
+    "下载更新"
+  ],
+  "Instalar y reiniciar": [
+    "Install and restart",
+    "Instalar e reiniciar",
+    "Установить и перезапустить",
+    "安装并重启"
+  ],
+  "Se verifica SHA-256 antes de instalar. Tu biblioteca y tu sesión se conservan.": [
+    "SHA-256 is checked before installation. Your library and session are preserved.",
+    "O SHA-256 é verificado antes da instalação. Sua biblioteca e sua sessão são preservadas.",
+    "Перед установкой проверяется SHA-256. Библиотека и сеанс сохраняются.",
+    "安装前验证 SHA-256，保留书库和登录状态。"
+  ],
+  "Series, ediciones y novedades de Listado Manga.": [
+    "Series, editions and news from Listado Manga.",
+    "Séries, edições e novidades do Listado Manga.",
+    "Серии, издания и новинки Listado Manga.",
+    "Listado Manga 的系列、版本和新书。"
+  ],
+  "Importes pagados · por moneda": [
+    "Amounts paid · by currency",
+    "Valores pagos · por moeda",
+    "Потрачено · по валютам",
+    "已付金额 · 按货币"
+  ],
+  "Los importes manuales se agrupan por moneda, sin conversión.": [
+    "Manual amounts are grouped by currency, without conversion.",
+    "Os valores manuais são agrupados por moeda, sem conversão.",
+    "Введённые суммы группируются по валютам без конвертации.",
+    "手动填写的金额按货币分组，不进行换算。"
+  ],
+  "Alta": [
+    "High",
+    "Alta",
+    "Высокое",
+    "高"
+  ],
+  "Equilibrada": [
+    "Balanced",
+    "Equilibrada",
+    "Среднее",
+    "均衡"
+  ],
+  "Ligera": [
+    "Light",
+    "Leve",
+    "Низкое",
+    "轻量"
   ]
 }

@@ -1,8 +1,21 @@
-# Validación de 2.0.5
+# Validación de 3.0.0
 
 Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y rutas comprobadas; no constituyen una garantía de ausencia de errores.
 
-## Comprobaciones de 2.0.5
+## Comprobaciones de 3.0.0
+
+- Deseados: unión de `/buscados`, servicio paginado y sección Buscados del perfil propio. Las fichas conocidas que faltan se vuelven a consultar; no se recuperan como deseados si ya fueron quitadas online. La lectura real devolvió 13 elementos actuales. Tomos y series mantienen su tipo y sus IDs originales.
+- Favoritos de series y «Lo quiero» comparten el estado online: la intención más reciente sustituye a la anterior, una confirmación tardía no la borra y la reconciliación conserva los cambios pendientes.
+- Catálogo: botón independiente de Usuarios con solicitudes específicas; los iconos de catálogo y listas se actualizaron.
+- Ventanas bajas: entrada de rueda en egui comprueba que el encabezado completo de la serie y sus tomos se desplazan juntos. La cuadrícula mantiene virtualización y sus tarjetas siguen recibiendo clics.
+- Almacenamiento: las dos tarjetas tienen igual ancho y alto; una prueba de 100 repintados verifica que no crezcan continuamente. Se apilan en ventanas estrechas.
+- Importes: persistencia y exportación de monedas ISO; los totales agrupan las divisas y conservan los importes históricos sin moneda asignada.
+- Listado Manga: búsquedas reales, 3477 colecciones navegables y ficha pública contrastadas con el sitio. Sus imágenes usan un cliente sin cookies. Se rechazan hosts, redirecciones y respuestas que excedan los límites.
+- Tiendas: lectura real de la opción Amazon de Whakoom. Mercado Libre codifica título y número según el país de la moneda; se rechazan enlaces ajenos a las tiendas admitidas. No se realizó ninguna compra.
+- Actualizaciones: metadatos exclusivos del repositorio, versión estable, digest obligatorio, descarga con SHA-256, rechazo de archivos alterados y resultados tardíos. Descarga real de la release previa verificada en una carpeta aislada.
+- Windows portable: reemplazo y reinicio ejecutados con dos binarios de prueba aislados. El asistente esperó la salida, verificó el hash con .NET, conservó el binario anterior y arrancó el nuevo. No se reemplazó el ejecutable del usuario durante esta prueba.
+- Linux: una copia aislada de la AppImage 2.0.5 se reemplazó por 3.0.0, se verificaron los bytes y se comprobó que abrió su ventana en X11. El paquete incluye las bibliotecas de teclado cargadas dinámicamente que no detectaba el empaquetador.
+## Comprobaciones previas conservadas
 
 - Deseados: consulta autenticada de `/buscados` y del servicio completo, unión sin duplicados y aceptación de su marcador de fin numérico. La consulta real no modifica la cuenta.
 - Perfiles: Comicteca (primera y segunda página), Buscados, Listas y búsqueda de usuarios contrastados con el sitio. Prueba aislada de resultados tardíos y perfiles de otra persona: no se importan a la biblioteca propia.
@@ -11,7 +24,7 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 
 ## Comprobaciones automatizadas
 
-104 pruebas aprobadas en Windows x64/MSVC y 104 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
+115 pruebas aprobadas en Windows x64/MSVC y 115 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
 
 - Visor: en búsqueda, tanto portadas como lista abren la ficha al pulsar una imagen. El visor se abre únicamente desde la portada dentro de la ficha; Escape lo cierra conservando el cómic abierto. Capturas nativas de zoom en Windows y AppImage Linux.
 - Carrusel: un contacto y ventana de 760 px mantienen el movimiento y los límites de la sección; los controles de animación conservan su comportamiento.
@@ -46,6 +59,8 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 - Conector Linux: sesión real transferida únicamente por stdin, sin archivo ni argumentos con credenciales; lectura de colección, amigos y siete secciones de cuenta.
 - Capturas Windows: biblioteca y ficha con sinopsis de color, controles de colección y separación de portada. Notas largas quedan dentro de un área con scroll.
 - Dependencias de empaquetado AppImage verificadas por SHA-256. Los binarios no tienen firma comercial.
+- 3.0.0: capturas nativas Windows de biblioteca, catálogo, usuarios, ficha, tiendas, Listado Manga, estadísticas y Ajustes. AppImage final ejecutada en X11 con Xvfb y renderizado software; los ensayos previos de esta revisión también utilizaron el entorno gráfico de WSLg.
+- Instalador 3.0.0 compilado y extraído: su ejecutable coincide por SHA-256 con la compilación final. El flujo de actualización del instalador existente no se ejecutó contra una instalación real; el reemplazo portable sí se probó de principio a fin.
 
 ## Límites de la verificación
 

@@ -38,7 +38,7 @@ impl App {
                 ui.painter().text(egui::pos2(x,plot.bottom()-10.),egui::Align2::CENTER_CENTER,format!("{:02}",index+1),egui::FontId::proportional(11.),p.muted);
                 ui.interact(egui::Rect::from_min_size(egui::pos2(plot.left()+slot*index as f32,plot.top()),Vec2::new(slot,plot.height())),ui.id().with(("annual",index)),egui::Sense::hover()).on_hover_text(i18n::trf("Mes {0}: {1} compras · {2} lecturas", &[format!("{:02}",index+1),annual.purchases[index].to_string(),annual.readings[index].to_string()]));
             }
-            ui.horizontal_wrapped(|ui| { ui.colored_label(gold,tr("Compras")); ui.colored_label(green,tr("Lecturas")); ui.label(format!("{} · {:.2}",tr("Gasto del año (manual)"),annual.spending)); });
+            ui.horizontal_wrapped(|ui| { ui.colored_label(gold,tr("Compras")); ui.colored_label(green,tr("Lecturas")); ui.label(format!("{} · {}",tr("Gasto del año (manual)"),money::totals(&annual.spending_by_currency))); });
             ui.label(RichText::new(i18n::trf("{0} tomos sin fecha de compra · {1} leídos sin fecha. Completá las fechas en sus fichas para incluirlos.", &[annual.undated_purchases.to_string(),annual.undated_readings.to_string()])).size(12.).color(p.muted));
             ui.label(RichText::new(tr("La fecha de importación no se cuenta como una compra. Las relecturas con fecha cuentan como nuevas lecturas.")).size(12.).color(p.muted));
             if annual.online_months>0 { ui.label(RichText::new(tr("Lecturas mensuales conectadas con Whakoom")).size(12.).color(p.accent)); }

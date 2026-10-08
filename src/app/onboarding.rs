@@ -139,7 +139,17 @@ pub(super) fn quality_choices(ui: &mut egui::Ui, selected: &mut whakoom_desktop:
                         egui::StrokeKind::Outside,
                     );
                 }
-                ui.radio_value(selected, quality, tr(quality.label()));
+                let label = match quality {
+                    Quality::High => "Alta",
+                    Quality::Balanced => "Equilibrada",
+                    Quality::Low => "Ligera",
+                };
+                ui.radio_value(selected, quality, tr(label));
+                ui.label(
+                    RichText::new(format!("{} px", quality.width()))
+                        .size(11.)
+                        .weak(),
+                );
             });
         }
     });

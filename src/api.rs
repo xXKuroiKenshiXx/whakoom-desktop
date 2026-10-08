@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use std::{collections::HashSet, io::Read, time::Duration};
 
 pub const BASE: &str = "https://www.whakoom.com";
-pub const USER_AGENT: &str = "WhakoomDesktop/2.0.5 (unofficial desktop client)";
+pub const USER_AGENT: &str = "WhakoomDesktop/3.0.0 (unofficial desktop client)";
 const MAX_BODY: u64 = 4 * 1024 * 1024;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -49,6 +49,8 @@ pub struct Detail {
     pub isbn: Vec<String>,
     #[serde(default)]
     pub owners: Option<usize>,
+    #[serde(default)]
+    pub shop_id: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -242,6 +244,7 @@ pub fn parse_detail(html: &str, item: &Item) -> Result<Detail, String> {
     .filter(|r| *r <= 5)
     .unwrap_or_default();
     result.numeric_id = attr(&h, ".comic-detail", "data-item-id").parse().ok();
+    result.shop_id = attr(&h, ".w-comic", "data-item-id");
     result.edition = h
         .select(&sel(".comic-detail a[href*='/ediciones/']"))
         .find_map(|a| {
@@ -1128,6 +1131,14 @@ impl Api {
             ),
         };
         let data = self.post(path, body)?;
+        if let Action::Wanted(value) = action {
+            return if self.detail(&detail.item)?.wanted == value {
+                Ok(())
+            } else {
+                Err("Whakoom no confirmó el cambio en Lo quiero".into())
+            };
+        }
+
         // Current arcm returns RCode=1 for an unchanged state and an unhelpful GotIt.
         // Confirm the actual account state before accepting an idempotent retry.
         if let Action::Owned(value) = action

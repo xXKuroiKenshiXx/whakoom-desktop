@@ -1,5 +1,17 @@
 # Cambios
 
+## 3.0.0
+
+- Usuarios como sección propia del catálogo, con iconos nuevos para catálogo y listas.
+- Aviso de actualizaciones, descarga desde GitHub y verificación SHA-256 antes de instalar y reiniciar en Windows o desde AppImage.
+- Deseados reúne Buscados, todas las páginas del servicio y del perfil; contrasta deseos conocidos con fichas actuales. Favoritos de series actualizan su estado local inmediatamente.
+- Las series desplazan el encabezado y los tomos juntos; se conserva la virtualización de tarjetas y se corrige el recorte al bajar en ventanas pequeñas.
+- Listado Manga con navegación interna, búsqueda real y acceso desde fichas de series y tomos; página original integrada en Windows.
+- Comprar con tiendas de Whakoom, Amazon cuando está disponible y búsqueda dinámica de título/tomo en Mercado Libre.
+- Opinión pública con botón dorado más amplio; fechas alineadas, campos mayores y moneda por importe pagado. Estadísticas y CSV conservan monedas diferentes sin sumarlas.
+- Tarjetas de almacenamiento simétricas en dos columnas, apiladas en ventanas pequeñas, e historial con botón más ancho.
+- Controles nuevos traducidos a inglés, portugués, ruso y chino.
+
 ## 2.0.5
 
 - Deseados combina la página Buscados y el servicio paginado; reconoce el final numérico de la respuesta para evitar descartar la actualización completa.

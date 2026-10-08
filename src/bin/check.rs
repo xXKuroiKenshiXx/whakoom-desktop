@@ -1,5 +1,191 @@
 use whakoom_desktop::api::Api;
 fn main() {
+    if std::env::args().any(|a| a == "--exercise-updater-install") {
+        let result = (|| -> Result<(), String> {
+            use sha2::Digest;
+            let dir = std::env::var_os("WHAKOOM_DESKTOP_DATA_DIR")
+                .map(std::path::PathBuf::from)
+                .ok_or("Requiere carpeta aislada")?
+                .canonicalize()
+                .map_err(|e| e.to_string())?;
+            if !std::env::current_exe()
+                .map_err(|e| e.to_string())?
+                .canonicalize()
+                .map_err(|e| e.to_string())?
+                .starts_with(&dir)
+            {
+                return Err(
+                    "La prueba sólo puede reemplazar una copia dentro de la carpeta aislada".into(),
+                );
+            }
+            let path = std::env::args()
+                .skip_while(|a| a != "--candidate")
+                .nth(1)
+                .map(std::path::PathBuf::from)
+                .ok_or("Falta candidato")?;
+            let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+            let release = whakoom_desktop::updater::Release {
+                version: "3.0.0".into(),
+                notes: String::new(),
+                url: String::new(),
+                asset: String::new(),
+                download: String::new(),
+                digest: format!("{:x}", sha2::Sha256::digest(&bytes)),
+                size: bytes.len() as u64,
+                package: whakoom_desktop::updater::Package::WindowsExe,
+            };
+            whakoom_desktop::updater::install(&whakoom_desktop::updater::Download {
+                release,
+                path,
+            })?;
+            println!("Prueba aislada de reemplazo iniciada");
+            Ok(())
+        })();
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    if std::env::args().any(|a| a == "--make-manga-preview") {
+        let result = (|| -> Result<(), String> {
+            if std::env::var_os("WHAKOOM_DESKTOP_DATA_DIR").is_none() {
+                return Err("Requiere carpeta aislada".into());
+            }
+            let page = whakoom_desktop::manga_site::fetch(
+                "https://www.listadomanga.es/coleccion.php?id=31",
+                None,
+            )?;
+            let client = whakoom_desktop::covers::CoverClient::new()?;
+            for block in page.blocks.iter().filter(|b| !b.cover.is_empty()).take(12) {
+                client.get(&block.cover, false)?;
+            }
+            whakoom_desktop::storage::atomic_write(
+                &whakoom_desktop::session::data_dir().join("manga-preview.json"),
+                &serde_json::to_vec(&page).map_err(|e| e.to_string())?,
+            )?;
+            println!("Ficha pública preparada para vista previa");
+            Ok(())
+        })();
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if std::env::args().any(|a| a == "--verify-updater-download") {
+        let result = (|| -> Result<(), String> {
+            if std::env::var_os("WHAKOOM_DESKTOP_DATA_DIR").is_none() {
+                return Err("Requiere una carpeta de prueba aislada".into());
+            }
+            let release = whakoom_desktop::updater::latest(
+                "0.0.0",
+                whakoom_desktop::updater::installed_package(),
+            )?
+            .ok_or("Sin publicación disponible")?;
+            let download = whakoom_desktop::updater::download(release, |_| {})?;
+            whakoom_desktop::updater::verify(&download.path, &download.release.digest)?;
+            println!(
+                "Descarga oficial {} verificada por SHA-256. No se instaló.",
+                download.release.version
+            );
+            Ok(())
+        })();
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    if std::env::args().any(|a| a == "--verify-300") {
+        let result = (|| -> Result<(), String> {
+            let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;
+            let api = Api::with_user_agent(saved.cookie, &saved.user_agent)?;
+            let library = whakoom_desktop::storage::Library::load(&saved.username)?;
+            let mut candidates: Vec<_> = library
+                .entries
+                .values()
+                .filter(|e| e.wanted || e.details.as_ref().is_some_and(|d| d.wanted))
+                .map(|e| e.item.clone())
+                .collect();
+            candidates.extend(
+                library
+                    .editions
+                    .values()
+                    .filter(|e| e.favorite)
+                    .map(|e| e.item.clone()),
+            );
+            let old = api.wanted_all(|| false)?;
+            let complete = api.wanted_complete(&candidates, || false)?;
+            println!(
+                "Deseados: listado {}, completo {}. Consultas sin escrituras.",
+                old.len(),
+                complete.len()
+            );
+            if let Some(entry) = library
+                .entries
+                .values()
+                .find(|e| e.item.key.starts_with("comic"))
+            {
+                let detail = api.full_detail(&entry.item)?;
+                let shops = api.shops(&detail)?;
+                if let Some(path) = std::env::args()
+                    .skip_while(|a| a != "--shop-fixture")
+                    .nth(1)
+                {
+                    let raw = api.post(
+                        "/pwkws.asmx/ShopComicShops",
+                        serde_json::json!({"cguid":detail.shop_id}),
+                    )?;
+                    whakoom_desktop::storage::atomic_write(
+                        std::path::Path::new(&path),
+                        raw["Html"].as_str().unwrap_or_default().as_bytes(),
+                    )?;
+                }
+
+                println!(
+                    "Tiendas oficiales: {}; ID de ficha presente: {}",
+                    shops.len(),
+                    !detail.shop_id.is_empty()
+                );
+            }
+            let page = whakoom_desktop::manga_site::fetch(
+                "https://www.listadomanga.es/coleccion.php?id=31",
+                None,
+            )?;
+            println!("Listado Manga: {} bloques de ficha", page.blocks.len());
+            let search = whakoom_desktop::manga_site::fetch(
+                "https://www.listadomanga.es/buscador.php",
+                Some("Sakura"),
+            )?;
+            if search.results.is_empty() {
+                return Err("Listado Manga no devolvió resultados reales".into());
+            }
+            println!("Listado Manga: {} resultados reales", search.results.len());
+            let listado =
+                whakoom_desktop::manga_site::fetch("https://www.listadomanga.es/lista.php", None)?;
+            if listado.results.len() < 100 {
+                return Err("El listado no contiene suficientes colecciones".into());
+            }
+            println!(
+                "Listado Manga: {} colecciones navegables",
+                listado.results.len()
+            );
+            let release = whakoom_desktop::updater::check()?;
+            println!(
+                "Consulta de actualizaciones verificada: {}",
+                release.is_some()
+            );
+            Ok(())
+        })();
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if std::env::args().any(|a| a == "--verify-205") {
         let result = (|| -> Result<(), String> {
             let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;

@@ -5628,7 +5628,7 @@ dependencies = [
 
 [[package]]
 name = "whakoom-desktop"
-version = "2.0.5"
+version = "3.0.0"
 dependencies = [
  "base64 0.22.1",
  "eframe",
@@ -5641,6 +5641,7 @@ dependencies = [
  "scraper",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "tiny-skia",
  "url",

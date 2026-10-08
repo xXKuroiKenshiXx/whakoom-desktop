@@ -52,6 +52,7 @@ pub struct Preferences {
     pub language: crate::i18n::Language,
     pub friends_carousel: bool,
     pub setup_complete: bool,
+    pub check_updates: bool,
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -69,6 +70,7 @@ impl Default for Preferences {
             language: Default::default(),
             friends_carousel: true,
             setup_complete: false,
+            check_updates: true,
         }
     }
 }
@@ -98,6 +100,7 @@ pub struct Entry {
     pub notes: String,
     pub tags: String,
     pub cost: f64,
+    pub currency: String,
     #[serde(default)]
     pub purchase_date: String,
     pub rating: u8,
@@ -123,6 +126,7 @@ impl Default for Entry {
             notes: String::new(),
             tags: String::new(),
             cost: 0.,
+            currency: String::new(),
             purchase_date: String::new(),
             rating: 0,
             added: now(),
@@ -218,6 +222,7 @@ pub struct Stats {
     pub read: usize,
     pub pending: usize,
     pub spending: f64,
+    pub spending_by_currency: BTreeMap<String, f64>,
     pub tags: BTreeMap<String, usize>,
     pub publishers: BTreeMap<String, usize>,
     pub reading_months: BTreeMap<String, usize>,
@@ -308,6 +313,9 @@ impl Library {
             s.pending += (e.owned && !e.read) as usize;
             if e.owned {
                 s.spending += e.cost;
+                *s.spending_by_currency
+                    .entry(e.currency.clone())
+                    .or_default() += e.cost;
                 let publisher = e
                     .details
                     .as_ref()
@@ -423,7 +431,12 @@ impl Library {
             {
                 return Err("Datos personales inválidos".into());
             }
-            if !e.cost.is_finite() || e.cost < 0. || e.rating > 5 {
+            if !e.cost.is_finite()
+                || e.cost < 0.
+                || e.rating > 5
+                || (!e.currency.is_empty()
+                    && !crate::money::CURRENCIES.contains(&e.currency.as_str()))
+            {
                 return Err("Respaldo con valores inválidos".into());
             }
         }
@@ -495,7 +508,7 @@ impl Library {
             format!("\"{}\"", safe.replace('"', "\"\""))
         }
         let mut out = String::from(
-            "\u{feff}Título,Número,Lo tengo,Deseado,Leído,Fecha de lectura,Nota,Gasto,Etiquetas,Notas,URL,Fecha de compra\r\n",
+            "\u{feff}Título,Número,Lo tengo,Deseado,Leído,Fecha de lectura,Nota,Gasto,Etiquetas,Notas,URL,Fecha de compra,Moneda\r\n",
         );
         for e in self.entries.values() {
             let row = [
@@ -511,6 +524,7 @@ impl Library {
                 cell(&e.notes),
                 cell(&e.item.url),
                 cell(&e.purchase_date),
+                cell(&e.currency),
             ];
             out.push_str(&row.join(","));
             out.push_str("\r\n");

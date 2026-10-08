@@ -21,7 +21,46 @@ pub fn merge(first: Vec<Item>, rest: Vec<Item>) -> Vec<Item> {
         .filter(|item| seen.insert(item.key.clone()))
         .collect()
 }
+pub fn complete_known(
+    mut current: Vec<Item>,
+    candidates: &[Item],
+    mut wanted: impl FnMut(&Item) -> Result<bool, String>,
+    mut cancelled: impl FnMut() -> bool,
+) -> Result<Vec<Item>, String> {
+    let mut seen: HashSet<_> = current.iter().map(|i| i.key.clone()).collect();
+    for item in candidates {
+        if cancelled() {
+            return Err("Actualización detenida; se conserva la copia anterior".into());
+        }
+        if seen.insert(item.key.clone()) && wanted(item)? {
+            current.push(item.clone());
+        }
+    }
+    Ok(current)
+}
 impl Api {
+    pub fn wanted_complete(
+        &self,
+        candidates: &[Item],
+        mut cancelled: impl FnMut() -> bool,
+    ) -> Result<Vec<Item>, String> {
+        let mut result = self.wanted_all(&mut cancelled)?;
+        let owner = self.profile()?;
+        let profile = sync::pages(
+            |page| {
+                self.profile_section(&owner, crate::profile_sections::Section::Wanted, page)
+                    .map(|p| p.comics)
+            },
+            &mut cancelled,
+        )?;
+        result = merge(result, profile);
+        complete_known(
+            result,
+            candidates,
+            |item| self.detail(item).map(|d| d.wanted),
+            &mut cancelled,
+        )
+    }
     pub fn wanted_all(&self, mut cancelled: impl FnMut() -> bool) -> Result<Vec<Item>, String> {
         if cancelled() {
             return Err("Actualización detenida".into());
@@ -54,5 +93,33 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+    }
+}
+
+#[cfg(test)]
+mod completeness_tests {
+    use super::*;
+    #[test]
+    fn missing_wishes_are_verified_and_removed_cached_wishes_do_not_return() {
+        let items: Vec<_> = ["comica", "comicb", "edicion12"]
+            .into_iter()
+            .map(|key| Item {
+                key: key.into(),
+                ..Default::default()
+            })
+            .collect();
+        let result = complete_known(
+            vec![items[0].clone()],
+            &items,
+            |i| Ok(i.key == "edicion12"),
+            || false,
+        )
+        .unwrap();
+        assert_eq!(
+            result.iter().map(|i| i.key.as_str()).collect::<Vec<_>>(),
+            ["comica", "edicion12"]
+        );
+        assert!(complete_known(vec![], &items, |_| Err("Sin red".into()), || false).is_err());
+        assert!(complete_known(vec![], &items, |_| Ok(true), || true).is_err());
     }
 }

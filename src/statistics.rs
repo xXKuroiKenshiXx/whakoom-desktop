@@ -55,6 +55,7 @@ pub struct Annual {
     pub purchases: [usize; 12],
     pub readings: [usize; 12],
     pub spending: f64,
+    pub spending_by_currency: std::collections::BTreeMap<String, f64>,
     pub undated_purchases: usize,
     pub undated_readings: usize,
     pub online_months: usize,
@@ -76,6 +77,10 @@ pub fn annual(library: &storage::Library, year: i32) -> Annual {
         if let Some(month) = month_index(&entry.purchase_date) {
             result.purchases[month] += 1;
             result.spending += entry.cost;
+            *result
+                .spending_by_currency
+                .entry(entry.currency.clone())
+                .or_default() += entry.cost;
         } else if entry.owned && entry.purchase_date.is_empty() {
             result.undated_purchases += 1;
         }

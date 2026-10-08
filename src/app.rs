@@ -2,11 +2,13 @@ mod catalog_ui;
 mod collection_ui;
 mod cover_viewer;
 mod help_ui;
+mod manga_ui;
 mod onboarding;
 mod profile_ui;
 mod reviews_ui;
 mod settings_ui;
 mod statistics_ui;
+mod update_ui;
 use eframe::egui::{self, RichText, Vec2};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -28,12 +30,13 @@ use whakoom_desktop::{
     discover, discussion, help, holographic,
     i18n::{self, tr},
     icons::{self, Icon},
-    lists, profile_sections, rating, reactions, reviews,
+    lists, manga_site, money, profile_sections, rating, reactions, reviews,
     series::{self, Series},
-    session, social, statistics,
+    session, shops, social, statistics,
     storage::{self, Library, Preferences, Stats, Writer},
     sync,
     theme::{self, Palette},
+    updater,
 };
 use zeroize::Zeroizing;
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -51,6 +54,7 @@ enum Tab {
     Account,
     Notifications,
     Help,
+    MangaSite,
 }
 impl Tab {
     fn title(self) -> &'static str {
@@ -68,12 +72,13 @@ impl Tab {
             Self::Account => "Cuenta",
             Self::Notifications => "Notificaciones",
             Self::Help => "Ayuda",
+            Self::MangaSite => "Listado Manga",
         }
     }
     fn icon(self) -> Icon {
         match self {
             Self::News => Icon::Grid,
-            Self::Catalog => Icon::Compass,
+            Self::Catalog => Icon::Catalog,
             Self::Library => Icon::Book,
             Self::Favorites => Icon::Star,
             Self::Wanted => Icon::Heart,
@@ -84,6 +89,7 @@ impl Tab {
             Self::Profile | Self::Account => Icon::User,
             Self::Notifications => Icon::Bell,
             Self::Help => Icon::Help,
+            Self::MangaSite => Icon::Book,
         }
     }
     fn local(self) -> bool {
@@ -106,6 +112,7 @@ enum CatalogMode {
     Search,
     Explore,
     Lists,
+    Users,
 }
 #[derive(Clone, Copy, Default, PartialEq)]
 enum SettingsSection {
@@ -113,6 +120,7 @@ enum SettingsSection {
     General,
     Storage,
     Backup,
+    Updates,
 }
 
 enum Job {
@@ -133,7 +141,9 @@ enum Job {
     Restore(session::Session),
     Credentials(String, Zeroizing<String>),
     Logout,
-    Pull(String),
+    Pull(String, Vec<Item>),
+    Manga(String, Option<String>),
+    Shops(Box<Detail>),
     Push(String, sync::Pending),
     Metadata(Item, String),
     Friends(String, social::Relation),
@@ -182,6 +192,8 @@ enum Data {
     ReviewDraft(String, String, Result<reviews::Draft, String>),
     OnlineStats(String, Result<statistics::OnlineReadings, String>),
     Help(Result<help::Page, String>),
+    Manga(Result<manga_site::Page, String>),
+    Shops(String, Result<Vec<shops::Shop>, String>),
 }
 struct Event {
     id: u64,
@@ -546,13 +558,18 @@ fn worker(
                     api = Api::new(String::new()).unwrap();
                     Ok(Data::Logout(session::clear().err()))
                 }
-                Job::Pull(owner) => {
+                Job::Manga(url, query) => {
+                    Ok(Data::Manga(manga_site::fetch(&url, query.as_deref())))
+                }
+                Job::Shops(detail) => Ok(Data::Shops(detail.item.key.clone(), api.shops(&detail))),
+                Job::Pull(owner, candidates) => {
                     let result = (|| {
                         let owned = sync::pages(
                             |p| api.collection(p, "", false),
                             || cancel.load(Ordering::Relaxed),
                         )?;
-                        let wanted = api.wanted_all(|| cancel.load(Ordering::Relaxed))?;
+                        let wanted =
+                            api.wanted_complete(&candidates, || cancel.load(Ordering::Relaxed))?;
                         Ok((owned, wanted))
                     })();
                     Ok(match result {
@@ -675,6 +692,16 @@ struct App {
     support_view: Option<wry::WebView>,
     #[cfg(windows)]
     support_context: Option<wry::WebContext>,
+    manga_page: manga_site::Page,
+    manga_query: String,
+    manga_loading: bool,
+    manga_error: String,
+    manga_origin: Option<(Tab, Item)>,
+    shop_item: Option<Detail>,
+    shop_links: Vec<shops::Shop>,
+    shop_loading: bool,
+    shop_error: String,
+    updates: update_ui::State,
     busy: bool,
     syncing: bool,
     pushing: bool,
@@ -873,6 +900,16 @@ impl App {
             support_view: None,
             #[cfg(windows)]
             support_context: None,
+            manga_page: Default::default(),
+            manga_query: String::new(),
+            manga_loading: false,
+            manga_error: String::new(),
+            manga_origin: None,
+            shop_item: None,
+            shop_links: Vec::new(),
+            shop_loading: false,
+            shop_error: String::new(),
+            updates: Default::default(),
             busy: false,
             syncing: false,
             pushing: false,
@@ -993,6 +1030,7 @@ impl App {
                 "account" => Tab::Account,
                 "notifications" => Tab::Notifications,
                 "help" => Tab::Help,
+                "manga" => Tab::MangaSite,
                 _ => Tab::News,
             };
         }
@@ -1053,6 +1091,10 @@ impl App {
             app.catalog_mode = match mode.as_str() {
                 "explore" => CatalogMode::Explore,
                 "lists" => CatalogMode::Lists,
+                "users" => {
+                    app.search_users = true;
+                    CatalogMode::Users
+                }
                 "wanted" => {
                     app.tab = Tab::Wanted;
                     CatalogMode::Search
@@ -1083,6 +1125,30 @@ impl App {
                 wizard.step = 1;
             }
             app.onboarding = Some(wizard);
+        }
+        if std::env::args().any(|a| a == "--preview-shops")
+            && let Some(detail) = app.detail.clone()
+        {
+            app.open_shops(detail);
+        }
+        if std::env::args().any(|a| a == "--preview-updates") {
+            app.generation += 1;
+            app.busy = false;
+            app.error.clear();
+            app.status = String::new();
+            app.tab = Tab::Settings;
+            app.settings_section = SettingsSection::Updates;
+        }
+        if let Some(path) = arg("--preview-manga")
+            && let Ok(bytes) = std::fs::read(path)
+            && let Ok(page) = serde_json::from_slice::<manga_site::Page>(&bytes)
+        {
+            app.generation += 1;
+            app.busy = false;
+            app.error.clear();
+            app.status = String::new();
+            app.tab = Tab::MangaSite;
+            app.manga_page = page;
         }
         if std::env::args().any(|a| a == "--preview-cover")
             && let Some(item) = app.library.entries.values().next().map(|e| e.item.clone())
@@ -1220,7 +1286,21 @@ impl App {
         self.flush_library();
         self.syncing = true;
         self.cancel.store(false, Ordering::Relaxed);
-        self.send(Job::Pull(self.library.owner.clone()));
+        let mut candidates: Vec<_> = self
+            .library
+            .entries
+            .values()
+            .filter(|e| e.wanted || e.details.as_ref().is_some_and(|d| d.wanted))
+            .map(|e| e.item.clone())
+            .collect();
+        candidates.extend(
+            self.library
+                .editions
+                .values()
+                .filter(|e| e.favorite)
+                .map(|e| e.item.clone()),
+        );
+        self.send(Job::Pull(self.library.owner.clone(), candidates));
     }
     fn queue_change(&mut self, item: &Item, change: sync::Change) {
         if matches!(change, sync::Change::Owned(true)) {
@@ -1248,17 +1328,16 @@ impl App {
                         .get(&p.item.key)
                         .is_some_and(|e| e.volumes.iter().any(|i| i.key == key))
             });
-        let wanted_pending = self.library.outbox.contains_key(&format!("{key}:wanted"));
+        let wanted_pending = self.library.outbox.contains_key(&format!("{key}:wanted"))
+            || self.library.outbox.contains_key(&format!("{key}:favorite"));
         let e = self.library.ensure(&d.item);
         e.details = Some(d.clone());
         if self.verified {
-            if key.starts_with("comic") {
-                if !owned_pending {
-                    e.owned = d.item.owned;
-                }
-                if !wanted_pending {
-                    e.wanted = d.wanted;
-                }
+            if key.starts_with("comic") && !owned_pending {
+                e.owned = d.item.owned;
+            }
+            if !wanted_pending {
+                e.wanted = d.wanted;
             }
             if !rating_pending {
                 e.rating = d.personal_rating;
@@ -1269,6 +1348,11 @@ impl App {
                     e.read_date = d.read_date.clone();
                 }
             }
+        }
+        if self.verified && key.starts_with("edicion") && !wanted_pending {
+            let saved = self.library.editions.entry(key).or_default();
+            saved.item = d.item.clone();
+            saved.favorite = d.wanted;
         }
         self.stats = self.library.stats();
         self.save_library();
@@ -1537,9 +1621,14 @@ impl App {
             return;
         }
         match self.tab {
+            Tab::MangaSite => {
+                if self.manga_page.url.is_empty() {
+                    self.load_manga("https://www.listadomanga.es/lista.php".into(), None);
+                }
+            }
             Tab::News => self.send(Job::News(self.month.clone(), self.prefs.offline)),
             Tab::Catalog => match self.catalog_mode {
-                CatalogMode::Search if !self.submitted.is_empty() => {
+                CatalogMode::Search | CatalogMode::Users if !self.submitted.is_empty() => {
                     self.library.recent.search(&self.submitted);
                     self.save_library();
                     if self.prefs.offline {
@@ -1552,7 +1641,7 @@ impl App {
                         }
                     }
                 }
-                CatalogMode::Search if self.search_users => {
+                CatalogMode::Users => {
                     self.found_users.clear();
                     self.next = None;
                     self.busy = false;
@@ -1596,6 +1685,23 @@ impl App {
         while let Ok(event) = self.rx.try_recv() {
             let relevant = event.id == self.generation || event.id == 0;
             match event.data {
+                Ok(Data::Manga(result)) if relevant => {
+                    self.busy = false;
+                    self.manga_loading = false;
+                    match result {
+                        Ok(page) => self.manga_page = page,
+                        Err(error) => self.manga_error = error,
+                    }
+                }
+                Ok(Data::Shops(key, result))
+                    if self.shop_item.as_ref().is_some_and(|d| d.item.key == key) =>
+                {
+                    self.shop_loading = false;
+                    match result {
+                        Ok(links) => self.shop_links = links,
+                        Err(error) => self.shop_error = error,
+                    }
+                }
                 Ok(Data::Snapshot(owner, owned, wanted)) => {
                     if owner == self.library.owner {
                         self.syncing = false;
@@ -2468,6 +2574,7 @@ impl App {
                     self.queue_change(&item, sync::Change::Rating(value));
                 }
             });
+            if icons::action(ui,Icon::Search,"Buscar en Listado Manga",p).clicked(){self.open_manga_for(&item);}
             ui.label(RichText::new(tr("Agregar o quitar se sincroniza con tu cuenta. Se conservan tus notas y lecturas.")).size(11.).color(p.muted));
             if let Some(details) = self.library.entries.get(&item.key).and_then(|entry| entry.details.as_ref()) {
                 ui.horizontal_wrapped(|ui| {
@@ -2709,6 +2816,7 @@ impl App {
                         for tab in [
                             Tab::News,
                             Tab::Catalog,
+                            Tab::MangaSite,
                             Tab::Library,
                             Tab::Favorites,
                             Tab::Reading,
@@ -2718,13 +2826,20 @@ impl App {
                             Tab::Settings,
                             Tab::Help,
                         ] {
+                            let mut navigation = p;
+                            if tab == Tab::MangaSite {
+                                navigation.text = egui::Color32::from_rgb(244, 92, 108);
+                                navigation.muted = navigation.text;
+                                navigation.accent = navigation.text;
+                                navigation.selected = egui::Color32::from_rgb(95, 33, 44);
+                            }
                             let button = icons::button(
                                 ui,
                                 tab.icon(),
                                 tab.title(),
                                 compact,
                                 self.tab == tab,
-                                p,
+                                navigation,
                             );
                             #[cfg(test)]
                             {
@@ -2768,270 +2883,292 @@ impl App {
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.bg).inner_margin(28))
             .show(ui, |ui| {
-                if self.detail.is_some() {
-                    self.detail_ui(ui);
-                    return;
+                if self.detail.is_none()
+                    && (self.selected_series.is_some() || self.edition.is_some())
+                {
+                    egui::ScrollArea::vertical()
+                        .id_salt((
+                            "series-page",
+                            self.edition.as_ref().map(|i| i.key.clone()),
+                            self.selected_series.as_ref().map(|s| s.key.clone()),
+                        ))
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| self.body_content(ui));
+                } else {
+                    self.body_content(ui);
                 }
-                if self.selected_series.is_some() {
-                    ui.horizontal(|ui| {
-                        if icons::action(ui, Icon::Arrow, "Mis series", p).clicked() {
-                            self.leave_series();
-                        }
-                        ui.label(RichText::new(tr("/ Mi colección")).color(p.muted));
-                    });
-                    ui.add_space(12.);
+            });
+    }
+    fn body_content(&mut self, ui: &mut egui::Ui) {
+        let p = self.p();
+        if self.detail.is_some() {
+            self.detail_ui(ui);
+            return;
+        }
+        if self.selected_series.is_some() {
+            ui.horizontal(|ui| {
+                let back = icons::action(ui, Icon::Arrow, "Mis series", p);
+                #[cfg(test)]
+                {
+                    self.ui_rects.insert("series-back".into(), back.rect);
                 }
-                ui.horizontal(|ui| {
-                    let unread = self.library.inbox.unread.len();
-                    if icons::action(
-                        ui,
-                        Icon::Bell,
-                        &if unread > 0 {
-                            format!("{unread}")
+                if back.clicked() {
+                    self.leave_series();
+                }
+                ui.label(RichText::new(tr("/ Mi colección")).color(p.muted));
+            });
+            ui.add_space(12.);
+        }
+        ui.horizontal(|ui| {
+            let unread = self.library.inbox.unread.len();
+            if icons::action(
+                ui,
+                Icon::Bell,
+                &if unread > 0 {
+                    format!("{unread}")
+                } else {
+                    String::new()
+                },
+                p,
+            )
+            .on_hover_text(tr("Notificaciones"))
+            .clicked()
+            {
+                self.select(Tab::Notifications);
+            }
+            ui.vertical(|ui| {
+                ui.label(
+                    RichText::new(tr(
+                        if self.tab.local() || matches!(self.tab, Tab::Friends | Tab::Profile) {
+                            "TU ESPACIO PERSONAL"
                         } else {
-                            String::new()
+                            "DESCUBRÍ TU PRÓXIMA LECTURA"
                         },
-                        p,
-                    )
-                    .on_hover_text(tr("Notificaciones"))
-                    .clicked()
-                    {
-                        self.select(Tab::Notifications);
-                    }
-                    ui.vertical(|ui| {
-                        ui.label(
-                            RichText::new(tr(
-                                if self.tab.local()
-                                    || matches!(self.tab, Tab::Friends | Tab::Profile)
-                                {
-                                    "TU ESPACIO PERSONAL"
-                                } else {
-                                    "DESCUBRÍ TU PRÓXIMA LECTURA"
-                                },
-                            ))
-                            .size(10.)
-                            .color(p.accent),
-                        );
-                        let title = self
-                            .selected_series
-                            .as_ref()
-                            .map(|s| s.title.as_str())
-                            .or_else(|| self.edition.as_ref().map(|i| i.title.as_str()))
-                            .unwrap_or(self.tab.title());
-                        ui.label(
-                            RichText::new(tr(if self.edition.is_none() {
-                                tr(title)
-                            } else {
-                                title.into()
-                            }))
-                            .size(30.)
-                            .strong(),
-                        );
-                        ui.label(
-                            RichText::new(tr(match self.tab {
-                                Tab::Library if self.selected_series.is_some() => {
-                                    "Tus tomos, en orden. Cada lectura cuenta."
-                                }
-                                Tab::Library => "Un lugar para todas tus historias.",
-                                Tab::News => "Novedades reales para descubrir, coleccionar y leer.",
-                                Tab::Catalog => "Encontrá títulos y ediciones de Whakoom.",
-                                Tab::Wanted => "Las historias que querés sumar a tu biblioteca.",
-                                Tab::Favorites => {
-                                    "Las series que guardaste para volver a encontrar."
-                                }
-                                Tab::Reading => "Tu próxima lectura está acá.",
-                                Tab::Stats => "Conocé tu colección y tus hábitos de lectura.",
-                                Tab::Settings => "Tu biblioteca, a tu manera.",
-                                Tab::Friends => "Tus amigos y sus últimas incorporaciones.",
-                                Tab::Profile => "Tu identidad y tu colección en Whakoom.",
-                                Tab::Account => {
-                                    "Tu perfil, tu sesión y tus preferencias de Whakoom."
-                                }
-                                Tab::Notifications => "Lo nuevo en las colecciones de tus amigos.",
-                                Tab::Help => "La comunidad y el centro de ayuda de Whakoom.",
-                            }))
-                            .color(p.muted),
-                        );
+                    ))
+                    .size(10.)
+                    .color(p.accent),
+                );
+                let title = self
+                    .selected_series
+                    .as_ref()
+                    .map(|s| s.title.as_str())
+                    .or_else(|| self.edition.as_ref().map(|i| i.title.as_str()))
+                    .unwrap_or(self.tab.title());
+                ui.label(
+                    RichText::new(tr(if self.edition.is_none() {
+                        tr(title)
+                    } else {
+                        title.into()
+                    }))
+                    .size(30.)
+                    .strong(),
+                );
+                ui.label(
+                    RichText::new(tr(match self.tab {
+                        Tab::Library if self.selected_series.is_some() => {
+                            "Tus tomos, en orden. Cada lectura cuenta."
+                        }
+                        Tab::Library => "Un lugar para todas tus historias.",
+                        Tab::News => "Novedades reales para descubrir, coleccionar y leer.",
+                        Tab::Catalog => "Encontrá títulos y ediciones de Whakoom.",
+                        Tab::Wanted => "Las historias que querés sumar a tu biblioteca.",
+                        Tab::Favorites => "Las series que guardaste para volver a encontrar.",
+                        Tab::Reading => "Tu próxima lectura está acá.",
+                        Tab::Stats => "Conocé tu colección y tus hábitos de lectura.",
+                        Tab::Settings => "Tu biblioteca, a tu manera.",
+                        Tab::Friends => "Tus amigos y sus últimas incorporaciones.",
+                        Tab::Profile => "Tu identidad y tu colección en Whakoom.",
+                        Tab::Account => "Tu perfil, tu sesión y tus preferencias de Whakoom.",
+                        Tab::Notifications => "Lo nuevo en las colecciones de tus amigos.",
+                        Tab::Help => "La comunidad y el centro de ayuda de Whakoom.",
+                        Tab::MangaSite => "Series, ediciones y novedades de Listado Manga.",
+                    }))
+                    .color(p.muted),
+                );
+            });
+        });
+        ui.add_space(18.);
+        if !self.error.is_empty() {
+            egui::Frame::new()
+                .fill(p.selected)
+                .corner_radius(10)
+                .inner_margin(12)
+                .show(ui, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(RichText::new(&self.error).color(p.accent));
+                        if ui.small_button(tr("Cerrar")).clicked() {
+                            self.error.clear();
+                        }
                     });
                 });
-                ui.add_space(18.);
-                if !self.error.is_empty() {
-                    egui::Frame::new()
-                        .fill(p.selected)
-                        .corner_radius(10)
-                        .inner_margin(12)
-                        .show(ui, |ui| {
-                            ui.horizontal_wrapped(|ui| {
-                                ui.label(RichText::new(&self.error).color(p.accent));
-                                if ui.small_button(tr("Cerrar")).clicked() {
-                                    self.error.clear();
-                                }
-                            });
-                        });
-                    ui.add_space(10.);
+            ui.add_space(10.);
+        }
+        if self.busy {
+            ui.horizontal(|ui| {
+                ui.spinner();
+                ui.label(if self.syncing {
+                    "Importando tomos…"
+                } else {
+                    "Consultando…"
+                });
+                if self.syncing && ui.button(tr("Detener")).clicked() {
+                    self.cancel.store(true, Ordering::Relaxed);
                 }
-                if self.busy {
-                    ui.horizontal(|ui| {
-                        ui.spinner();
-                        ui.label(if self.syncing {
-                            "Importando tomos…"
-                        } else {
-                            "Consultando…"
-                        });
-                        if self.syncing && ui.button(tr("Detener")).clicked() {
-                            self.cancel.store(true, Ordering::Relaxed);
-                        }
-                    });
-                }
-                match self.tab {
-                    Tab::Help => {
-                        self.help_ui(ui);
-                        return;
-                    }
-                    Tab::Stats => {
-                        self.stats_ui(ui);
-                        return;
-                    }
-                    Tab::Friends | Tab::Profile if self.edition.is_none() => {
-                        let progress = self.transition(ui.ctx());
-                        let rect = ui.available_rect_before_wrap();
-                        let mut page = ui.new_child(
-                            egui::UiBuilder::new()
-                                .id_salt("social-page")
-                                .max_rect(rect.translate(Vec2::new((1. - progress) * 20., 0.))),
-                        );
-                        page.set_clip_rect(ui.clip_rect().intersect(rect));
-                        page.set_opacity(progress);
-                        self.social_ui(&mut page);
-                        return;
-                    }
-                    Tab::Account => {
-                        self.account_ui(ui);
-                        return;
-                    }
-                    Tab::Notifications => {
-                        self.notifications_ui(ui);
-                        return;
-                    }
-                    Tab::Settings => {
-                        self.settings_ui(ui);
-                        return;
-                    }
-                    _ => {}
-                }
-                if self.tab == Tab::Catalog && self.edition.is_none() {
-                    self.catalog_controls(ui);
-                    if self.catalog_mode == CatalogMode::Lists {
-                        self.lists_ui(ui);
-                        return;
-                    }
-                }
-                if self.tab == Tab::Catalog
-                    && self.catalog_mode == CatalogMode::Search
-                    && self.search_users
-                    && self.edition.is_none()
-                {
-                    self.users_ui(ui);
-                    return;
-                }
-                if self.tab == Tab::Library && self.selected_series.is_none() {
-                    ui.horizontal_wrapped(|ui| {
-                        for (label, value) in [
-                            ("Tomos", self.items.len()),
-                            ("Series y títulos", self.groups.len()),
-                            ("Leídos", self.stats.read),
-                        ] {
-                            egui::Frame::new()
-                                .fill(p.surface)
-                                .stroke(egui::Stroke::new(1., p.border))
-                                .corner_radius(10)
-                                .inner_margin(egui::Margin::symmetric(14, 9))
-                                .show(ui, |ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.label(
-                                            RichText::new(value.to_string())
-                                                .strong()
-                                                .color(p.accent),
-                                        );
-                                        ui.label(RichText::new(tr(label)).size(12.).color(p.muted));
-                                    });
-                                });
-                        }
-                    });
-                    ui.add_space(14.);
-                }
-                if self.tab != Tab::Catalog || self.edition.is_some() {
-                    ui.horizontal(|ui| {
-                        rating::display(ui, 5., self.prefs.dark, 12.);
-                        ui.label(RichText::new(tr("Comunidad")).size(11.).color(p.muted));
-                        rating::personal(ui, 5., self.prefs.dark, 12.);
-                        ui.label(RichText::new(tr("Tu valoración")).size(11.).color(p.muted));
-                    });
-                    ui.add_space(10.);
-                    self.toolbar(ui);
-                }
-                if self.tab == Tab::Library {
-                    self.library_filters(ui);
-                }
-
-                if self.tab == Tab::Reading && self.selected_series.is_none() {
-                    self.reading_queue(ui);
-                    return;
-                }
-                if self.tab == Tab::News
-                    && ui
-                        .checkbox(&mut self.news_owned_only, tr("Novedades de mis series"))
-                        .changed()
-                {
-                    self.begin_transition(1.);
-                }
-
-                ui.add_space(18.);
-                self.edition_actions(ui);
-                if self.edition.is_some() {
-                    ui.horizontal(|ui| {
-                        ui.selectable_value(&mut self.edition_reviews, false, tr("Tomos"));
-                        ui.selectable_value(&mut self.edition_reviews, true, tr("Opiniones"));
-                    });
-                    ui.add_space(10.);
-                    if self.edition_reviews {
-                        let detail = self
-                            .edition
-                            .as_ref()
-                            .and_then(|i| self.library.entries.get(&i.key))
-                            .and_then(|e| e.details.clone());
-                        egui::ScrollArea::vertical()
-                            .id_salt("edition-opinions")
-                            .show(ui, |ui| {
-                                if let Some(detail) = detail {
-                                    self.discussion_ui(ui, &detail);
-                                } else {
-                                    ui.label(tr("Consultando opiniones de la serie…"));
-                                }
-                            });
-                        return;
-                    }
-                }
-                let progress = self.transition(ui.ctx());
-                let base = ui.available_rect_before_wrap();
-                let moved = base.translate(Vec2::new(
-                    (1. - progress) * 24. * self.transition_direction,
-                    0.,
-                ));
-                let route_id = (
-                    "page-content",
-                    format!("{:?}", self.tab),
-                    self.selected_series.as_ref().map(|s| s.key.clone()),
-                );
-                let mut content =
-                    ui.new_child(egui::UiBuilder::new().id_salt(route_id).max_rect(moved));
-                content.set_clip_rect(ui.clip_rect().intersect(base));
-                content.set_opacity(progress);
-                if let Some(group) = self.selected_series.clone() {
-                    self.series_header(&mut content, &group);
-                }
-                self.items_ui(&mut content);
             });
+        }
+        match self.tab {
+            Tab::MangaSite => {
+                self.manga_ui(ui);
+                return;
+            }
+            Tab::Help => {
+                self.help_ui(ui);
+                return;
+            }
+            Tab::Stats => {
+                self.stats_ui(ui);
+                return;
+            }
+            Tab::Friends | Tab::Profile if self.edition.is_none() => {
+                let progress = self.transition(ui.ctx());
+                let rect = ui.available_rect_before_wrap();
+                let mut page = ui.new_child(
+                    egui::UiBuilder::new()
+                        .id_salt("social-page")
+                        .max_rect(rect.translate(Vec2::new((1. - progress) * 20., 0.))),
+                );
+                page.set_clip_rect(ui.clip_rect().intersect(rect));
+                page.set_opacity(progress);
+                self.social_ui(&mut page);
+                return;
+            }
+            Tab::Account => {
+                self.account_ui(ui);
+                return;
+            }
+            Tab::Notifications => {
+                self.notifications_ui(ui);
+                return;
+            }
+            Tab::Settings => {
+                self.settings_ui(ui);
+                return;
+            }
+            _ => {}
+        }
+        if self.tab == Tab::Catalog && self.edition.is_none() {
+            self.catalog_controls(ui);
+            if self.catalog_mode == CatalogMode::Lists {
+                self.lists_ui(ui);
+                return;
+            }
+        }
+        if self.tab == Tab::Catalog
+            && self.catalog_mode == CatalogMode::Users
+            && self.edition.is_none()
+        {
+            self.users_ui(ui);
+            return;
+        }
+        if self.tab == Tab::Library && self.selected_series.is_none() {
+            ui.horizontal_wrapped(|ui| {
+                for (label, value) in [
+                    ("Tomos", self.items.len()),
+                    ("Series y títulos", self.groups.len()),
+                    ("Leídos", self.stats.read),
+                ] {
+                    egui::Frame::new()
+                        .fill(p.surface)
+                        .stroke(egui::Stroke::new(1., p.border))
+                        .corner_radius(10)
+                        .inner_margin(egui::Margin::symmetric(14, 9))
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new(value.to_string()).strong().color(p.accent));
+                                ui.label(RichText::new(tr(label)).size(12.).color(p.muted));
+                            });
+                        });
+                }
+            });
+            ui.add_space(14.);
+        }
+        if self.tab != Tab::Catalog || self.edition.is_some() {
+            ui.horizontal(|ui| {
+                rating::display(ui, 5., self.prefs.dark, 12.);
+                ui.label(RichText::new(tr("Comunidad")).size(11.).color(p.muted));
+                rating::personal(ui, 5., self.prefs.dark, 12.);
+                ui.label(RichText::new(tr("Tu valoración")).size(11.).color(p.muted));
+            });
+            ui.add_space(10.);
+            self.toolbar(ui);
+        }
+        if self.tab == Tab::Library {
+            self.library_filters(ui);
+        }
+
+        if self.tab == Tab::Reading && self.selected_series.is_none() {
+            self.reading_queue(ui);
+            return;
+        }
+        if self.tab == Tab::News
+            && ui
+                .checkbox(&mut self.news_owned_only, tr("Novedades de mis series"))
+                .changed()
+        {
+            self.begin_transition(1.);
+        }
+
+        ui.add_space(18.);
+        self.edition_actions(ui);
+        if self.edition.is_some() {
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.edition_reviews, false, tr("Tomos"));
+                ui.selectable_value(&mut self.edition_reviews, true, tr("Opiniones"));
+            });
+            ui.add_space(10.);
+            if self.edition_reviews {
+                let detail = self
+                    .edition
+                    .as_ref()
+                    .and_then(|i| self.library.entries.get(&i.key))
+                    .and_then(|e| e.details.clone());
+                egui::ScrollArea::vertical()
+                    .id_salt("edition-opinions")
+                    .show(ui, |ui| {
+                        if let Some(detail) = detail {
+                            self.discussion_ui(ui, &detail);
+                        } else {
+                            ui.label(tr("Consultando opiniones de la serie…"));
+                        }
+                    });
+                return;
+            }
+        }
+        let progress = self.transition(ui.ctx());
+        let base = ui.available_rect_before_wrap();
+        let moved = base.translate(Vec2::new(
+            (1. - progress) * 24. * self.transition_direction,
+            0.,
+        ));
+        let route_id = (
+            "page-content",
+            format!("{:?}", self.tab),
+            self.selected_series.as_ref().map(|s| s.key.clone()),
+        );
+        let mut content = ui.new_child(egui::UiBuilder::new().id_salt(route_id).max_rect(moved));
+        content.set_clip_rect(
+            if self.selected_series.is_some() || self.edition.is_some() {
+                ui.clip_rect()
+            } else {
+                ui.clip_rect().intersect(base)
+            },
+        );
+        content.set_opacity(progress);
+        if let Some(group) = self.selected_series.clone() {
+            self.series_header(&mut content, &group);
+        }
+        self.items_ui(&mut content);
+        ui.advance_cursor_after_rect(content.min_rect());
     }
     fn toolbar(&mut self, ui: &mut egui::Ui) {
         let p = self.p();
@@ -3302,6 +3439,7 @@ impl App {
         }
         self.card_rating(&mut child, item, group);
         let response = ui.interact(slot, id, egui::Sense::click());
+
         response
             .on_hover_cursor(egui::CursorIcon::PointingHand)
             .on_hover_text(group.map_or(item.title.as_str(), |g| g.title.as_str()))
@@ -3429,50 +3567,65 @@ impl App {
             ))
             .auto_shrink([false, false]);
         if self.prefs.list_view {
-            scroll.show_rows(ui, 140., count, |ui, range| {
-                for index in range {
-                    if grouped {
-                        let group = self.groups[index].clone();
-                        if self.list_row(ui, &group.volumes[0], Some(&group)) {
-                            opened_group = Some(group);
-                        }
-                    } else {
-                        let item = self.items[visible[index]].clone();
-                        if self.list_row(ui, &item, None) {
-                            opened_item = Some(item);
+            item_rows(
+                ui,
+                scroll,
+                self.selected_series.is_some() || self.edition.is_some(),
+                140.,
+                count,
+                |ui, range| {
+                    for index in range {
+                        if grouped {
+                            let group = self.groups[index].clone();
+                            if self.list_row(ui, &group.volumes[0], Some(&group)) {
+                                opened_group = Some(group);
+                            }
+                        } else {
+                            let item = self.items[visible[index]].clone();
+                            if self.list_row(ui, &item, None) {
+                                opened_item = Some(item);
+                            }
                         }
                     }
-                }
-            });
+                },
+            );
         } else {
             let width = self.prefs.cover_width.clamp(110., 210.) + 24.;
             let columns = ((ui.available_width() + 12.) / (width + 12.))
                 .floor()
                 .max(1.) as usize;
             let height = (width - 24.) * 1.43 + if grouped { 177. } else { 153. };
-            scroll.show_rows(ui, height, count.div_ceil(columns), |ui, range| {
-                for row in range {
-                    ui.horizontal_top(|ui| {
-                        for column in 0..columns {
-                            let index = row * columns + column;
-                            if index >= count {
-                                break;
-                            }
-                            if grouped {
-                                let group = self.groups[index].clone();
-                                if self.card(ui, &group.volumes[0], Some(&group), width, height) {
-                                    opened_group = Some(group);
+            item_rows(
+                ui,
+                scroll,
+                self.selected_series.is_some() || self.edition.is_some(),
+                height,
+                count.div_ceil(columns),
+                |ui, range| {
+                    for row in range {
+                        ui.horizontal_top(|ui| {
+                            for column in 0..columns {
+                                let index = row * columns + column;
+                                if index >= count {
+                                    break;
                                 }
-                            } else {
-                                let item = self.items[visible[index]].clone();
-                                if self.card(ui, &item, None, width, height) {
-                                    opened_item = Some(item);
+                                if grouped {
+                                    let group = self.groups[index].clone();
+                                    if self.card(ui, &group.volumes[0], Some(&group), width, height)
+                                    {
+                                        opened_group = Some(group);
+                                    }
+                                } else {
+                                    let item = self.items[visible[index]].clone();
+                                    if self.card(ui, &item, None, width, height) {
+                                        opened_item = Some(item);
+                                    }
                                 }
                             }
-                        }
-                    });
-                }
-            });
+                        });
+                    }
+                },
+            );
         }
         if let Some(group) = opened_group {
             self.enter_series(group);
@@ -3542,7 +3695,7 @@ impl App {
                 self.setting_card(ui, Icon::Chart, "Tu colección en cifras", |_, ui| {
                     ui.horizontal_wrapped(|ui| {
                         ui.label(
-                            RichText::new(format!("{:.2}", s.spending))
+                            RichText::new(money::totals(&s.spending_by_currency))
                                 .size(30.)
                                 .strong().color(if p.bg.r() < 100 { egui::Color32::from_rgb(255, 205, 83) } else { egui::Color32::from_rgb(137, 83, 0) }),
                         );
@@ -4035,13 +4188,26 @@ impl App {
         contents: impl FnOnce(&mut Self, &mut egui::Ui),
     ) {
         let p = self.p();
-        egui::Frame::new()
+        let response = egui::Frame::new()
             .fill(p.surface)
             .stroke(egui::Stroke::new(1., p.border))
             .corner_radius(14)
             .inner_margin(18)
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
+                if matches!(title, "Imágenes guardadas" | "Visualización y memoria")
+                    && ui
+                        .ctx()
+                        .data(|d| d.get_temp::<bool>(egui::Id::new("cache-paired")))
+                        .unwrap_or(false)
+                {
+                    let height = ui
+                        .ctx()
+                        .data(|d| d.get_temp::<f32>(egui::Id::new("cache-pair-height")))
+                        .unwrap_or(400.);
+                    ui.set_min_height(height);
+                }
+
                 ui.horizontal(|ui| {
                     let (rect, _) = ui.allocate_exact_size(Vec2::splat(22.), egui::Sense::hover());
                     let heading = if title == "Tu colección en cifras" {
@@ -4068,6 +4234,17 @@ impl App {
                 ui.add_space(12.);
                 contents(self, ui);
             });
+        ui.ctx().data_mut(|d| {
+            d.insert_temp(
+                egui::Id::new(("card-height", title)),
+                response.response.rect.height(),
+            )
+        });
+        #[cfg(test)]
+        {
+            self.ui_rects
+                .insert(format!("setting-{title}"), response.response.rect);
+        }
         ui.add_space(14.);
     }
     fn account_section_icon(section: account::Section) -> Icon {
@@ -4642,6 +4819,11 @@ impl App {
                                 ui.add_space(8.);
                                 ui.label(tr("Mi valoración"));
                                 changed |= rating::edit(ui, &mut e.rating, self.prefs.dark);
+                                ui.add_space(12.);
+                                ui.horizontal_wrapped(|ui| {
+                                    if icons::action(ui,Icon::Book,"Comprar",p).clicked(){self.open_shops(d.clone());}
+                                    if icons::action(ui,Icon::Search,"Buscar en Listado Manga",p).clicked(){self.open_manga_for(&d.item);}
+                                });
                             });
                         });
                     });
@@ -4660,18 +4842,22 @@ impl App {
                     ui.set_width(ui.available_width());
                     ui.heading(tr("Tu lectura y tus notas")); ui.add_space(12.);
                     let e = self.library.ensure(&d.item);
-                    ui.horizontal_wrapped(|ui| {
-                        let (rect, _) = ui.allocate_exact_size(Vec2::splat(20.), egui::Sense::hover());
-                        icons::paint(ui.painter(), rect, Icon::Calendar, p.accent);
-                        ui.label(tr("Fecha de lectura"));
-                        changed |= calendar::picker(ui, &d.item.key, &mut e.read_date);
-                        ui.add_space(16.); ui.label(tr("Fecha de compra")); changed |= calendar::picker(ui, &format!("purchase:{}", d.item.key), &mut e.purchase_date);
-                        ui.add_space(16.); ui.label(tr("Importe pagado (manual)"));
-                        changed |= ui.add(egui::DragValue::new(&mut e.cost).range(0.0..=100_000_000.0).speed(1.)).changed();
+                    ui.scope(|ui| {
+                        ui.spacing_mut().interact_size.y=44.;
+                        for (label,key,date) in [("Fecha de lectura",d.item.key.clone(),&mut e.read_date),("Fecha de compra",format!("purchase:{}",d.item.key),&mut e.purchase_date)] {
+                            ui.horizontal(|ui| {ui.add_sized([170.,44.],egui::Label::new(tr(label)));changed |= calendar::picker(ui,&key,date);});
+                        }
+                        ui.horizontal_wrapped(|ui| {
+                            ui.add_sized([170.,44.],egui::Label::new(tr("Importe pagado (manual)")));
+                            changed |= ui.add_sized([180.,44.],egui::DragValue::new(&mut e.cost).range(0.0..=100_000_000.0).speed(1.).max_decimals(2)).changed();
+                            let old=e.currency.clone();
+                            egui::ComboBox::from_id_salt(("currency",&d.item.key)).width(150.).selected_text(if e.currency.is_empty(){tr("Moneda")}else{e.currency.clone()}).show_ui(ui,|ui|{ui.selectable_value(&mut e.currency,String::new(),tr("Sin moneda definida"));for currency in money::CURRENCIES{ui.selectable_value(&mut e.currency,currency.into(),currency);}});
+                            changed |= old!=e.currency;
+                        });
                     });
                     ui.add_space(8.);
                     ui.label(RichText::new(tr("Etiquetas")).strong());
-                    changed |= ui.add(egui::TextEdit::singleline(&mut e.tags).hint_text(tr("Favoritos, para releer, pendientes…")).desired_width(f32::INFINITY)).changed();
+                    changed |= ui.add_sized([ui.available_width(),42.],egui::TextEdit::singleline(&mut e.tags).hint_text(tr("Favoritos, para releer, pendientes…")).desired_width(f32::INFINITY)).changed();
                     ui.add_space(8.);
                     ui.label(RichText::new(tr("Notas personales")).strong());
                     changed |= note_editor(ui, &d.item.key, &mut e.notes, p);
@@ -4898,6 +5084,7 @@ impl eframe::App for App {
         i18n::set_language(self.prefs.language);
         let ctx = ui.ctx().clone();
         self.poll(&ctx);
+        self.update_poll(&ctx);
         if self.persist && self.verified && self.prefs.desktop_notifications && !self.prefs.offline
         {
             ctx.request_repaint_after(Duration::from_secs(30));
@@ -4936,6 +5123,11 @@ impl eframe::App for App {
             }
         }
         let p = self.p();
+        if self.updates.has_notice() {
+            egui::Panel::top("app-update-banner")
+                .frame(egui::Frame::new().fill(p.bg).inner_margin(8))
+                .show(ui, |ui| self.update_banner(ui));
+        }
         egui::Panel::bottom("status")
             .exact_size(32.)
             .frame(egui::Frame::new().fill(p.surface).inner_margin(7))
@@ -4945,9 +5137,9 @@ impl eframe::App for App {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(
                             RichText::new(tr(if self.prefs.offline {
-                                "SIN CONEXIÓN · Whakoom Desktop 2.0.5"
+                                "SIN CONEXIÓN · Whakoom Desktop 3.0.0"
                             } else {
-                                "Whakoom Desktop 2.0.5"
+                                "Whakoom Desktop 3.0.0"
                             }))
                             .size(11.)
                             .color(p.muted),
@@ -4958,6 +5150,7 @@ impl eframe::App for App {
         self.sidebar(ui);
         self.body(ui);
         self.cover_viewer_ui(&ctx);
+        self.shop_dialog(&ctx);
         if self.onboarding.is_some() {
             self.onboarding_ui(&ctx);
         } else {
@@ -4975,9 +5168,19 @@ pub fn run() -> eframe::Result {
     let preview = std::env::args().any(|a| a == "--headless-preview");
     let mut viewport = egui::ViewportBuilder::default()
         .with_inner_size([1280., 900.])
-        .with_min_inner_size([860., 640.])
+        .with_min_inner_size([760., 520.])
         .with_title(brand::NAME)
         .with_icon(brand::icon());
+    if let Some(size) = std::env::args()
+        .skip_while(|a| a != "--preview-size")
+        .nth(1)
+        && let Some((width, height)) = size.split_once('x')
+        && let (Ok(width), Ok(height)) = (width.parse::<f32>(), height.parse::<f32>())
+        && width.is_finite()
+        && height.is_finite()
+    {
+        viewport = viewport.with_inner_size([width.clamp(760., 2560.), height.clamp(520., 1440.)]);
+    }
     if preview {
         viewport = viewport.with_position([20000., 20000.]).with_active(false);
     }
@@ -4992,8 +5195,162 @@ pub fn run() -> eframe::Result {
     )
 }
 
+fn item_rows(
+    ui: &mut egui::Ui,
+    scroll: egui::ScrollArea,
+    outer: bool,
+    height: f32,
+    count: usize,
+    render: impl FnOnce(&mut egui::Ui, std::ops::Range<usize>),
+) {
+    if !outer {
+        scroll.show_rows(ui, height, count, render);
+        return;
+    }
+    let stride = height + ui.spacing().item_spacing.y;
+    let top = ui.cursor().top();
+    let clip = ui.clip_rect();
+    let first = (((clip.top() - top) / stride).floor().max(0.) as usize)
+        .saturating_sub(1)
+        .min(count);
+    let end = (((clip.bottom() - top) / stride).ceil().max(0.) as usize + 1)
+        .min(count)
+        .max(first);
+    if first > 0 {
+        ui.add_space(first as f32 * stride);
+    }
+    render(ui, first..end);
+    if end < count {
+        ui.add_space((count - end) as f32 * stride);
+    }
+}
+
 #[cfg(test)]
 mod ui_tests {
+    #[test]
+    fn catalog_users_has_its_own_button_and_dispatches_only_user_search() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        app.prefs.animations = false;
+        app.select(Tab::Catalog);
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let pos = app.ui_rects["catalog-Usuarios"].center();
+        click(&mut app, &ctx, pos);
+        assert!(app.catalog_mode == CatalogMode::Users);
+        assert!(app.search_users);
+        assert!(app.items.is_empty());
+        app.prefs.offline = false;
+        let (tx, rx) = mpsc::channel();
+        app.tx = tx;
+        app.submitted = "lectora".into();
+        app.refresh(1);
+        assert!(matches!(rx.try_recv().unwrap().1,Job::SearchUsers(name,1) if name=="lectora"));
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn short_series_window_scrolls_header_and_cards_together() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        app.prefs.animations = false;
+        app.enter_series(app.groups[0].clone());
+        let sample = |app: &mut App, events: Vec<egui::Event>| {
+            let mut out = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        Vec2::new(860., 600.),
+                    )),
+                    events,
+                    ..Default::default()
+                },
+                |ui| eframe::App::ui(app, ui, &mut eframe::Frame::_new_kittest()),
+            );
+            out.textures_delta.clear();
+        };
+        for _ in 0..3 {
+            sample(&mut app, vec![]);
+        }
+        let header = app.ui_rects["series-back"].top();
+        let card = app.card_rects["comicc"].top();
+        sample(
+            &mut app,
+            vec![
+                egui::Event::PointerMoved(egui::pos2(550., 530.)),
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    phase: egui::TouchPhase::Move,
+                    delta: Vec2::new(0., -200.),
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        for _ in 0..25 {
+            sample(&mut app, vec![]);
+        }
+        assert!(app.ui_rects["series-back"].top() < header - 100.);
+        assert!(
+            (header - app.ui_rects["series-back"].top() - (card - app.card_rects["comicc"].top()))
+                .abs()
+                < 2.
+        );
+    }
+    #[test]
+    fn storage_cards_share_width_height_and_stack_in_small_windows() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        app.prefs.animations = false;
+        app.select(Tab::Settings);
+        app.settings_section = SettingsSection::Storage;
+        app.prefs.cover_cache.max_files = 500;
+        for width in [1280., 760.] {
+            for _ in 0..100 {
+                let mut out = ctx.run_ui(
+                    egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            Vec2::new(width, 900.),
+                        )),
+                        ..Default::default()
+                    },
+                    |ui| eframe::App::ui(&mut app, ui, &mut eframe::Frame::_new_kittest()),
+                );
+                out.textures_delta.clear();
+            }
+            let left = app.ui_rects["setting-Imágenes guardadas"];
+            let right = app.ui_rects["setting-Visualización y memoria"];
+
+            assert!((left.width() - right.width()).abs() < 1.);
+            if width > 1000. {
+                assert!(
+                    left.height() < 580.,
+                    "The layout must converge rather than grow on each repaint"
+                );
+                assert!((left.top() - right.top()).abs() < 1.);
+                assert!(
+                    (left.height() - right.height()).abs() < 1.,
+                    "{:?} {:?}",
+                    left,
+                    right
+                );
+            } else {
+                assert!(right.top() > left.bottom());
+                assert!(right.right() <= width);
+            }
+        }
+    }
+
     use super::*;
     #[test]
     fn catalog_cover_opens_details_and_gallery_only_opens_inside_the_comic() {
@@ -5231,6 +5588,7 @@ mod ui_tests {
             app.library
                 .entries
                 .values()
+                .filter(|e| e.item.key.starts_with("comic"))
                 .all(|e| e.notes == "Conservar esta nota")
         );
         app.select(Tab::Favorites);
@@ -5429,7 +5787,9 @@ mod ui_tests {
         app.verified = true;
         app.prefs.offline = false;
         app.select(Tab::Library);
-        assert!(matches!(jobs.try_recv().unwrap().1, Job::Pull(owner) if owner == "isolated-test"));
+        assert!(
+            matches!(jobs.try_recv().unwrap().1, Job::Pull(owner, _) if owner == "isolated-test")
+        );
         assert!(app.syncing);
         app.refresh(1);
         assert!(jobs.try_recv().is_err());
