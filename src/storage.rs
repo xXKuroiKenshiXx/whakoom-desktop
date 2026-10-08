@@ -143,6 +143,8 @@ pub struct Library {
     #[serde(default)]
     pub friends: Vec<crate::social::User>,
     #[serde(default)]
+    pub followers: Vec<crate::social::User>,
+    #[serde(default)]
     pub inbox: crate::notifications::Inbox,
     #[serde(default)]
     pub reactions: crate::reactions::Reactions,
@@ -163,6 +165,7 @@ impl Default for Library {
             outbox: BTreeMap::new(),
             account: None,
             friends: Vec::new(),
+            followers: Vec::new(),
             inbox: Default::default(),
             reactions: Default::default(),
             recent: Default::default(),

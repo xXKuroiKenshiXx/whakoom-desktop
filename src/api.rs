@@ -316,7 +316,18 @@ impl Api {
         )
     }
     pub fn friends(&self, username: &str) -> Result<Vec<crate::social::User>, String> {
-        let path = format!("{}/following", crate::social::user_path(username)?);
+        self.connections(username, crate::social::Relation::Following)
+    }
+    pub fn connections(
+        &self,
+        username: &str,
+        relation: crate::social::Relation,
+    ) -> Result<Vec<crate::social::User>, String> {
+        let path = format!(
+            "{}/{}",
+            crate::social::user_path(username)?,
+            relation.path()
+        );
         let html = self.request(&path, None)?;
         let h = Html::parse_document(&html);
         let cursor = attr(&h, "#hdNextPage", "value");

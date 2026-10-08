@@ -25,10 +25,12 @@ pub fn import(path: &Path) -> Result<(String, String), String> {
     }
     let image = decode(&std::fs::read(path).map_err(|e| e.to_string())?)?;
     let mut output = std::io::Cursor::new(Vec::new());
-    image::DynamicImage::ImageRgba8(image)
+    image::DynamicImage::ImageRgba8(image.clone())
         .write_to(&mut output, image::ImageFormat::Png)
         .map_err(|e| e.to_string())?;
-    let bytes = output.into_inner();
+    let png = output.into_inner();
+    let webp = crate::covers::lossless_bytes(&image)?;
+    let bytes = if webp.len() < png.len() { webp } else { png };
     if bytes.len() > 4 * 1024 * 1024 {
         return Err("La foto normalizada supera 4 MiB".into());
     }

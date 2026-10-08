@@ -22,6 +22,8 @@ Las solicitudes autenticadas se restringen a HTTPS en `www.whakoom.com`, incluid
 
 Las imágenes usan otro cliente, sin cookies, restringido al sitio y sus CDN `iN.whakoom.com`. Hay límites de respuesta, dimensiones y asignación de memoria al decodificar. Cuatro trabajadores cargan miniaturas y dos mejoran su resolución en una cola independiente; se prioriza la caché y se conserva la miniatura si falla la mejora. La caché controla espacio, cantidad, calidad y miniaturas en memoria; las vistas extensas dibujan filas visibles.
 
+La optimización usa otra cola limitada y un trabajador independiente. Se convierte a WebP sin pérdida sólo si el archivo resulta menor, comprobando que el original siga presente e idéntico antes del reemplazo atómico. No se agrega compresión de archivos a la ruta de visualización. Ajustes de aplicación se organiza en `app/settings_ui.rs`; seguidores y seguidos tienen cachés separadas por cuenta y respuestas verificadas por propietario y sección.
+
 ## Sincronización
 
 Cada acción cambia primero la biblioteca y genera una intención durable de la cuenta activa. Una confirmación tardía sólo puede reconocer esa misma intención: no elimina una edición posterior. Los errores conservan el pendiente y usan espera progresiva. Importar consulta toda la paginación antes de reconciliar; una respuesta incompleta no sustituye la biblioteca.

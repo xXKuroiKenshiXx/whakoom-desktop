@@ -4,6 +4,11 @@
 
 Versión en iteración; se actualizan los mismos archivos sin generar otra versión.
 
+- Seguidos y seguidores separados en Amigos, con perfiles internos y caché por cuenta.
+- Hover conservado hasta 18 px fuera de la portada; salida gradual en 220 ms.
+- Ajustes con secciones General, Almacenamiento y Respaldo; límite explícito de imágenes separado del espacio y la resolución.
+- Optimización sin pérdida en segundo plano para imágenes guardadas, sin aumentar archivos ni restaurar caché borrada; fotos personales usan el menor PNG/WebP sin pérdida.
+
 - Catálogo integrado con Explorar, Buscados, historial de búsquedas y visitas, y Listas propias/favoritas/creación online.
 - Portadas progresivas con colas independientes para miniaturas y resolución final; respaldo de símbolos matemáticos y CJK.
 - Español, inglés, portugués, ruso y chino; carrusel opcional de amigos y ajustes adaptables.

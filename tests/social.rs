@@ -42,3 +42,28 @@ fn public_and_personal_ratings_are_independent_and_dates_are_validated() {
     assert_eq!(invalid.item.community_rating, 0.);
     assert!(invalid.read_date.is_empty());
 }
+#[test]
+fn followers_use_their_own_route_and_survive_backup_without_replacing_following() {
+    assert_eq!(social::Relation::Followers.path(), "followers");
+    assert_eq!(social::Relation::Following.path(), "following");
+    let mut library = whakoom_desktop::storage::Library {
+        owner: "reader".into(),
+        ..Default::default()
+    };
+    library.friends.push(social::User {
+        username: "following".into(),
+        ..Default::default()
+    });
+    library.followers.push(social::User {
+        username: "follower".into(),
+        ..Default::default()
+    });
+    let restored: whakoom_desktop::storage::Library =
+        serde_json::from_str(&serde_json::to_string(&library).unwrap()).unwrap();
+    assert_eq!(restored.friends[0].username, "following");
+    assert_eq!(restored.followers[0].username, "follower");
+    let mut old_data = serde_json::to_value(&library).unwrap();
+    old_data.as_object_mut().unwrap().remove("followers");
+    let old: whakoom_desktop::storage::Library = serde_json::from_value(old_data).unwrap();
+    assert!(old.followers.is_empty());
+}

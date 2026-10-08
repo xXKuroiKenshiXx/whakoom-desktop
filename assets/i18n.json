@@ -1046,8 +1046,8 @@
   "Ver perfil": [
     "View profile",
     "Ver perfil",
-    "Открыть профиль",
-    "查看个人资料"
+    "Посмотреть профиль",
+    "查看资料"
   ],
   "Cambiar contraseña": [
     "Change password",
@@ -1888,5 +1888,131 @@
     "{0} pessoas que você segue",
     "Подписок: {0}",
     "您关注了 {0} 人"
+  ],
+  "Seguidos": [
+    "Following",
+    "Seguindo",
+    "Подписки",
+    "关注"
+  ],
+  "Seguidores": [
+    "Followers",
+    "Seguidores",
+    "Подписчики",
+    "关注者"
+  ],
+  "Volver a personas": [
+    "Back to people",
+    "Voltar às pessoas",
+    "Назад к людям",
+    "返回用户列表"
+  ],
+  "{0} personas te siguen": [
+    "{0} people follow you",
+    "{0} pessoas seguem você",
+    "На вас подписаны {0} человек",
+    "{0} 人关注你"
+  ],
+  "Consultando personas…": [
+    "Loading people…",
+    "Carregando pessoas…",
+    "Загрузка пользователей…",
+    "正在加载用户…"
+  ],
+  "No hay personas en esta sección.": [
+    "There are no people in this section.",
+    "Não há pessoas nesta seção.",
+    "В этом разделе нет пользователей.",
+    "此栏目暂无用户。"
+  ],
+  "General": [
+    "General",
+    "Geral",
+    "Общие",
+    "通用"
+  ],
+  "Almacenamiento": [
+    "Storage",
+    "Armazenamento",
+    "Хранилище",
+    "存储"
+  ],
+  "Cliente no oficial": [
+    "Unofficial client",
+    "Cliente não oficial",
+    "Неофициальный клиент",
+    "非官方客户端"
+  ],
+  "Imágenes guardadas": [
+    "Saved images",
+    "Imagens salvas",
+    "Сохранённые изображения",
+    "已保存图片"
+  ],
+  "Limitar cantidad de imágenes": [
+    "Limit image count",
+    "Limitar quantidade de imagens",
+    "Ограничить количество изображений",
+    "限制图片数量"
+  ],
+  "Máximo de imágenes guardadas": [
+    "Maximum saved images",
+    "Máximo de imagens salvas",
+    "Максимум сохранённых изображений",
+    "图片保存数量上限"
+  ],
+  "Se guardan las más recientes; al alcanzar el límite se liberan las menos usadas.": [
+    "Keeps recent images and removes the least used when the limit is reached.",
+    "Mantém as imagens recentes e remove as menos usadas ao atingir o limite.",
+    "При достижении лимита удаляются изображения, которыми пользуются реже.",
+    "达到上限时会清理最少使用的图片，保留近期图片。"
+  ],
+  "Optimización sin pérdida": [
+    "Lossless optimization",
+    "Otimização sem perdas",
+    "Оптимизация без потерь",
+    "无损优化"
+  ],
+  "Comprime en segundo plano y conserva el archivo original si es más pequeño. No reduce la calidad elegida.": [
+    "Compresses in the background and keeps the original if it is smaller. Preserves your chosen quality.",
+    "Comprime em segundo plano e mantém o original se ele for menor. Preserva a qualidade escolhida.",
+    "Сжимает в фоне, сохраняя оригинал, если он меньше. Выбранное качество сохраняется.",
+    "在后台压缩；若原文件更小则保留原文件。不会降低所选画质。"
+  ],
+  "Visualización y memoria": [
+    "Display and memory",
+    "Visualização e memória",
+    "Отображение и память",
+    "显示与内存"
+  ],
+  "Las imágenes se decodifican al mostrarse y se reutilizan en memoria. No se abre un ZIP para verlas.": [
+    "Images are decoded when displayed and reused in memory. No ZIP extraction is needed.",
+    "As imagens são decodificadas ao exibir e reutilizadas na memória. Não é preciso extrair um ZIP.",
+    "Изображения декодируются при показе и повторно используются в памяти. Распаковка ZIP не нужна.",
+    "图片在显示时解码，并在内存中复用。无需解压 ZIP。"
+  ],
+  "Uso de almacenamiento": [
+    "Storage usage",
+    "Uso do armazenamento",
+    "Использование хранилища",
+    "存储用量"
+  ],
+  "Fotos personales: {0} · {1} MB en el respaldo": [
+    "Personal photos: {0} · {1} MB in backup",
+    "Fotos pessoais: {0} · {1} MB no backup",
+    "Личные фото: {0} · {1} МБ в резервной копии",
+    "个人照片：{0} 张 · 备份中占用 {1} MB"
+  ],
+  "Optimizar imágenes guardadas": [
+    "Optimize saved images",
+    "Otimizar imagens salvas",
+    "Оптимизировать сохранённые изображения",
+    "优化已保存图片"
+  ],
+  "Procesando almacenamiento en segundo plano…": [
+    "Processing storage in the background…",
+    "Processando armazenamento em segundo plano…",
+    "Обработка хранилища в фоне…",
+    "正在后台处理存储…"
   ]
 }

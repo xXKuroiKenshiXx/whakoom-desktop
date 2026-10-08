@@ -90,6 +90,7 @@ pub struct CachePolicy {
     pub memory_images: usize,
     pub quality: Quality,
     pub unit_gb: bool,
+    pub lossless_optimization: bool,
 }
 impl Default for CachePolicy {
     fn default() -> Self {
@@ -100,6 +101,7 @@ impl Default for CachePolicy {
             memory_images: 48,
             quality: Quality::Balanced,
             unit_gb: false,
+            lossless_optimization: true,
         }
     }
 }
@@ -117,6 +119,105 @@ pub struct CacheInfo {
     pub files: usize,
 }
 static CACHE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Already compressed formats are kept unless lossless WebP is smaller. Pixel
+/// conversion happens while saving, never as an extra archive layer when opening.
+pub fn lossless_bytes(image: &image::RgbaImage) -> Result<Vec<u8>, String> {
+    use image::ImageEncoder;
+    let mut encoded = Vec::new();
+    image::codecs::webp::WebPEncoder::new_lossless(&mut encoded)
+        .write_image(
+            image.as_raw(),
+            image.width(),
+            image.height(),
+            image::ExtendedColorType::Rgba8,
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(encoded)
+}
+fn optimize_file(path: &std::path::Path, bytes: &[u8]) -> Result<(), String> {
+    if bytes.len() > 2 * 1024 * 1024
+        || (bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP"))
+    {
+        return Ok(());
+    }
+    let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|e| e.to_string())?;
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(4096);
+    limits.max_image_height = Some(4096);
+    limits.max_alloc = Some(64 * 1024 * 1024);
+    reader.limits(limits);
+    let optimized = lossless_bytes(&reader.decode().map_err(|e| e.to_string())?.to_rgba8())?;
+    if optimized.len() >= bytes.len() {
+        return Ok(());
+    }
+    let _guard = CACHE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    // Clearing the cache or replacing a download must win over an old optimizer.
+    if fs::metadata(path).is_ok_and(|m| m.len() == bytes.len() as u64)
+        && fs::read(path).is_ok_and(|current| current == bytes)
+    {
+        let modified = fs::metadata(path).ok().and_then(|m| m.modified().ok());
+        storage::atomic_write(path, &optimized)?;
+        if let Some(time) = modified
+            && let Ok(file) = fs::OpenOptions::new().write(true).open(path)
+        {
+            let _ = file.set_times(fs::FileTimes::new().set_modified(time));
+        }
+    }
+    Ok(())
+}
+fn optimize_later(path: &std::path::Path, bytes: &[u8], policy: &CachePolicy) {
+    if !policy.enabled || !policy.lossless_optimization {
+        return;
+    }
+    static QUEUE: std::sync::OnceLock<std::sync::mpsc::SyncSender<(PathBuf, Vec<u8>)>> =
+        std::sync::OnceLock::new();
+    let queue = QUEUE.get_or_init(|| {
+        let (tx, rx) = std::sync::mpsc::sync_channel::<(PathBuf, Vec<u8>)>(4);
+        std::thread::spawn(move || {
+            let mut attempted = std::collections::HashSet::new();
+            while let Ok((path, bytes)) = rx.recv() {
+                use std::hash::{Hash, Hasher};
+                let mut hash = std::collections::hash_map::DefaultHasher::new();
+                bytes.hash(&mut hash);
+                let fingerprint = (path.clone(), hash.finish());
+                if attempted.insert(fingerprint) {
+                    let _ = optimize_file(&path, &bytes);
+                }
+                if attempted.len() >= 100_000 {
+                    attempted.clear();
+                }
+            }
+        });
+        tx
+    });
+    let _ = queue.try_send((path.to_path_buf(), bytes.to_vec()));
+}
+pub fn optimize_saved(policy: &CachePolicy) -> Result<CacheInfo, String> {
+    let root = session::data_dir().join("covers");
+    if root.exists() {
+        for entry in fs::read_dir(&root).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            let name = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or_default();
+            if entry.file_type().is_ok_and(|t| t.is_file())
+                && path.extension().is_some_and(|s| s == "img")
+                && name.len() == 16
+                && name.bytes().all(|b| b.is_ascii_hexdigit())
+                && entry.metadata().is_ok_and(|m| m.len() <= 2 * 1024 * 1024)
+                && let Ok(bytes) = fs::read(&path)
+            {
+                let _ = optimize_file(&path, &bytes);
+            }
+        }
+    }
+    maintain(policy, false)
+}
 
 pub fn maintain(policy: &CachePolicy, clear: bool) -> Result<CacheInfo, String> {
     let _guard = CACHE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -249,6 +350,7 @@ impl CoverClient {
             && let Ok(bytes) = fs::read(&exact)
             && let Ok(image) = decode(&bytes, policy.quality)
         {
+            optimize_later(&exact, &bytes, policy);
             return Ok((image, true));
         }
         if policy.quality == Quality::Low || target == quality_url(&original, Quality::Low) {
@@ -310,6 +412,7 @@ impl CoverClient {
             && bytes.len() <= 2 * 1024 * 1024
             && let Ok(image) = decode(&bytes, policy.quality)
         {
+            optimize_later(&path, &bytes, policy);
             if let Ok(file) = fs::OpenOptions::new().write(true).open(&path) {
                 let _ =
                     file.set_times(fs::FileTimes::new().set_modified(std::time::SystemTime::now()));
@@ -325,9 +428,10 @@ impl CoverClient {
                         storage::key(&quality_url(&original, quality))
                     ));
                     if fs::metadata(&alternate).is_ok_and(|m| m.len() <= 2 * 1024 * 1024)
-                        && let Ok(bytes) = fs::read(alternate)
+                        && let Ok(bytes) = fs::read(&alternate)
                         && let Ok(image) = decode(&bytes, policy.quality)
                     {
+                        optimize_later(&alternate, &bytes, policy);
                         return Ok(image);
                     }
                 }
@@ -359,6 +463,7 @@ impl CoverClient {
             }
             maintain_at(&self.root, policy, false)?;
         }
+        optimize_later(&path, &bytes, policy);
         Ok(image)
     }
 }
@@ -366,6 +471,37 @@ impl CoverClient {
 #[cfg(test)]
 mod cache_tests {
     use super::*;
+    #[test]
+    fn lossless_storage_keeps_pixels_never_grows_and_does_not_restore_cleared_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("0000000000000001.img");
+        let source =
+            image::RgbaImage::from_fn(150, 225, |x, y| image::Rgba([x as u8, y as u8, 42, 255]));
+        let mut png = std::io::Cursor::new(Vec::new());
+        source.write_to(&mut png, image::ImageFormat::Png).unwrap();
+        let bytes = png.into_inner();
+        let compressed = lossless_bytes(&source).unwrap();
+        assert_eq!(
+            image::load_from_memory(&compressed).unwrap().to_rgba8(),
+            source
+        );
+        fs::write(&path, &bytes).unwrap();
+        optimize_file(&path, &bytes).unwrap();
+        let saved = fs::read(&path).unwrap();
+        assert!(saved.len() <= bytes.len());
+        assert_eq!(image::load_from_memory(&saved).unwrap().to_rgba8(), source);
+        let mut jpeg = Vec::new();
+        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 35)
+            .encode_image(&image::DynamicImage::ImageRgba8(source))
+            .unwrap();
+        fs::write(&path, &jpeg).unwrap();
+        optimize_file(&path, &jpeg).unwrap();
+        assert!(fs::metadata(&path).unwrap().len() <= jpeg.len() as u64);
+        let before = fs::read(&path).unwrap();
+        fs::remove_file(&path).unwrap();
+        optimize_file(&path, &before).unwrap();
+        assert!(!path.exists());
+    }
     #[test]
     fn limits_and_cleanup_only_touch_owned_thumbnail_files() {
         let dir = tempfile::tempdir().unwrap();

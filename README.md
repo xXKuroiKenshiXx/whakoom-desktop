@@ -28,10 +28,11 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 - Historial local de búsquedas y títulos visitados. Miniaturas rápidas que mejoran su resolución en segundo plano.
 - Biblioteca por tomos o series; añadir y quitar series completas. Actualización automática al entrar y al abrir fichas.
 - Colección, deseados, lectura y valoración personal con cola persistente y reintentos online.
-- Perfil, amigos, actividad y ajustes de cuenta conectados a Whakoom.
+- Perfil, seguidos, seguidores, actividad y ajustes de cuenta conectados a Whakoom.
 - Estrellas doradas de comunidad y violetas personales; votos visibles en las fichas.
 - Tema claro/oscuro, transiciones y portadas holográficas con marco iridiscente. Animaciones desactivables.
 - Caché configurable por espacio, cantidad, resolución y uso de memoria.
+- Ajustes separados en General, Almacenamiento y Respaldo. Optimización de imágenes sin pérdida en segundo plano, conservando el original cuando ocupa menos.
 - Notas, calendario, emojis, etiquetas, objetivos, estadísticas y respaldos JSON/CSV.
 - Destacar o relegar opiniones para tu propia biblioteca.
 - Español, inglés, portugués, ruso y chino; fuentes de respaldo sin reemplazar la tipografía principal.
@@ -39,11 +40,13 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 - Relecturas, orden de lectura, ubicación, conservación y fotos de firmas en el respaldo. [Comparación con herramientas Pro](docs/local-features.md).
 
 <details>
-<summary>Catálogo y listas</summary>
+<summary>Catálogo, listas y ajustes</summary>
 
 ![Catálogo integrado](assets/catalog.png)
 
 ![Listas públicas](assets/lists.png)
+
+![Ajustes de almacenamiento](assets/settings.png)
 
 </details>
 

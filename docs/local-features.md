@@ -14,6 +14,8 @@ Comparación con los beneficios anunciados en [Whakoom Pro](https://www.whakoom.
 | Insignia Pro online | Sólo Whakoom puede concederla con su suscripción. Desktop no simula esa condición. |
 | Fotos de firmas | Álbum local por tomo, incluido en el respaldo JSON. No habilita las subidas Pro a Whakoom. |
 
-Las fotos se normalizan a PNG, con hasta 1400 px por lado. Se permiten 32 por tomo y 16 MiB de datos codificados para el álbum de la biblioteca; el límite evita respaldos desmedidos. Las miniaturas se reducen para no cargar originales grandes en la GPU. Las fotos originales seleccionadas no se modifican.
+Las fotos se normalizan a PNG o WebP sin pérdida, conservando el formato más pequeño, con hasta 1400 px por lado. Se permiten 32 por tomo y 16 MiB de datos codificados para el álbum de la biblioteca; el límite evita respaldos desmedidos. Las miniaturas se reducen para no cargar originales grandes en la GPU. Las fotos originales seleccionadas no se modifican.
+
+Las portadas descargadas ya usan formatos comprimidos. Desktop puede optimizarlas a WebP sin pérdida en segundo plano: sólo sustituye el archivo si ocupa menos y conserva sus píxeles decodificados. No agrega una capa ZIP ni reduce la resolución elegida para ahorrar espacio. JPEG y WebP eficientes pueden quedar iguales; no se promete reducir todos los archivos. Al mostrar una imagen se hace la decodificación habitual y se reutiliza su textura en memoria. Almacenamiento permite limitar por separado espacio, cantidad de archivos y memoria; los archivos incluyen portadas, variantes de resolución y avatares.
 
 Etiquetas, gastos, relecturas, orden de lectura, ubicación, conservación, fotos y prioridades de comentarios se guardan en este equipo y se exportan en el respaldo. No se comparten automáticamente con otros usuarios de Desktop. Colección, deseados, favoritos y demás cambios que admite Whakoom se envían a la cuenta real.

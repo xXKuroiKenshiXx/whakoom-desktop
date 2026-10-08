@@ -1,4 +1,58 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Vec2};
+#[derive(Clone, Copy)]
+struct Hover {
+    entered: f64,
+    pointer: Pos2,
+    leaving: Option<f64>,
+}
+fn hover(ui: &egui::Ui, rect: Rect, id: egui::Id, enabled: bool) -> (Pos2, f32) {
+    let now = ui.input(|i| i.time);
+    let pointer = ui.input(|i| i.pointer.hover_pos());
+    if !enabled {
+        ui.ctx().data_mut(|d| d.remove::<Hover>(id));
+        return (rect.center(), 0.);
+    }
+    let mut state = ui.ctx().data(|d| d.get_temp::<Hover>(id));
+    // Enter through the actual cover; the surrounding margin only retains an
+    // existing hover, so moving beside a cover cannot activate it accidentally.
+    let active = pointer
+        .is_some_and(|p| rect.contains(p) || (state.is_some() && rect.expand(18.).contains(p)));
+    if active {
+        let position = pointer.unwrap();
+        let saved = state.get_or_insert(Hover {
+            entered: now,
+            pointer: position,
+            leaving: None,
+        });
+        if let Some(left) = saved.leaving.take() {
+            let previous = ((left - saved.entered - 0.15) / 0.14).clamp(0., 1.)
+                * (1. - (now - left) / 0.22).clamp(0., 1.);
+            saved.entered = now - 0.15 - previous * 0.14;
+        }
+        saved.pointer = position;
+    }
+    let Some(mut saved) = state else {
+        return (rect.center(), 0.);
+    };
+    if !active {
+        saved.leaving.get_or_insert(now);
+    }
+    let ramp_until = saved.leaving.unwrap_or(now);
+    let amount = ((ramp_until - saved.entered - 0.15) / 0.14).clamp(0., 1.)
+        * saved
+            .leaving
+            .map_or(1., |left| (1. - (now - left) / 0.22).clamp(0., 1.));
+    if saved.leaving.is_some_and(|left| now - left >= 0.22) {
+        ui.ctx().data_mut(|d| d.remove::<Hover>(id));
+    } else {
+        ui.ctx().data_mut(|d| d.insert_temp(id, saved));
+        if amount < 1. || saved.leaving.is_some() {
+            ui.ctx()
+                .request_repaint_after(std::time::Duration::from_millis(16));
+        }
+    }
+    (saved.pointer, amount as f32)
+}
 pub fn corners(rect: Rect, pointer: Pos2, amount: f32) -> [Pos2; 4] {
     let direction =
         ((pointer - rect.center()) / rect.size()).clamp(Vec2::splat(-0.5), Vec2::splat(0.5));
@@ -21,30 +75,8 @@ pub fn paint(
     enabled: bool,
     fade: f32,
 ) {
-    let pointer = ui
-        .input(|i| i.pointer.hover_pos())
-        .filter(|p| rect.contains(*p));
     let now = ui.input(|i| i.time);
-    let amount = if enabled && pointer.is_some() {
-        let entered = ui
-            .ctx()
-            .data_mut(|d| *d.get_temp_mut_or_insert_with(id, || now));
-        let age = now - entered;
-        if age < 0.15 {
-            ui.ctx()
-                .request_repaint_after(std::time::Duration::from_millis(
-                    ((0.15 - age) * 1000.).clamp(1., 150.) as u64,
-                ));
-        }
-        if (0.15..0.29).contains(&age) {
-            ui.ctx()
-                .request_repaint_after(std::time::Duration::from_millis(16));
-        }
-        ((age - 0.15) / 0.14).clamp(0., 1.) as f32
-    } else {
-        ui.ctx().data_mut(|d| d.remove::<f64>(id));
-        0.
-    };
+    let (pointer, amount) = hover(ui, rect, id, enabled);
     if amount <= 0. {
         egui::Image::new((texture, rect.size()))
             .tint(Color32::WHITE.linear_multiply(fade))
@@ -64,7 +96,7 @@ pub fn paint(
         );
         return;
     }
-    let quad = corners(rect, pointer.unwrap(), amount);
+    let quad = corners(rect, pointer, amount);
     let mut mesh = egui::Mesh::with_texture(texture);
     for (pos, uv) in quad.into_iter().zip([
         Pos2::new(0., 0.),
@@ -94,7 +126,7 @@ pub fn paint(
     sheen.add_triangle(0, 1, 2);
     sheen.add_triangle(0, 2, 3);
     ui.painter().add(sheen);
-    let direction = ((pointer.unwrap().x - rect.left()) / rect.width()).clamp(0., 1.);
+    let direction = ((pointer.x - rect.left()) / rect.width()).clamp(0., 1.);
     let lerp = |y: f32, x: f32| {
         let left = quad[0].lerp(quad[3], y);
         let right = quad[1].lerp(quad[2], y);
@@ -147,6 +179,37 @@ fn border(ui: &egui::Ui, quad: [Pos2; 4], now: f64, animated: bool, fade: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn outer_margin_retains_zoom_without_activating_it_and_exit_fades() {
+        let ctx = egui::Context::default();
+        let rect = Rect::from_min_size(Pos2::new(20., 20.), Vec2::new(150., 215.));
+        let id = egui::Id::new("retained-hover");
+        let sample = |time: f64, pointer: Pos2, enabled: bool| {
+            let mut amount = 0.;
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    time: Some(time),
+                    events: vec![egui::Event::PointerMoved(pointer)],
+                    ..Default::default()
+                },
+                |ui| {
+                    amount = hover(ui, rect, id, enabled).1;
+                },
+            );
+            output.textures_delta.clear();
+            amount
+        };
+        let outside = rect.right_center() + Vec2::new(12., 0.);
+        assert_eq!(sample(0., outside, true), 0.);
+        assert_eq!(sample(0.1, rect.center(), true), 0.);
+        assert_eq!(sample(0.45, rect.center(), true), 1.);
+        assert_eq!(sample(0.5, outside, true), 1.);
+        let far = outside + Vec2::new(40., 0.);
+        assert_eq!(sample(0.6, far, true), 1.);
+        assert!((0. ..1.).contains(&sample(0.7, far, true)));
+        assert_eq!(sample(0.85, far, true), 0.);
+        assert_eq!(sample(0.9, rect.center(), false), 0.);
+    }
     #[test]
     fn sheen_activates_quickly_and_disabling_motion_clears_it() {
         let ctx = egui::Context::default();

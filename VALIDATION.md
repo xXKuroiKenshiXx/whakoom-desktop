@@ -4,7 +4,7 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 
 ## Comprobaciones automatizadas
 
-86 pruebas aprobadas en Windows x64/MSVC y 86 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
+90 pruebas aprobadas en Windows x64/MSVC y 90 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. RustSec: 0 vulnerabilidades clasificadas como tales; los avisos restantes y su alcance están documentados en [SECURITY.md](SECURITY.md).
 
 - Formato, pruebas de todos los targets y Clippy con advertencias como errores en Windows y Linux.
 - Calendario: clics que avanzan tres meses sin cerrar el selector ni modificar la fecha hasta elegir un día.
@@ -14,6 +14,9 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 - Explorar y Listas: cuatro categorías con 56 fichas por página, listas propias/favoritas y lista pública de 54 tomos en dos páginas comprobadas contra el sitio actual. Creación y favoritos se verifican con contratos y validación de solicitudes; no se crean listas personales como prueba.
 - Tipografía: presencia de los glifos matemáticos solicitados, chino y cirílico en las fuentes incluidas. Capturas del catálogo en inglés y de Ajustes en chino.
 - Herramientas locales: relecturas, ubicación, conservación, orden de lectura y fotos sobreviven al respaldo; referencias de fotos y fechas corruptas se rechazan.
+- Seguidores: 6 personas y el primer perfil comprobados en el sitio real; pestañas, respaldos y aislamiento de respuestas de otra cuenta verificados.
+- Hover: margen exterior de 18 px que mantiene el zoom sin activarlo desde fuera; desvanecimiento al salir y desactivación inmediata de animaciones.
+- Compresión sin pérdida: mismos píxeles tras guardar, archivo igual o menor, caché borrada no recreada por el optimizador. Ajustes organizado por secciones y capturas de Almacenamiento.
 - Miniaturas progresivas: un tamaño pequeño permanece visible mientras falta la resolución final, incluso si su caché está corrupta; no se agranda antes de descargar la imagen final.
 - Caché y respaldos: límites, limpieza de archivos propios, imágenes inválidas, exportación CSV y validación de importaciones.
 - Linux: escritura atómica no sigue un enlace simbólico al reemplazarlo; el archivo resultante tiene permisos 0600.

@@ -2,6 +2,27 @@ use crate::api::{self, Item};
 use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub enum Relation {
+    #[default]
+    Following,
+    Followers,
+}
+impl Relation {
+    pub fn path(self) -> &'static str {
+        match self {
+            Self::Following => "following",
+            Self::Followers => "followers",
+        }
+    }
+    pub fn title(self) -> &'static str {
+        match self {
+            Self::Following => "Seguidos",
+            Self::Followers => "Seguidores",
+        }
+    }
+}
+
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct User {

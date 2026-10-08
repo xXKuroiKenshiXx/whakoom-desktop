@@ -1,5 +1,27 @@
 use whakoom_desktop::api::Api;
 fn main() {
+    if std::env::args().any(|arg| arg == "--verify-followers") {
+        let result = (|| -> Result<(), String> {
+            let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;
+            let api = Api::with_user_agent(saved.cookie, &saved.user_agent)?;
+            let owner = api.identity()?.username;
+            let followers =
+                api.connections(&owner, whakoom_desktop::social::Relation::Followers)?;
+            if let Some(user) = followers.first() {
+                api.user_profile(&user.username)?;
+            }
+            println!(
+                "Seguidores consultados: {}; primer perfil comprobado",
+                followers.len()
+            );
+            Ok(())
+        })();
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if std::env::args().any(|arg| arg == "--make-catalog-preview") {
         let result = (|| -> Result<(), String> {
             if std::env::var_os("WHAKOOM_DESKTOP_DATA_DIR").is_none() {
