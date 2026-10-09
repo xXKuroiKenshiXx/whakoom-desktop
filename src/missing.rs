@@ -138,7 +138,16 @@ pub fn suggestions(library: &Library) -> Vec<Suggestion> {
             continue;
         }
         let missing: Vec<_> = volumes.iter().filter(|v| !owned(library, v)).collect();
-        let next = missing.last().copied();
+        let Some(last_owned) = volumes.iter().rposition(|v| owned(library, v)) else {
+            continue;
+        };
+        // Whakoom points to the next purchase after the highest owned volume.
+        // If that tail is complete, fall back to the earliest older gap.
+        let next = volumes
+            .iter()
+            .skip(last_owned + 1)
+            .find(|v| !owned(library, v))
+            .or_else(|| missing.first().copied());
         if let Some(next) = next {
             result.push(Suggestion {
                 edition: saved.item.clone(),
@@ -220,7 +229,7 @@ impl Api {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn latest_missing_is_shown_and_fresh_editions_do_not_repeat_requests() {
+    fn next_missing_is_shown_and_fresh_editions_do_not_repeat_requests() {
         let mut l = Library::default();
         let edition = Item {
             key: "edicion12".into(),
@@ -229,14 +238,14 @@ mod tests {
         let volumes = (1..=5).map(volume).collect::<Vec<_>>();
         l.ensure(&volumes[1]).owned = true;
         l.cache_edition(&edition, &volumes, true);
-        assert_eq!(suggestions(&l)[0].next.key, "comic5");
+        assert_eq!(suggestions(&l)[0].next.key, "comic3");
         assert_eq!(suggestions(&l)[0].count, 4);
         assert!(refresh_candidates(&l, false).is_empty());
         assert_eq!(refresh_candidates(&l, true).len(), 1);
         l.editions.get_mut("edicion12").unwrap().fetched_at = 0;
         assert_eq!(refresh_candidates(&l, false).len(), 1);
         l.ensure(&volumes[4]).owned = true;
-        assert_eq!(suggestions(&l)[0].next.key, "comic4");
+        assert_eq!(suggestions(&l)[0].next.key, "comic1");
     }
 
     #[test]
@@ -286,7 +295,7 @@ mod tests {
         }
     }
     #[test]
-    fn latest_missing_preserves_earlier_gaps_when_the_latest_volume_is_owned() {
+    fn next_missing_preserves_earlier_gaps_when_the_latest_volume_is_owned() {
         let mut l = Library::default();
         let e = Item {
             key: "edicion12".into(),

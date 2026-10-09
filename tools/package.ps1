@@ -18,7 +18,13 @@ $distRoot = Join-Path $projectRoot 'dist'
 [IO.Directory]::CreateDirectory($distRoot) | Out-Null
 $prefix = "Whakoom-Desktop-$tag"
 $exe = "$prefix.exe"
-Copy-Item -LiteralPath $built -Destination (Join-Path $distRoot $exe) -Force
+$exePath = Join-Path $distRoot $exe
+$needsCopy = $true
+if (Test-Path -LiteralPath $exePath) {
+    $needsCopy = (Get-FileHash -LiteralPath $built -Algorithm SHA256).Hash -ne
+        (Get-FileHash -LiteralPath $exePath -Algorithm SHA256).Hash
+}
+if ($needsCopy) { Copy-Item -LiteralPath $built -Destination $exePath -Force }
 $docs = @('README.md','LICENSE','THIRD_PARTY_NOTICES.md','CHANGELOG.md','VALIDATION.md')
 foreach ($file in $docs) { Copy-Item -LiteralPath (Join-Path $projectRoot $file) -Destination (Join-Path $distRoot $file) -Force }
 Add-Type -AssemblyName System.IO.Compression

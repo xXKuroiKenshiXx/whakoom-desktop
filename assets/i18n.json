@@ -2819,6 +2819,12 @@
     "Последний опубликованный том, которого не хватает в каждой коллекции.",
     "每个收藏中缺少的最新出版卷。"
   ],
+  "El próximo tomo que te falta después del último que tenés.": [
+    "The next volume missing after the latest one you own.",
+    "O próximo volume que falta depois do último que você tem.",
+    "Следующий отсутствующий том после последнего имеющегося.",
+    "你拥有的最新卷之后缺少的下一卷。"
+  ],
   "Actualizando en segundo plano…": [
     "Updating in the background…",
     "Atualizando em segundo plano…",
