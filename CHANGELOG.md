@@ -2,12 +2,18 @@
 
 ## 3.1.0
 
+- Mi biblioteca abre en Tomos faltantes con el último tomo publicado que falta de cada colección. Los datos guardados aparecen al entrar; se actualizan sólo las ediciones desconocidas o con más de tres horas, en tandas de hasta tres consultas. Recargar fuerza la actualización.
+- Buscador de biblioteca más amplio y alto, con lupa y modos Tomos faltantes, Series y Tomos dentro de la misma barra; se adapta a ventanas estrechas.
+- El gasto total de «Tu colección en cifras» queda integrado en «Tus ritmos de compra y lectura», conservando la separación por monedas.
+
 - Deseados reúne tomos y series con filtros; se elimina la sección redundante Favoritos de cómics. Personas reúne Seguidos, Seguidores y contactos favoritos locales con corazón y carrusel.
 - Lecturas permite alternar lista y portadas. Listado Manga combina variantes del título, ordena coincidencias y carga portadas de resultados en segundo plano.
 - Valoración personal compacta bajo la comunidad; Comprar junto a Leído, acceso a Listado Manga debajo de la portada y selector de tiendas con iconos de marca.
 - Los enlaces Amazon que devolvían JSON se resuelven antes de abrir el navegador; se verifica el dominio y se ofrece búsqueda por título si falla el enlace directo.
 - Progreso de propiedad y tomos faltantes en tarjetas de colecciones completas; panel de serie mayor, botones separados y Opiniones debajo de la acción de colección.
 - Ejemplos de calidad ampliados con detalle de nitidez y filtro de novedades de mis series más visible.
+- Las tarjetas de biblioteca siguen siendo interactivas mientras se consulta la colección; la carga ya no bloquea abrir una serie o tomo.
+- Cuenta incorpora Insignias locales con progreso para lecturas, tomos, colecciones, deseados y valoraciones. Se calculan sin conexión.
 
 - Cuenta: navegación superior con iconos; Perfil muestra sólo el resumen de tu cuenta. Foto, nombre público y biografía se editan en un diálogo separado después de los controles de desconexión.
 - Mi biblioteca incorpora Tomos faltantes para las ediciones que coleccionás. Sugiere el siguiente tomo publicado y permite consultar los huecos anteriores.

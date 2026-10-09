@@ -3,6 +3,16 @@ impl App {
     pub(super) fn annual_statistics_ui(&mut self, ui: &mut egui::Ui) {
         let p = self.p();
         self.setting_card(ui, Icon::Chart, "Tus ritmos de compra y lectura", |app, ui| {
+            let gold=if app.prefs.dark {egui::Color32::from_rgb(255,205,83)} else {egui::Color32::from_rgb(137,83,0)};
+            ui.label(RichText::new(tr("Tu colección en cifras")).size(18.).strong().color(gold));
+            let spending=ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new(money::totals(&app.stats.spending_by_currency)).size(30.).strong().color(gold));
+                ui.label(RichText::new(tr("Importes cargados manualmente")).color(p.muted));
+            });
+            #[cfg(test)] app.ui_rects.insert("stats-grand-total".into(),spending.response.rect);
+            #[cfg(not(test))] let _=spending;
+            ui.label(RichText::new(tr("Suma de tus importes personales. No se obtiene del catálogo ni convierte monedas.")).small().color(p.muted));
+            ui.add_space(12.); ui.separator();ui.add_space(12.);
             ui.horizontal(|ui| {
                 ui.set_min_height(42.);
                 ui.label(tr("Año"));

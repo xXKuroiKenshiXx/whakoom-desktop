@@ -1,4 +1,5 @@
 pub mod account;
+pub mod badges;
 pub mod notifications;
 
 pub mod api;

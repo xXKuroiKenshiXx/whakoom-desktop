@@ -26,7 +26,7 @@ use std::{
 #[cfg(windows)]
 use whakoom_desktop::api;
 use whakoom_desktop::{
-    account,
+    account, badges,
     api::{Api, Detail, Item, Page},
     brand, calendar, catalog,
     covers::CoverClient,
@@ -901,6 +901,7 @@ struct App {
     found_users: Vec<social::User>,
     account_page: account::Page,
     account_loaded: bool,
+    account_badges: bool,
     profile_editor: bool,
     confirm_cancellation: bool,
     next_activity: Instant,
@@ -1120,6 +1121,7 @@ impl App {
             found_users: Vec::new(),
             account_page: account::Page::default(),
             account_loaded: false,
+            account_badges: false,
             profile_editor: false,
             confirm_cancellation: false,
             next_activity: Instant::now(),
@@ -1255,6 +1257,13 @@ impl App {
             && std::env::args().any(|a| a == "--preview-favorite-people")
         {
             app.social_favorites = true;
+        }
+        if app.tab == Tab::Library && std::env::args().any(|a| a == "--preview-tab") {
+            app.library_missing = true;
+        }
+        if let Some(view) = arg("--preview-library-view") {
+            app.library_missing = view.to_string_lossy() == "missing";
+            app.prefs.series_view = view.to_string_lossy() != "volumes";
         }
         if std::env::args().any(|a| a == "--preview-followers") {
             app.social_relation = social::Relation::Followers;
@@ -1487,7 +1496,7 @@ impl App {
         self.missing_cancel.store(true, Ordering::Relaxed);
         self.missing_pending = false;
         self.missing_epoch += 1;
-        self.library_missing = false;
+        self.library_missing = tab == Tab::Library;
         self.begin_transition(1.);
         self.generation += 1;
         self.busy = false;
@@ -1503,6 +1512,7 @@ impl App {
         if tab == Tab::Account {
             self.account_page = account::Page::default();
             self.account_loaded = false;
+            self.account_badges = false;
         }
         if tab == Tab::Notifications {
             self.library.inbox.unread.clear();
@@ -1863,16 +1873,12 @@ impl App {
             return;
         }
         if self.tab.local() {
-            if self.tab == Tab::Library && self.library_missing {
-                self.start_missing();
-                return;
-            }
             self.local_items();
             if matches!(self.tab, Tab::Library | Tab::Wanted) {
                 self.pull_account();
             }
             if self.tab == Tab::Library {
-                self.start_missing();
+                self.start_missing(false);
             }
             self.status = i18n::trf(
                 "{0} fichas guardadas en tu biblioteca local",
@@ -2035,7 +2041,7 @@ impl App {
                         if self.tab.local() && self.edition.is_none() {
                             self.local_items();
                             if self.tab == Tab::Library {
-                                self.start_missing();
+                                self.start_missing(false);
                             }
                         }
                         self.status = format!(
@@ -2797,11 +2803,8 @@ impl App {
         self.begin_transition(-1.);
     }
     fn leave_edition(&mut self) {
-        if self.syncing {
-            return;
-        }
         self.generation += 1;
-        self.busy = self.syncing;
+        self.busy = false;
         self.edition = None;
         self.edition_cancel.store(true, Ordering::Relaxed);
         self.begin_transition(-1.);
@@ -3334,10 +3337,6 @@ impl App {
             return;
         }
         if self.tab == Tab::Library && self.selected_series.is_none() && self.edition.is_none() {
-            if self.library_missing {
-                self.missing_ui(ui);
-                return;
-            }
             ui.horizontal_wrapped(|ui| {
                 for (label, value) in [
                     ("Tomos", self.items.len()),
@@ -3358,27 +3357,28 @@ impl App {
                 }
             });
             ui.add_space(14.);
-            let response = icons::action(ui, Icon::Book, "Tomos faltantes", p);
-            #[cfg(test)]
-            self.ui_rects.insert("missing-open".into(), response.rect);
-            if response.clicked() {
-                self.library_missing = true;
-                self.query.clear();
-                self.start_missing();
-            }
-            ui.add_space(12.);
         }
         if self.edition.is_none() && self.tab != Tab::Catalog {
-            ui.horizontal(|ui| {
-                rating::display(ui, 5., self.prefs.dark, 12.);
-                ui.label(RichText::new(tr("Comunidad")).size(11.).color(p.muted));
-                rating::personal(ui, 5., self.prefs.dark, 12.);
-                ui.label(RichText::new(tr("Tu valoración")).size(11.).color(p.muted));
-            });
-            ui.add_space(10.);
+            if !(self.tab == Tab::Library && self.library_missing) {
+                ui.horizontal(|ui| {
+                    rating::display(ui, 5., self.prefs.dark, 12.);
+                    ui.label(RichText::new(tr("Comunidad")).size(11.).color(p.muted));
+                    rating::personal(ui, 5., self.prefs.dark, 12.);
+                    ui.label(RichText::new(tr("Tu valoración")).size(11.).color(p.muted));
+                });
+                ui.add_space(10.);
+            }
             self.toolbar(ui);
         } else if self.edition.is_some() {
             self.toolbar(ui);
+        }
+        if self.tab == Tab::Library
+            && self.edition.is_none()
+            && self.selected_series.is_none()
+            && self.library_missing
+        {
+            self.missing_ui(ui);
+            return;
         }
         if self.tab == Tab::Library && self.edition.is_none() {
             self.library_filters(ui);
@@ -3484,6 +3484,10 @@ impl App {
         ui.advance_cursor_after_rect(content.min_rect());
     }
     fn toolbar(&mut self, ui: &mut egui::Ui) {
+        if self.tab == Tab::Library && self.edition.is_none() && self.selected_series.is_none() {
+            self.library_toolbar(ui);
+            return;
+        }
         let p = self.p();
         egui::Frame::new()
             .fill(p.surface)
@@ -3494,7 +3498,7 @@ impl App {
                 ui.horizontal_wrapped(|ui| {
                     if self.edition.is_some() {
                         if ui
-                            .add_enabled_ui(!self.syncing, |ui| {
+                            .add_enabled_ui(true, |ui| {
                                 icons::action(
                                     ui,
                                     Icon::Arrow,
@@ -3991,9 +3995,7 @@ impl App {
         if let Some(group) = opened_group {
             self.enter_series(group);
         }
-        if let Some(item) = opened_item
-            && !self.busy
-        {
+        if let Some(item) = opened_item {
             self.open_item(item);
         }
         if let Some(next) = self.next
@@ -4053,21 +4055,6 @@ impl App {
                 }
                 ui.add_space(12.);
                 self.annual_statistics_ui(ui);
-                self.setting_card(ui, Icon::Chart, "Tu colección en cifras", |_, ui| {
-                    ui.horizontal_wrapped(|ui| {
-                        ui.label(
-                            RichText::new(money::totals(&s.spending_by_currency))
-                                .size(30.)
-                                .strong().color(if p.bg.r() < 100 { egui::Color32::from_rgb(255, 205, 83) } else { egui::Color32::from_rgb(137, 83, 0) }),
-                        );
-                        ui.label(RichText::new(tr("Importes cargados manualmente")).color(p.muted));
-                    });
-                    ui.label(
-                        RichText::new(tr("Suma de tus importes personales. No se obtiene del catálogo ni convierte monedas."))
-                            .small()
-                            .color(p.muted),
-                    );
-                });
                 self.setting_card(ui, Icon::Book, "Editoriales", |app, ui| {
                     let mut values: Vec<_> = s.publishers.iter().collect();
                     values.sort_by(|a, b| b.1.cmp(a.1));
@@ -4083,14 +4070,16 @@ impl App {
                 });
                 self.setting_card(ui, Icon::Star, "Etiquetas", |app, ui| {
                     if s.tags.is_empty() {
-                        ui.label(tr("Añadí etiquetas en tus fichas para agrupar las estadísticas."));
+                        ui.label(tr(
+                            "Añadí etiquetas en tus fichas para agrupar las estadísticas.",
+                        ));
                     }
                     let max = s.tags.values().copied().max().unwrap_or(1);
                     for (label, count) in &s.tags {
                         app.stat_bar(ui, label, *count, max);
                     }
                 });
-                ui.label(format!("{}: {}",tr("Relecturas"),s.rereads));
+                ui.label(format!("{}: {}", tr("Relecturas"), s.rereads));
                 self.setting_card(ui, Icon::Read, "Lecturas por mes", |app, ui| {
                     if s.reading_months.is_empty() {
                         ui.label(tr("Registrá fechas de lectura para ver tu historial."));
@@ -4140,9 +4129,11 @@ impl App {
                         }
                     });
                     ui.label(
-                        RichText::new(tr("Cuenta los tomos marcados como leídos en tu biblioteca."))
-                            .small()
-                            .color(p.muted),
+                        RichText::new(tr(
+                            "Cuenta los tomos marcados como leídos en tu biblioteca.",
+                        ))
+                        .small()
+                        .color(p.muted),
                     );
                 });
             });
@@ -4694,7 +4685,7 @@ impl App {
                     if page.section==section {palette.surface=p.selected;palette.text=p.accent;palette.muted=p.accent;}
                     let button=icons::action(ui,Self::account_section_icon(section),section.title(),palette).on_hover_cursor(egui::CursorIcon::PointingHand);
                     #[cfg(test)] self.ui_rects.insert(format!("account-section-{section:?}"),button.rect);
-                    if button.clicked() && page.section!=section {next_section=Some(section);}
+                    if button.clicked() && page.section!=section {next_section=Some(section); self.account_badges=false;}
                 }
             });ui.add_space(20.);
             if page.section==account::Section::Profile {
@@ -4724,6 +4715,16 @@ impl App {
                     let edit=ui.add_enabled_ui(app.verified&&!app.prefs.offline,|ui|icons::action(ui,Icon::User,"Cambiar foto, nombre público y biografía",p)).inner;
                     #[cfg(test)] app.ui_rects.insert("profile-edit-open".into(),edit.rect);
                     if edit.clicked(){app.profile_editor=true;}
+                    ui.add_space(8.);
+                    ui.horizontal(|ui| {
+                        let all_badges = badges::all(&app.library);
+                        let earned = all_badges.iter().filter(|badge| badge.unlocked()).count();
+                        let badge = icons::action(ui, Icon::Star, "Insignias", p)
+                            .on_hover_text(tr("Logros locales calculados desde tu biblioteca"));
+                        #[cfg(test)] app.ui_rects.insert("account-badges-open".into(),badge.rect);
+                        if badge.clicked() { app.account_badges = true; }
+                        ui.label(RichText::new(format!("{earned}/{} desbloqueadas", all_badges.len())).color(p.muted));
+                    });
 
                 } else {
                     ui.label(tr("Conectá tu cuenta para administrar tu perfil y tus preferencias."));
@@ -4742,6 +4743,11 @@ impl App {
                 }
                 #[cfg(test)] app.ui_rects.insert("account-summary".into(),ui.min_rect());
             });
+            }
+            if self.account_badges {
+                self.badges_ui(ui);
+                self.account_page = page.clone();
+                return;
             }
             if !self.verified { return; }
             if page.section==account::Section::Profile {return;}
@@ -4899,6 +4905,37 @@ impl App {
             }
         }
         self.account_page = page;
+    }
+    fn badges_ui(&mut self, ui: &mut egui::Ui) {
+        let p = self.p();
+        self.setting_card(ui, Icon::Star, "Insignias", |app, ui| {
+            ui.label(RichText::new(tr("Logros locales de tu biblioteca")).color(p.muted));
+            ui.label(RichText::new(tr("Se calculan sin conexión y no modifican tu cuenta de Whakoom.")).small().color(p.muted));
+            ui.add_space(10.);
+            let earned = badges::all(&app.library);
+            let columns: usize = if ui.available_width() >= 720. { 3 } else if ui.available_width() >= 460. { 2 } else { 1 };
+            let width = ((ui.available_width() - (columns.saturating_sub(1) as f32 * 12.)) / columns as f32).max(180.);
+            for row in earned.chunks(columns) {
+                ui.horizontal_top(|ui| {
+                    for badge in row {
+                        let fill = if badge.unlocked() { p.selected } else { p.bg };
+                        egui::Frame::new().fill(fill).stroke(egui::Stroke::new(1., p.border)).corner_radius(10).inner_margin(12.).show(ui, |ui| {
+                            ui.set_min_width(width - 24.);
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new(badge.icon).size(25.));
+                                ui.vertical(|ui| {
+                                    ui.label(RichText::new(tr(badge.title)).strong());
+                                    ui.label(RichText::new(tr(badge.description)).small().color(p.muted));
+                                });
+                            });
+                            ui.add_space(7.);
+                            ui.add(egui::ProgressBar::new(badge.progress()).text(format!("{}/{}", badge.current, badge.target)));
+                        });
+                    }
+                });
+                ui.add_space(10.);
+            }
+        });
     }
     fn account_field(
         ui: &mut egui::Ui,
@@ -5652,6 +5689,68 @@ fn item_rows(
 
 #[cfg(test)]
 mod ui_tests {
+    #[test]
+    fn collection_spending_is_inside_annual_statistics_not_a_separate_card() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        app.prefs.animations = false;
+        app.select(Tab::Stats);
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let card = app.ui_rects["setting-Tus ritmos de compra y lectura"];
+        assert!(card.contains_rect(app.ui_rects["stats-grand-total"]));
+        assert!(!app.ui_rects.contains_key("setting-Tu colección en cifras"));
+    }
+
+    #[test]
+    fn library_opens_cached_missing_immediately_and_switches_modes_from_the_search_bar() {
+        let ctx = egui::Context::default();
+        let mut l = library();
+        let mut volumes = l
+            .entries
+            .values()
+            .map(|e| e.item.clone())
+            .collect::<Vec<_>>();
+        volumes.push(Item {
+            key: "comiclast".into(),
+            title: "Serie de prueba".into(),
+            issue: "#12".into(),
+            url: "https://www.whakoom.com/comics/last/serie/12".into(),
+            ..Default::default()
+        });
+        l.cache_edition(&edition_item(), &volumes, true);
+        let mut app = App::new(&eframe::CreationContext::_new_kittest(ctx.clone()), Some(l));
+        app.prefs.animations = false;
+        app.select(Tab::Library);
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        assert!(app.library_missing);
+        assert!(app.ui_rects.contains_key("missing-edicion123"));
+        assert!(
+            app.ui_rects["library-search"].height() >= 44.
+                && app.ui_rects["library-search"].width() > 300.
+        );
+        for title in ["Series", "Tomos", "Tomos faltantes"] {
+            let pos = app.ui_rects[&format!("library-view-{title}")].center();
+            click(&mut app, &ctx, pos);
+            frame(&mut app, &ctx, vec![]);
+            assert_eq!(app.library_missing, title == "Tomos faltantes");
+            if title != "Tomos faltantes" {
+                assert_eq!(app.prefs.series_view, title == "Series");
+            }
+        }
+        app.query = "no existe".into();
+        frame(&mut app, &ctx, vec![]);
+        app.ui_rects.clear();
+        frame(&mut app, &ctx, vec![]);
+        assert!(!app.ui_rects.contains_key("missing-edicion123"));
+    }
+
     #[test]
     fn comic_purchase_matches_read_button_and_opens_without_mutating_the_collection() {
         let ctx = egui::Context::default();

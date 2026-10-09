@@ -217,6 +217,7 @@ pub struct SavedEdition {
     pub favorite: bool,
     pub volumes: Vec<Item>,
     pub complete: bool,
+    pub fetched_at: u64,
 }
 #[derive(Default, Clone)]
 pub struct Stats {
@@ -248,6 +249,7 @@ impl Library {
             }
         }
         saved.complete = complete;
+        saved.fetched_at = if complete { now() } else { 0 };
     }
     pub fn add_complete_edition(&mut self, item: &Item, volumes: &[Item]) -> Result<usize, String> {
         // Validate first, so invalid or partial input cannot change existing personal data.

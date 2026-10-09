@@ -92,6 +92,37 @@ pub fn candidates(library: &Library) -> Vec<Candidate> {
     }
     result.into_values().collect()
 }
+/// Refresh unknown editions and complete snapshots older than three hours.
+pub fn refresh_candidates(library: &Library, force: bool) -> Vec<Candidate> {
+    let now = crate::storage::now();
+    candidates(library)
+        .into_iter()
+        .filter(|c| {
+            if force {
+                return true;
+            }
+            let Some(edition) = &c.edition else {
+                return true;
+            };
+            let Some(saved) = library.editions.get(&edition.key) else {
+                return true;
+            };
+            !saved.complete
+                || saved.fetched_at == 0
+                || saved.fetched_at > now
+                || now.saturating_sub(saved.fetched_at) >= 3 * 60 * 60
+                || !saved.volumes.iter().any(|v| v.key == c.representative.key)
+                || library.entries.values().any(|e| {
+                    e.owned
+                        && e.details
+                            .as_ref()
+                            .and_then(|d| d.edition.as_ref())
+                            .is_some_and(|i| i.key == edition.key)
+                        && !saved.volumes.iter().any(|v| v.key == e.item.key)
+                })
+        })
+        .collect()
+}
 #[derive(Clone)]
 pub struct Suggestion {
     pub edition: Item,
@@ -103,15 +134,11 @@ pub fn suggestions(library: &Library) -> Vec<Suggestion> {
     for saved in library.editions.values().filter(|e| e.complete) {
         let mut volumes = saved.volumes.clone();
         volumes.sort_by(series::volume_order);
-        let Some(last) = volumes.iter().rposition(|v| owned(library, v)) else {
+        if !volumes.iter().any(|v| owned(library, v)) {
             continue;
-        };
+        }
         let missing: Vec<_> = volumes.iter().filter(|v| !owned(library, v)).collect();
-        let next = volumes
-            .iter()
-            .skip(last + 1)
-            .find(|v| !owned(library, v))
-            .or_else(|| missing.first().copied());
+        let next = missing.last().copied();
         if let Some(next) = next {
             result.push(Suggestion {
                 edition: saved.item.clone(),
@@ -127,38 +154,63 @@ impl Api {
     pub fn missing_editions(
         &self,
         candidates: &[Candidate],
-        mut cancelled: impl FnMut() -> bool,
+        cancelled: impl Fn() -> bool + Sync,
         mut receive: impl FnMut(Item, Vec<Item>),
     ) -> Vec<String> {
         let mut seen = HashSet::new();
         let mut errors = vec![];
-        for candidate in candidates {
+        for batch in candidates.chunks(3) {
             if cancelled() {
                 break;
             }
-            let result = (|| {
-                let edition = match &candidate.edition {
-                    Some(i) => i.clone(),
-                    None => self
-                        .full_detail(&candidate.representative)?
-                        .edition
-                        .ok_or("No se pudo identificar la edición de una colección")?,
-                };
-                if !seen.insert(edition.key.clone()) {
-                    return Ok(());
-                }
-                let volumes = sync::pages(|p| self.edition(&edition, p), &mut cancelled)?;
-                if !volumes
+            let results = std::thread::scope(|scope| {
+                let jobs: Vec<_> = batch
                     .iter()
-                    .any(|v| v.key == candidate.representative.key)
-                {
-                    return Err("La edición recibida no incluye el tomo de tu colección".into());
+                    .map(|candidate| {
+                        let cancelled = &cancelled;
+                        scope.spawn(move || {
+                            if cancelled() {
+                                return Err("Actualización detenida".into());
+                            }
+                            let edition = match &candidate.edition {
+                                Some(i) => i.clone(),
+                                None => self
+                                    .full_detail(&candidate.representative)?
+                                    .edition
+                                    .ok_or("No se pudo identificar la edición de una colección")?,
+                            };
+                            let volumes = sync::pages(|p| self.edition(&edition, p), cancelled)?;
+                            if !volumes
+                                .iter()
+                                .any(|v| v.key == candidate.representative.key)
+                            {
+                                return Err(
+                                    "La edición recibida no incluye el tomo de tu colección".into(),
+                                );
+                            }
+                            Ok((edition, volumes))
+                        })
+                    })
+                    .collect();
+                jobs.into_iter()
+                    .map(|job| {
+                        job.join().unwrap_or_else(|_| {
+                            Err("La consulta de la colección se interrumpió".into())
+                        })
+                    })
+                    .collect::<Vec<Result<(Item, Vec<Item>), String>>>()
+            });
+            if cancelled() {
+                break;
+            }
+            for result in results {
+                match result {
+                    Ok((edition, volumes)) if seen.insert(edition.key.clone()) => {
+                        receive(edition, volumes)
+                    }
+                    Err(error) => errors.push(error),
+                    _ => {}
                 }
-                receive(edition, volumes);
-                Ok(())
-            })();
-            if let Err(error) = result {
-                errors.push(error);
             }
         }
         errors
@@ -167,6 +219,26 @@ impl Api {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn latest_missing_is_shown_and_fresh_editions_do_not_repeat_requests() {
+        let mut l = Library::default();
+        let edition = Item {
+            key: "edicion12".into(),
+            ..Default::default()
+        };
+        let volumes = (1..=5).map(volume).collect::<Vec<_>>();
+        l.ensure(&volumes[1]).owned = true;
+        l.cache_edition(&edition, &volumes, true);
+        assert_eq!(suggestions(&l)[0].next.key, "comic5");
+        assert_eq!(suggestions(&l)[0].count, 4);
+        assert!(refresh_candidates(&l, false).is_empty());
+        assert_eq!(refresh_candidates(&l, true).len(), 1);
+        l.editions.get_mut("edicion12").unwrap().fetched_at = 0;
+        assert_eq!(refresh_candidates(&l, false).len(), 1);
+        l.ensure(&volumes[4]).owned = true;
+        assert_eq!(suggestions(&l)[0].next.key, "comic4");
+    }
+
     #[test]
     fn collection_progress_requires_a_complete_edition_and_uses_local_ownership() {
         let mut l = Library::default();
@@ -214,7 +286,7 @@ mod tests {
         }
     }
     #[test]
-    fn next_missing_prefers_the_next_published_volume_and_keeps_earlier_gaps() {
+    fn latest_missing_preserves_earlier_gaps_when_the_latest_volume_is_owned() {
         let mut l = Library::default();
         let e = Item {
             key: "edicion12".into(),

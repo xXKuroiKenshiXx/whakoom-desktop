@@ -1,7 +1,104 @@
 use super::*;
 impl App {
-    pub(super) fn start_missing(&mut self) {
+    pub(super) fn library_toolbar(&mut self, ui: &mut egui::Ui) {
+        let p = self.p();
+        egui::Frame::new()
+            .fill(p.surface)
+            .stroke(egui::Stroke::new(1., p.border))
+            .corner_radius(12)
+            .inner_margin(12)
+            .show(ui, |ui| {
+                let width = ui.available_width();
+                if width >= 850. {
+                    ui.horizontal(|ui| {
+                        self.library_search(ui, (width - 508.).clamp(260., 540.));
+                        self.library_view_controls(ui);
+                    });
+                } else {
+                    ui.horizontal(|ui| self.library_search(ui, (width - 56.).max(160.)));
+                    ui.add_space(10.);
+                    ui.horizontal_wrapped(|ui| self.library_view_controls(ui));
+                }
+            });
+        ui.add_space(16.);
+    }
+    fn library_search(&mut self, ui: &mut egui::Ui, width: f32) {
+        let input = ui.add_sized(
+            [width, 44.],
+            egui::TextEdit::singleline(&mut self.query)
+                .hint_text(tr("Buscar en tu biblioteca…"))
+                .char_limit(200),
+        );
+        #[cfg(test)]
+        self.ui_rects.insert("library-search".into(), input.rect);
+        if input.changed() {
+            self.local_items();
+        }
+        let enter = input.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+        if icons::symbol(ui, Icon::Search, &tr("Buscar"), false, self.p(), 44.).clicked() || enter {
+            self.local_items();
+        }
+    }
+    fn library_view_controls(&mut self, ui: &mut egui::Ui) {
+        for (title, missing, series, width) in [
+            ("Tomos faltantes", true, true, 136.),
+            ("Series", false, true, 96.),
+            ("Tomos", false, false, 96.),
+        ] {
+            let selected =
+                self.library_missing == missing && (missing || self.prefs.series_view == series);
+            let response = ui.add_sized(
+                [width, 44.],
+                egui::Button::new(tr(title)).selected(selected),
+            );
+            #[cfg(test)]
+            self.ui_rects
+                .insert(format!("library-view-{title}"), response.rect);
+            if response.clicked() && !selected {
+                self.library_missing = missing;
+                if !missing {
+                    self.prefs.series_view = series;
+                    self.save_prefs();
+                }
+                self.local_items();
+                self.begin_transition(1.);
+                if missing {
+                    self.start_missing(false);
+                }
+            }
+        }
+        if !self.library_missing {
+            let view = icons::symbol(
+                ui,
+                if self.prefs.list_view {
+                    Icon::List
+                } else {
+                    Icon::Grid
+                },
+                &tr("Cambiar vista"),
+                false,
+                self.p(),
+                44.,
+            );
+            #[cfg(test)]
+            self.ui_rects.insert("view-toggle".into(), view.rect);
+            if view.clicked() {
+                self.prefs.list_view = !self.prefs.list_view;
+                self.save_prefs();
+            }
+        }
+        if icons::refresh(ui, self.p()).clicked() {
+            self.pull_account();
+            self.start_missing(true);
+        }
+    }
+
+    pub(super) fn start_missing(&mut self, force: bool) {
         if self.prefs.offline || !self.verified || self.missing_pending {
+            return;
+        }
+        let candidates = missing::refresh_candidates(&self.library, force);
+        if candidates.is_empty() {
             return;
         }
         self.missing_cancel.store(true, Ordering::Relaxed);
@@ -13,7 +110,7 @@ impl App {
             .send((
                 0,
                 Job::Missing(
-                    missing::candidates(&self.library),
+                    candidates,
                     self.library.owner.clone(),
                     self.missing_epoch,
                     self.missing_cancel.clone(),
@@ -26,32 +123,33 @@ impl App {
     }
     pub(super) fn missing_ui(&mut self, ui: &mut egui::Ui) {
         let p = self.p();
-        let suggestions = missing::suggestions(&self.library);
-        ui.horizontal_wrapped(|ui| {
-            if icons::action(ui, Icon::Arrow, "Mi biblioteca", p).clicked() {
-                self.library_missing = false;
-                self.missing_cancel.store(true, Ordering::Relaxed);
-                self.missing_pending = false;
-                self.missing_epoch += 1;
-                self.local_items();
-            }
-            ui.heading(tr("Tomos faltantes"));
-            if ui
-                .add_enabled_ui(!self.missing_pending, |ui| icons::refresh(ui, p))
-                .inner
-                .clicked()
-            {
-                self.start_missing();
-            }
-        });
-        ui.add_space(12.);
-        ui.label(RichText::new(tr("Tomos publicados que faltan en las ediciones que coleccionás. Abrí una colección para ver Todos, Tengo y Faltan.")).color(p.muted));
+        let query = self.query.to_lowercase();
+        let suggestions: Vec<_> = missing::suggestions(&self.library)
+            .into_iter()
+            .filter(|s| {
+                format!(
+                    "{} {} {}",
+                    s.edition.title, s.edition.publisher, s.next.issue
+                )
+                .to_lowercase()
+                .contains(&query)
+            })
+            .collect();
+        ui.label(
+            RichText::new(tr(
+                "El último tomo publicado que te falta en cada colección.",
+            ))
+            .color(p.muted),
+        );
         if self.missing_pending {
             ui.horizontal(|ui| {
                 ui.spinner();
-                ui.label(tr("Consultando tus colecciones…"));
+                ui.label(
+                    RichText::new(tr("Actualizando en segundo plano…"))
+                        .small()
+                        .color(p.muted),
+                );
             });
-            ui.ctx().request_repaint_after(Duration::from_millis(200));
         }
         if self.prefs.offline {
             ui.label(tr(
@@ -71,20 +169,6 @@ impl App {
             });
         }
         ui.add_space(18.);
-        let consulted = self
-            .library
-            .editions
-            .values()
-            .filter(|e| e.complete && e.volumes.iter().any(|v| missing::owned(&self.library, v)))
-            .count();
-        ui.label(
-            RichText::new(i18n::trf(
-                "{0} colecciones completas consultadas",
-                &[consulted.to_string()],
-            ))
-            .small()
-            .color(p.muted),
-        );
         if suggestions.is_empty() && !self.missing_pending {
             ui.label(tr(
                 "No hay tomos faltantes en las colecciones completas consultadas.",

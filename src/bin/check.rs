@@ -1017,6 +1017,7 @@ fn main() {
                     favorite: false,
                     volumes,
                     complete: true,
+                    fetched_at: whakoom_desktop::storage::now(),
                 };
                 std::fs::write(
                     path,

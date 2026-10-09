@@ -2812,5 +2812,57 @@
     "{0} volumes na biblioteca · {1} lidos",
     "Томов в библиотеке: {0} · Прочитано: {1}",
     "收藏 {0} 卷 · 已读 {1} 卷"
-  ]
+  ],
+  "El último tomo publicado que te falta en cada colección.": [
+    "The latest published volume missing from each collection.",
+    "O último volume publicado que falta em cada coleção.",
+    "Последний опубликованный том, которого не хватает в каждой коллекции.",
+    "每个收藏中缺少的最新出版卷。"
+  ],
+  "Actualizando en segundo plano…": [
+    "Updating in the background…",
+    "Atualizando em segundo plano…",
+    "Обновление в фоне…",
+    "正在后台更新…"
+  ],
+  "Insignias": [
+    "Badges",
+    "Medalhas",
+    "Значки",
+    "徽章"
+  ],
+  "Logros locales de tu biblioteca": [
+    "Local achievements from your library",
+    "Conquistas locais da sua biblioteca",
+    "Локальные достижения вашей библиотеки",
+    "来自你收藏的本地成就"
+  ],
+  "Se calculan sin conexión y no modifican tu cuenta de Whakoom.": [
+    "Calculated offline and do not change your Whakoom account.",
+    "Calculadas offline e não alteram sua conta Whakoom.",
+    "Рассчитываются офлайн и не изменяют ваш аккаунт Whakoom.",
+    "离线计算，不会修改你的 Whakoom 账户。"
+  ],
+  "Logros locales calculados desde tu biblioteca": [
+    "Local achievements calculated from your library",
+    "Conquistas locais calculadas a partir da sua biblioteca",
+    "Локальные достижения, рассчитанные по вашей библиотеке",
+    "根据你的收藏计算的本地成就"
+  ],
+  "Primera lectura": ["First reading", "Primeira leitura", "Первое чтение", "首次阅读"],
+  "Leé 10 tomos": ["Read 10 volumes", "Leia 10 volumes", "Прочитайте 10 томов", "阅读 10 卷"],
+  "Lector constante": ["Steady reader", "Leitor constante", "Постоянный читатель", "坚持阅读"],
+  "Leé 50 tomos": ["Read 50 volumes", "Leia 50 volumes", "Прочитайте 50 томов", "阅读 50 卷"],
+  "Centena": ["One hundred", "Centena", "Сотня", "一百卷"],
+  "Leé 100 tomos": ["Read 100 volumes", "Leia 100 volumes", "Прочитайте 100 томов", "阅读 100 卷"],
+  "Estantería inicial": ["Starter shelf", "Estante inicial", "Начальная полка", "入门书架"],
+  "Añadí 10 tomos": ["Add 10 volumes", "Adicione 10 volumes", "Добавьте 10 томов", "添加 10 卷"],
+  "Gran colección": ["Large collection", "Grande coleção", "Большая коллекция", "大型收藏"],
+  "Añadí 100 tomos": ["Add 100 volumes", "Adicione 100 volumes", "Добавьте 100 томов", "添加 100 卷"],
+  "Coleccionista": ["Collector", "Colecionador", "Коллекционер", "收藏家"],
+  "Completá o seguí 5 series": ["Complete or follow 5 series", "Complete ou siga 5 séries", "Завершите или отслеживайте 5 серий", "完成或关注 5 个系列"],
+  "En la mira": ["On the radar", "Na mira", "В поле зрения", "关注中"],
+  "Guardá 10 tomos deseados": ["Save 10 wanted volumes", "Salve 10 volumes desejados", "Сохраните 10 желаемых томов", "收藏 10 卷想要的作品"],
+  "Criterio propio": ["Your own taste", "Critério próprio", "Собственное мнение", "自己的品味"],
+  "Valorá 10 tomos": ["Rate 10 volumes", "Avalie 10 volumes", "Оцените 10 томов", "评价 10 卷"]
 }
