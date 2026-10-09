@@ -2,6 +2,9 @@
 
 ## 3.1.0
 
+- Las cuatro acciones de una serie tienen el mismo ancho y alto, incluido «Completar colección».
+- Menos solicitudes: las portadas sin caché se descargan una sola vez en la calidad elegida, las tarjetas reutilizan valoraciones guardadas y Listado Manga consulta portadas sólo de resultados visibles, sin repetir la primera búsqueda.
+- Las conexiones de catálogo, cuenta y portadas comparten un límite de dos solicitudes simultáneas y una separación mínima entre solicitudes. Ante HTTP 429 respetan `Retry-After` y conservan los cambios pendientes y los datos guardados durante la pausa.
 - Listado Manga muestra la primera coincidencia sin esperar todas las variantes; las búsquedas amplias y las portadas se incorporan progresivamente en segundo plano.
 - Las acciones de series mantienen un ancho uniforme y las colecciones completas muestran «Serie completada» en lugar de «Te faltan 0 tomos».
 

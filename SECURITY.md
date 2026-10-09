@@ -6,6 +6,8 @@ Las cookies sólo acompañan solicitudes HTTPS al dominio exacto `www.whakoom.co
 
 La cola está separada por cuenta. Sólo se elimina una intención cuando se confirma ese mismo cambio; una respuesta tardía no debe descartar una edición posterior. Un error de permisos se conserva para que el usuario pueda revisarlo.
 
+Las solicitudes del conector y sus imágenes comparten un límite de dos conexiones simultáneas, con al menos 300 ms entre inicios; Listado Manga tiene un límite independiente equivalente. HTTP 429 pausa las solicitudes del sitio según `Retry-After` (segundos o fecha HTTP); si falta, aplica espera creciente desde 30 segundos. No se intenta eludir el límite cambiando IP, identidad o cookies. La caché continúa disponible y los cambios pendientes no se descartan durante la pausa.
+
 Reportá vulnerabilidades por el [canal privado del repositorio](https://github.com/xXKuroiKenshiXx/whakoom-desktop/security/advisories/new), con una reproducción mínima sin credenciales ni datos reales.
 
 ## Dependencias revisadas

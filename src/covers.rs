@@ -329,8 +329,8 @@ pub struct CoverClient {
     root: PathBuf,
 }
 impl CoverClient {
-    /// Read the requested cached size first, then show a small network image while
-    /// the independent upgrade queue fetches the final resolution.
+    /// Reuse any cached preview immediately. A cold cover downloads only the
+    /// selected resolution, avoiding two requests for the same visible image.
     pub fn preview(
         &self,
         input: &str,
@@ -363,16 +363,8 @@ impl CoverClient {
         {
             return Ok((image, false));
         }
-        let small = CachePolicy {
-            quality: Quality::Low,
-            ..policy.clone()
-        };
-        self.get_with_policy(input, false, &small)
-            .map(|image| (image, false))
-            .or_else(|_| {
-                self.get_with_policy(input, false, policy)
-                    .map(|image| (image, true))
-            })
+        self.get_with_policy(input, false, policy)
+            .map(|image| (image, true))
     }
     pub fn new() -> Result<Self, String> {
         Self::at(session::data_dir().join("covers"))
@@ -438,13 +430,16 @@ impl CoverClient {
             }
             return Err("Portada no guardada todavía. Conectate y usá Reintentar portadas".into());
         }
+        let permit = crate::traffic::before(&url)?;
         let response = self
             .client
             .get(&url)
             .header("Referer", format!("{BASE}/"))
             .header("Accept", "image/webp,image/png,image/jpeg,image/*;q=0.8")
             .send()
-            .map_err(|e| format!("Conexión de portada: {e:?}"))?
+            .map_err(|e| format!("Conexión de portada: {e:?}"))?;
+        permit.check(&response)?;
+        let response = response
             .error_for_status()
             .map_err(|e| format!("Portada: {e}"))?;
         let mut bytes = vec![];

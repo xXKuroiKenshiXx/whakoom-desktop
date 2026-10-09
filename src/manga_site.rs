@@ -122,10 +122,13 @@ fn client() -> Result<reqwest::blocking::Client, String> {
         .map_err(|e| e.to_string())
 }
 fn read(client: &reqwest::blocking::Client, url: &str) -> Result<Vec<u8>, String> {
+    let permit = crate::traffic::before(url)?;
     let response = client
         .get(safe_url(url)?)
         .send()
-        .map_err(|_| "No se pudo conectar con Listado Manga")?
+        .map_err(|_| "No se pudo conectar con Listado Manga")?;
+    permit.check(&response)?;
+    let response = response
         .error_for_status()
         .map_err(|_| "Listado Manga no devolvió la página")?;
     let mut bytes = vec![];
@@ -274,6 +277,46 @@ pub fn fetch_fast(url: &str, query: &str) -> Result<Page, String> {
     let mut queries = search_variants(query);
     queries.truncate(1);
     fetch_search(query, queries)
+}
+
+pub fn fetch_remaining(query: &str, initial: Option<&Page>) -> Result<Page, String> {
+    if query.trim().is_empty() || query.len() > 500 {
+        return Err("Escribí un título para buscar".into());
+    }
+    let queries = search_variants(query);
+    let remaining = queries.iter().skip(1).cloned().collect::<Vec<_>>();
+    if remaining.is_empty() {
+        return initial
+            .cloned()
+            .ok_or_else(|| "No se pudo completar la búsqueda".into());
+    }
+    let mut page = match fetch_search(query, remaining) {
+        Ok(page) => page,
+        Err(error) => return initial.cloned().ok_or(error),
+    };
+    if let Some(initial) = initial {
+        let mut seen: HashSet<_> = page.results.iter().map(|link| link.url.clone()).collect();
+        page.results.extend(
+            initial
+                .results
+                .iter()
+                .filter(|link| seen.insert(link.url.clone()))
+                .cloned(),
+        );
+    }
+    let tokens = words(query);
+    page.results.sort_by_cached_key(|link| {
+        let title = words(&link.title).join(" ");
+        std::cmp::Reverse(
+            tokens
+                .iter()
+                .filter(|token| token.len() >= 3 && title.contains(token.as_str()))
+                .count(),
+        )
+    });
+    page.results.truncate(100);
+    page.queries = queries;
+    Ok(page)
 }
 
 pub fn fetch(url: &str, query: Option<&str>) -> Result<Page, String> {

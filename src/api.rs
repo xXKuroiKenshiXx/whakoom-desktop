@@ -605,15 +605,19 @@ impl Api {
             }))
             .build()
             .map_err(|e| e.to_string())?;
+        let login_permit = crate::traffic::before(BASE)?;
         let get = client
             .get(format!("{BASE}/login"))
             .send()
             .map_err(|_| "No se pudo conectar con Whakoom. Revisá tu conexión")?;
+        login_permit.check(&get)?;
         if !get.status().is_success() {
             return Err("Whakoom requiere una verificación del acceso. Usá Verificar acceso en esta ventana".into());
         }
         let raw = limited_response(get)?;
+        drop(login_permit);
         let token = login_token(&raw)?;
+        let login_permit = crate::traffic::before(BASE)?;
         let response = client
             .post(format!("{BASE}/login"))
             .header(header::REFERER, format!("{BASE}/login"))
@@ -627,6 +631,7 @@ impl Api {
             ])
             .send()
             .map_err(|_| "No se pudo enviar el login. Probá de nuevo")?;
+        login_permit.check(&response)?;
         if !response.status().is_success() {
             return Err(
                 "Whakoom rechazó el acceso. Comprobá las credenciales o usá Verificar acceso"
@@ -634,6 +639,7 @@ impl Api {
             );
         }
         let html = limited_response(response)?;
+        drop(login_permit);
         let name=parse_profile(&html).ok_or_else(||{
             let h=Html::parse_document(&html);let msg=first(&h,".validation-summary-errors, .field-validation-error, .login-error");
             if msg.is_empty(){"No se pudo iniciar sesión. Revisá las credenciales; si son correctas, usá Verificar acceso".into()}else{msg.chars().take(240).collect::<String>()}
@@ -689,6 +695,7 @@ impl Api {
         referer: Option<&str>,
     ) -> Result<String, String> {
         let url = safe_url(path)?;
+        let permit = crate::traffic::before(&url)?;
         let req = if let Some(body) = body {
             self.client
                 .post(url)
@@ -702,6 +709,7 @@ impl Api {
             .header(header::REFERER, safe_url(referer.unwrap_or("/"))?)
             .send()
             .map_err(|e| format!("No se pudo conectar: {e}"))?;
+        permit.check(&response)?;
         let status = response.status();
         if status.as_u16() == 401 {
             return Err(
@@ -901,9 +909,11 @@ impl Api {
         &self,
         request: reqwest::blocking::RequestBuilder,
     ) -> Result<String, String> {
+        let permit = crate::traffic::before(BASE)?;
         let response = request
             .send()
             .map_err(|_| "No se pudo guardar en Whakoom. Revisá tu conexión")?;
+        permit.check(&response)?;
         if !response.status().is_success() {
             return Err(format!("Whakoom respondió HTTP {}", response.status()));
         }

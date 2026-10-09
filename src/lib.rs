@@ -21,6 +21,7 @@ pub mod social;
 pub mod storage;
 pub mod sync;
 pub mod theme;
+pub mod traffic;
 
 pub mod calendar;
 pub mod help;

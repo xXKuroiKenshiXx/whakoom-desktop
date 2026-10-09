@@ -26,9 +26,9 @@ use std::{
 #[cfg(windows)]
 use whakoom_desktop::api;
 use whakoom_desktop::{
-    account, badges,
+    account,
     api::{Api, Detail, Item, Page},
-    brand, calendar, catalog,
+    badges, brand, calendar, catalog,
     covers::CoverClient,
     discover, discussion, help, holographic,
     i18n::{self, tr},
@@ -151,6 +151,7 @@ enum Job {
     Logout,
     Pull(String, Vec<Item>),
     Manga(String, Option<String>, Arc<AtomicBool>),
+    MangaCover(String, Arc<AtomicBool>),
     Shops(Box<Detail>),
     Push(String, sync::Pending),
     Metadata(Item, String),
@@ -207,7 +208,7 @@ enum Data {
     OnlineStats(String, Result<statistics::OnlineReadings, String>),
     Help(Result<help::Page, String>),
     Manga(Result<manga_site::Page, String>),
-    MangaCover(String, String),
+    MangaCover(String, Result<String, String>),
     Shops(String, Result<Vec<shops::Shop>, String>),
 }
 struct Event {
@@ -411,7 +412,7 @@ fn worker(
                         if cancelled.load(Ordering::Relaxed) {
                             return;
                         }
-                        let mut links = page.as_ref().map(|p| p.results.clone()).unwrap_or_default();
+                        let initial = page.as_ref().ok().cloned();
                         let _ = events.send(Event {
                             id,
                             data: Ok(Data::Manga(page)),
@@ -422,43 +423,38 @@ fn worker(
                         };
                         // The first exact query is painted immediately. Broader variants
                         // enrich the page afterwards, without blocking navigation.
-                        if let Ok(full) = manga_site::fetch(&url, Some(query)) {
-                            if !cancelled.load(Ordering::Relaxed) {
-                                links = full.results.clone();
-                                let _ = events.send(Event {
-                                    id,
-                                    data: Ok(Data::Manga(Ok(full))),
-                                });
-                                context.request_repaint();
-                            }
-                        }
-                        for batch in links.chunks(3) {
-                            if cancelled.load(Ordering::Relaxed) {
-                                return;
-                            }
-                            std::thread::scope(|scope| {
-                                for link in batch {
-                                    let events = &events;
-                                    let context = &context;
-                                    let cancelled = &cancelled;
-                                    scope.spawn(move || {
-                                        if let Ok(page) = manga_site::fetch(&link.url, None)
-                                            && !cancelled.load(Ordering::Relaxed)
-                                            && let Some(cover) = page
-                                                .blocks
-                                                .iter()
-                                                .find(|b| !b.cover.is_empty())
-                                                .map(|b| b.cover.clone())
-                                        {
-                                            let _ = events.send(Event {
-                                                id,
-                                                data: Ok(Data::MangaCover(link.url.clone(), cover)),
-                                            });
-                                            context.request_repaint();
-                                        }
-                                    });
-                                }
+                        if let Ok(full) = manga_site::fetch_remaining(query, initial.as_ref())
+                            && !cancelled.load(Ordering::Relaxed)
+                        {
+                            let _ = events.send(Event {
+                                id,
+                                data: Ok(Data::Manga(Ok(full))),
                             });
+                            context.request_repaint();
+                        }
+                    });
+                    continue;
+                }
+                Job::MangaCover(url, cancelled) => {
+                    let events = etx.clone();
+                    let context = ctx.clone();
+                    std::thread::spawn(move || {
+                        if cancelled.load(Ordering::Relaxed) {
+                            return;
+                        }
+                        let result = manga_site::fetch(&url, None).and_then(|page| {
+                            page.blocks
+                                .into_iter()
+                                .find(|block| !block.cover.is_empty())
+                                .map(|block| block.cover)
+                                .ok_or_else(|| "Sin portada".into())
+                        });
+                        if !cancelled.load(Ordering::Relaxed) {
+                            let _ = events.send(Event {
+                                id,
+                                data: Ok(Data::MangaCover(url, result)),
+                            });
+                            context.request_repaint();
                         }
                     });
                     continue;
@@ -758,7 +754,9 @@ fn worker(
                     api = Api::new(String::new()).unwrap();
                     Ok(Data::Logout(session::clear().err()))
                 }
-                Job::Manga(_, _, _) => unreachable!("Manga se consulta en segundo plano"),
+                Job::Manga(_, _, _) | Job::MangaCover(_, _) => {
+                    unreachable!("Manga se consulta en segundo plano")
+                }
                 Job::Shops(detail) => Ok(Data::Shops(detail.item.key.clone(), api.shops(&detail))),
                 Job::Pull(owner, candidates) => {
                     let result = (|| {
@@ -894,6 +892,9 @@ struct App {
     manga_page: manga_site::Page,
     manga_query: String,
     manga_loading: bool,
+    manga_cover_pending: HashSet<String>,
+    manga_cover_failed: HashSet<String>,
+    manga_known_covers: HashMap<String, String>,
     manga_cancel: Arc<AtomicBool>,
     manga_error: String,
     manga_origin: Option<(Tab, Item)>,
@@ -1114,6 +1115,9 @@ impl App {
             manga_page: Default::default(),
             manga_query: String::new(),
             manga_loading: false,
+            manga_cover_pending: HashSet::new(),
+            manga_cover_failed: HashSet::new(),
+            manga_known_covers: HashMap::new(),
             manga_cancel: Arc::new(AtomicBool::new(false)),
             manga_error: String::new(),
             manga_origin: None,
@@ -1627,6 +1631,10 @@ impl App {
         {
             return;
         }
+        if whakoom_desktop::traffic::paused(whakoom_desktop::api::BASE) {
+            ctx.request_repaint_after(Duration::from_secs(5));
+            return;
+        }
         if Instant::now() < self.next_push {
             ctx.request_repaint_after(Duration::from_secs(1));
             return;
@@ -1956,6 +1964,14 @@ impl App {
         }
     }
     fn poll(&mut self, ctx: &egui::Context) {
+        self.failed.retain(|url, error| {
+            !error.starts_with("HTTP 429:") || whakoom_desktop::traffic::paused(url)
+        });
+        if whakoom_desktop::traffic::paused(whakoom_desktop::api::BASE)
+            || whakoom_desktop::traffic::paused("https://www.listadomanga.es")
+        {
+            ctx.request_repaint_after(Duration::from_secs(5));
+        }
         if let Some(changed) = self.library_dirty {
             if changed.elapsed() >= Duration::from_millis(400) {
                 self.flush_library();
@@ -2020,16 +2036,39 @@ impl App {
                         }
                     );
                 }
-                Ok(Data::MangaCover(url, cover)) if relevant && self.tab == Tab::MangaSite => {
-                    if let Some(link) = self.manga_page.results.iter_mut().find(|l| l.url == url) {
-                        link.cover = cover;
+                Ok(Data::MangaCover(url, result)) if relevant && self.tab == Tab::MangaSite => {
+                    self.manga_cover_pending.remove(&url);
+                    match result {
+                        Ok(cover) => {
+                            if let Some(link) =
+                                self.manga_page.results.iter_mut().find(|l| l.url == url)
+                            {
+                                link.cover = cover.clone();
+                            }
+                            if self.manga_known_covers.len() >= 500 {
+                                self.manga_known_covers.clear();
+                            }
+                            self.manga_known_covers.insert(url, cover);
+                        }
+                        Err(error) if error.starts_with("HTTP 429:") => {}
+                        Err(_) => {
+                            self.manga_cover_failed.insert(url);
+                        }
                     }
                 }
                 Ok(Data::Manga(result)) if relevant => {
                     self.busy = false;
                     self.manga_loading = false;
                     match result {
-                        Ok(page) => self.manga_page = page,
+                        Ok(mut page) => {
+                            for link in &mut page.results {
+                                if let Some(cover) = self.manga_known_covers.get(&link.url) {
+                                    link.cover = cover.clone();
+                                }
+                            }
+                            self.manga_error.clear();
+                            self.manga_page = page;
+                        }
                         Err(error) => self.manga_error = error,
                     }
                 }
@@ -2048,8 +2087,6 @@ impl App {
                         if relevant {
                             self.busy = false;
                         }
-                        self.metadata_fetched.clear();
-                        self.metadata_failed.clear();
                         sync::reconcile(&mut self.library, &owned, &wanted);
                         self.save_library();
                         self.stats = self.library.stats();
@@ -2672,6 +2709,7 @@ impl App {
     fn upgrade_cover(&mut self, key: &str, ui: &egui::Ui) {
         if self.incomplete.contains(key)
             && !self.prefs.offline
+            && !whakoom_desktop::traffic::paused(key)
             && !self.pending.contains(key)
             && !self.failed.contains_key(key)
             && self
@@ -2952,6 +2990,7 @@ impl App {
             || self.metadata_pending.contains(&item.key)
             || self.metadata_failed.contains(&item.key)
             || self.metadata_fetched.contains(&item.key)
+            || whakoom_desktop::traffic::paused("https://www.whakoom.com")
             || self.busy
             || self.syncing
             || self.pushing
@@ -2967,7 +3006,6 @@ impl App {
         }
     }
     fn card_rating(&mut self, ui: &mut egui::Ui, item: &Item, group: Option<&Series>) {
-        self.request_metadata(item);
         let edition = group.and_then(|_| {
             self.library
                 .entries
@@ -2977,9 +3015,6 @@ impl App {
                 .edition
                 .clone()
         });
-        if let Some(edition) = &edition {
-            self.request_metadata(edition);
-        }
         let source = edition.as_ref().unwrap_or(item);
         let community = self
             .library
@@ -4927,27 +4962,53 @@ impl App {
         let p = self.p();
         self.setting_card(ui, Icon::Star, "Insignias", |app, ui| {
             ui.label(RichText::new(tr("Logros locales de tu biblioteca")).color(p.muted));
-            ui.label(RichText::new(tr("Se calculan sin conexión y no modifican tu cuenta de Whakoom.")).small().color(p.muted));
+            ui.label(
+                RichText::new(tr(
+                    "Se calculan sin conexión y no modifican tu cuenta de Whakoom.",
+                ))
+                .small()
+                .color(p.muted),
+            );
             ui.add_space(10.);
             let earned = badges::all(&app.library);
-            let columns: usize = if ui.available_width() >= 720. { 3 } else if ui.available_width() >= 460. { 2 } else { 1 };
-            let width = ((ui.available_width() - (columns.saturating_sub(1) as f32 * 12.)) / columns as f32).max(180.);
+            let columns: usize = if ui.available_width() >= 720. {
+                3
+            } else if ui.available_width() >= 460. {
+                2
+            } else {
+                1
+            };
+            let width = ((ui.available_width() - (columns.saturating_sub(1) as f32 * 12.))
+                / columns as f32)
+                .max(180.);
             for row in earned.chunks(columns) {
                 ui.horizontal_top(|ui| {
                     for badge in row {
                         let fill = if badge.unlocked() { p.selected } else { p.bg };
-                        egui::Frame::new().fill(fill).stroke(egui::Stroke::new(1., p.border)).corner_radius(10).inner_margin(12.).show(ui, |ui| {
-                            ui.set_min_width(width - 24.);
-                            ui.horizontal(|ui| {
-                                ui.label(RichText::new(badge.icon).size(25.));
-                                ui.vertical(|ui| {
-                                    ui.label(RichText::new(tr(badge.title)).strong());
-                                    ui.label(RichText::new(tr(badge.description)).small().color(p.muted));
+                        egui::Frame::new()
+                            .fill(fill)
+                            .stroke(egui::Stroke::new(1., p.border))
+                            .corner_radius(10)
+                            .inner_margin(12.)
+                            .show(ui, |ui| {
+                                ui.set_min_width(width - 24.);
+                                ui.horizontal(|ui| {
+                                    ui.label(RichText::new(badge.icon).size(25.));
+                                    ui.vertical(|ui| {
+                                        ui.label(RichText::new(tr(badge.title)).strong());
+                                        ui.label(
+                                            RichText::new(tr(badge.description))
+                                                .small()
+                                                .color(p.muted),
+                                        );
+                                    });
                                 });
+                                ui.add_space(7.);
+                                ui.add(
+                                    egui::ProgressBar::new(badge.progress())
+                                        .text(format!("{}/{}", badge.current, badge.target)),
+                                );
                             });
-                            ui.add_space(7.);
-                            ui.add(egui::ProgressBar::new(badge.progress()).text(format!("{}/{}", badge.current, badge.target)));
-                        });
                     }
                 });
                 ui.add_space(10.);
@@ -5707,6 +5768,80 @@ fn item_rows(
 #[cfg(test)]
 mod ui_tests {
     #[test]
+    fn manga_previews_load_only_visible_results_and_survive_search_enrichment() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        app.prefs.animations = false;
+        app.prefs.offline = false;
+        app.prefs.list_view = false;
+        app.tab = Tab::MangaSite;
+        let page = manga_site::Page {
+            url: "https://www.listadomanga.es/buscador.php".into(),
+            title: "Serie".into(),
+            queries: vec!["Serie".into()],
+            results: (1..=50)
+                .map(|id| manga_site::Link {
+                    title: format!("Serie {id}"),
+                    url: format!("https://www.listadomanga.es/coleccion.php?id={id}"),
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        };
+        app.manga_page = page.clone();
+        let (tx, jobs) = mpsc::channel();
+        app.tx = tx;
+        let (events, rx) = mpsc::channel();
+        app.rx = rx;
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let requested = jobs
+            .try_iter()
+            .filter_map(|(_, job)| match job {
+                Job::MangaCover(url, _) => Some(url),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(requested.len(), 2);
+        assert_ne!(requested[0], requested[1]);
+        for url in &requested {
+            assert!(app.ui_rects.contains_key(&format!("manga-result-{url}")));
+        }
+        assert!(!requested.contains(&page.results[49].url));
+        let url = requested[0].clone();
+        let cover = "https://static.listadomanga.com/covers/preview.jpg".to_owned();
+        events
+            .send(Event {
+                id: app.generation,
+                data: Ok(Data::MangaCover(url.clone(), Ok(cover.clone()))),
+            })
+            .unwrap();
+        // Broader search results can arrive after the first cover: keep that
+        // resolved URL instead of downloading the collection page again.
+        events
+            .send(Event {
+                id: app.generation,
+                data: Ok(Data::Manga(Ok(page))),
+            })
+            .unwrap();
+        app.poll(&ctx);
+        assert_eq!(
+            app.manga_page
+                .results
+                .iter()
+                .find(|l| l.url == url)
+                .unwrap()
+                .cover,
+            cover
+        );
+        assert!(!app.manga_cover_pending.contains(&url));
+    }
+
+    #[test]
     fn collection_spending_is_inside_annual_statistics_not_a_separate_card() {
         let ctx = egui::Context::default();
         let mut app = App::new(
@@ -6436,6 +6571,19 @@ mod ui_tests {
         assert_eq!(app.items.len(), 3);
         for _ in 0..2 {
             frame(&mut app, &ctx, vec![]);
+        }
+        let actions = [
+            "remove-edition",
+            "series-opinions",
+            "favorite-edition",
+            "add-edition",
+        ];
+        for action in actions {
+            assert_eq!(
+                app.ui_rects[action].size(),
+                Vec2::new(280., 46.),
+                "Unequal series action: {action}"
+            );
         }
         let position = app.ui_rects["favorite-edition"].center();
         click(&mut app, &ctx, position);

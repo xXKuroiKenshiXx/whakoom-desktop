@@ -164,7 +164,7 @@ impl App {
                             "Lo quiero",
                             &mut wanted,
                             p,
-                            Some(280.),
+                            Some(Vec2::new(280., 46.)),
                         );
                         #[cfg(test)]
                         self.ui_rects.insert("favorite-edition".into(), wish.rect);
@@ -176,7 +176,7 @@ impl App {
                             let add = ui.add_enabled(
                                 !self.busy && self.library_valid && saved.complete,
                                 egui::Button::new(tr("Completar colección"))
-                                    .min_size(Vec2::new(260., 44.)),
+                                    .min_size(Vec2::new(280., 46.)),
                             );
                             #[cfg(test)]
                             self.ui_rects.insert("add-edition".into(), add.rect);

@@ -30,13 +30,52 @@ pub fn all(library: &Library) -> Vec<Badge> {
         .values()
         .filter(|edition| edition.complete && !edition.volumes.is_empty())
         .count();
-    let rated = library.entries.values().filter(|entry| entry.rating > 0).count();
+    let rated = library
+        .entries
+        .values()
+        .filter(|entry| entry.rating > 0)
+        .count();
     [
-        ("read-10", "Primera lectura", "Leé 10 tomos", "📖", stats.read, 10),
-        ("read-50", "Lector constante", "Leé 50 tomos", "📚", stats.read, 50),
-        ("read-100", "Centena", "Leé 100 tomos", "🏆", stats.read, 100),
-        ("owned-10", "Estantería inicial", "Añadí 10 tomos", "📦", stats.owned, 10),
-        ("owned-100", "Gran colección", "Añadí 100 tomos", "🗃️", stats.owned, 100),
+        (
+            "read-10",
+            "Primera lectura",
+            "Leé 10 tomos",
+            "📖",
+            stats.read,
+            10,
+        ),
+        (
+            "read-50",
+            "Lector constante",
+            "Leé 50 tomos",
+            "📚",
+            stats.read,
+            50,
+        ),
+        (
+            "read-100",
+            "Centena",
+            "Leé 100 tomos",
+            "🏆",
+            stats.read,
+            100,
+        ),
+        (
+            "owned-10",
+            "Estantería inicial",
+            "Añadí 10 tomos",
+            "📦",
+            stats.owned,
+            10,
+        ),
+        (
+            "owned-100",
+            "Gran colección",
+            "Añadí 100 tomos",
+            "🗃️",
+            stats.owned,
+            100,
+        ),
         (
             "collections-5",
             "Coleccionista",
@@ -45,8 +84,22 @@ pub fn all(library: &Library) -> Vec<Badge> {
             collections,
             5,
         ),
-        ("wanted-10", "En la mira", "Guardá 10 tomos deseados", "💛", stats.wanted, 10),
-        ("rated-10", "Criterio propio", "Valorá 10 tomos", "⭐", rated, 10),
+        (
+            "wanted-10",
+            "En la mira",
+            "Guardá 10 tomos deseados",
+            "💛",
+            stats.wanted,
+            10,
+        ),
+        (
+            "rated-10",
+            "Criterio propio",
+            "Valorá 10 tomos",
+            "⭐",
+            rated,
+            10,
+        ),
     ]
     .into_iter()
     .map(|(id, title, description, icon, current, target)| Badge {
@@ -69,16 +122,21 @@ mod tests {
     fn badges_are_derived_from_local_progress() {
         let mut library = Library::default();
         for index in 0..10 {
-            let mut entry = Entry::default();
-            entry.item = Item {
-                key: format!("comic-{index}"),
-                title: format!("Comic {index}"),
+            let entry = Entry {
+                item: Item {
+                    key: format!("comic-{index}"),
+                    title: format!("Comic {index}"),
+                    ..Default::default()
+                },
+                read: true,
                 ..Default::default()
             };
-            entry.read = true;
             library.entries.insert(entry.item.key.clone(), entry);
         }
-        let first = all(&library).into_iter().find(|badge| badge.id == "read-10").unwrap();
+        let first = all(&library)
+            .into_iter()
+            .find(|badge| badge.id == "read-10")
+            .unwrap();
         assert!(first.unlocked());
         assert_eq!(first.progress(), 1.);
     }

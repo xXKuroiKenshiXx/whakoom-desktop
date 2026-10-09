@@ -4,11 +4,13 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 
 ## Comprobaciones de 3.1.0
 
+Revisión adicional de solicitudes: 139 pruebas aprobadas en Windows x64/MSVC, formato y Clippy sin advertencias. Las pruebas comprueban la pausa compartida ante 429, las dos formas de `Retry-After`, la conservación del plazo frente a respuestas simultáneas y la carga de sólo dos previews visibles sin repetirlas. Las portadas resueltas sobreviven a la llegada de nuevas variantes de búsqueda. La geometría de las cuatro acciones de serie se comprueba por igualdad de ancho y alto. Las comprobaciones Linux siguientes corresponden a la revisión anterior.
+
 131 pruebas aprobadas en Windows x64/MSVC y 131 en Ubuntu 24.04 x86_64. Formato y Clippy aprobados. Capturas nativas del perfil, popup y faltantes, incluidas ventanas pequeñas; AppImage ejecutada en X11 con Xvfb y renderizado software. El ejecutable extraído del instalador coincide por SHA-256 con el binario final.
 
 - Revisión de interfaz: Deseados filtra Todos, Series y Tomos sin excluir tipos del estado «Lo quiero». Lecturas alterna por clic entre lista y portadas. Los favoritos de Personas persisten en el respaldo sin modificar Seguidos, Seguidores ni la cola de cambios online.
 - Valoraciones personales compactas: clic para votar y repetir clic para quitar la nota. Comprar conserva el tamaño y la alineación de Leído y abrir las tiendas no altera la colección.
-- Listado Manga combina hasta seis variantes con un máximo de tres solicitudes concurrentes, deduplica y prioriza coincidencias. Consulta pública real: seis variantes del título A Returner’s Magic Should Be Special devolvieron 75 resultados únicos; se comprobaron portadas de las primeras seis fichas. Las imágenes usan un cliente sin cookies de Whakoom.
+- Listado Manga combina hasta seis variantes y limita a dos las solicitudes de red simultáneas, deduplica y prioriza coincidencias. Consulta pública real anterior: seis variantes del título A Returner’s Magic Should Be Special devolvieron 75 resultados únicos; se comprobaron portadas de las primeras seis fichas. Las imágenes usan un cliente sin cookies de Whakoom.
 - Amazon: consulta autenticada de sólo lectura de las tiendas de un tomo; el enlace `clickgotoshop.ashx` devolvió JSON y se resolvió a una URL HTTPS de Amazon con precio. La respuesta rechaza hosts externos ajenos a Amazon; no se efectuaron compras.
 - Progreso de propiedad: el total procede de una edición completa; no se estima usando sólo los tomos adquiridos. Respeta el estado local pendiente y no muestra cifras inventadas cuando falta el total.
 - Consulta autenticada de sólo lectura de la edición 627715: el servicio `EditionComicsPage` con modo 1 y las páginas `/todos`, `/tengo` y `/faltan` coinciden (2 tomos, 1 adquirido y 1 faltante en la cuenta consultada). La ficha del tomo identifica la misma edición. No se efectuaron altas, bajas ni cambios de perfil durante esta comprobación.
@@ -63,7 +65,7 @@ Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y ruta
 - Seguidores y perfiles comprobados en el sitio real; pestañas, respaldos y aislamiento de respuestas de otra cuenta verificados. No se publican los resultados personales de la consulta.
 - Hover: margen exterior de 18 px que mantiene el zoom sin activarlo desde fuera; desvanecimiento al salir y desactivación inmediata de animaciones.
 - Compresión sin pérdida: mismos píxeles tras guardar, archivo igual o menor, caché borrada no recreada por el optimizador. Ajustes organizado por secciones y capturas de Almacenamiento.
-- Miniaturas progresivas: un tamaño pequeño permanece visible mientras falta la resolución final, incluso si su caché está corrupta; no se agranda antes de descargar la imagen final.
+- Miniaturas progresivas: un tamaño pequeño ya guardado permanece visible mientras falta la resolución final, incluso si su caché está corrupta. Una portada sin caché descarga directamente la calidad elegida para evitar dos solicitudes.
 - Caché y respaldos: límites, limpieza de archivos propios, imágenes inválidas, exportación CSV y validación de importaciones.
 - Linux: escritura atómica no sigue un enlace simbólico al reemplazarlo; el archivo resultante tiene permisos 0600.
 

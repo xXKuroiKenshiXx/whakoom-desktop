@@ -7,6 +7,8 @@ impl App {
         }
         self.manga_loading = true;
         self.manga_error.clear();
+        self.manga_cover_pending.clear();
+        self.manga_cover_failed.clear();
         self.manga_cancel.store(true, Ordering::Relaxed);
         self.manga_cancel = Arc::new(AtomicBool::new(false));
         self.send(Job::Manga(url, query, self.manga_cancel.clone()));
@@ -33,6 +35,28 @@ impl App {
             "https://www.listadomanga.es/buscador.php".into(),
             Some(title),
         );
+    }
+    fn request_manga_cover(&mut self, ui: &egui::Ui, rect: egui::Rect, link: &manga_site::Link) {
+        if !ui.is_rect_visible(rect)
+            || !link.cover.is_empty()
+            || self.prefs.offline
+            || self.manga_cover_pending.len() >= 2
+            || self.manga_cover_pending.contains(&link.url)
+            || self.manga_cover_failed.contains(&link.url)
+            || whakoom_desktop::traffic::paused(&link.url)
+        {
+            return;
+        }
+        if self
+            .tx
+            .send((
+                self.generation,
+                Job::MangaCover(link.url.clone(), self.manga_cancel.clone()),
+            ))
+            .is_ok()
+        {
+            self.manga_cover_pending.insert(link.url.clone());
+        }
     }
     pub(super) fn manga_ui(&mut self, ui: &mut egui::Ui) {
         let p = self.p();
@@ -140,6 +164,11 @@ impl App {
                                                             width - 24.,
                                                             (width - 24.) * 1.43,
                                                         ),
+                                                    );
+                                                    self.request_manga_cover(
+                                                        ui,
+                                                        response.rect,
+                                                        link,
                                                     );
                                                     let button = ui.add_sized(
                                                         [width - 24., 50.],
