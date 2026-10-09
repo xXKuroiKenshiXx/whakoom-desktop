@@ -8,17 +8,17 @@ La captura usa títulos públicos y una biblioteca de ejemplo; no contiene una s
 
 Mi biblioteca abre en **Tomos faltantes**, mostrando el tomo de menor numeración que te falta en cada serie desde la caché, con actualización en segundo plano. La barra permite cambiar a **Series** o **Tomos**, y cada edición permite alternar entre **Todos, Tengo y Faltan**. Las tarjetas siguen abriendo durante la carga. La cuenta tiene sus secciones arriba, un diálogo para editar foto, nombre público y biografía e **Insignias** locales derivadas de tu biblioteca.
 
-## Descargar 3.2.0
+## Descargar 3.3.0
 
-[Descargas y notas de la versión](https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/tag/v3.2.0)
+[Descargas y notas de la versión](https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/tag/v3.3.0)
 
 | Sistema | Archivo | Requisitos |
 | --- | --- | --- |
-| Windows | `Whakoom-Desktop-3.2.0-setup.exe` | Windows 10/11, x64 |
-| Windows portable | `Whakoom-Desktop-3.2.0.exe` o ZIP | Mismos requisitos; no requiere instalación |
-| Linux | `Whakoom-Desktop-3.2.0-x86_64.AppImage` | x86_64, glibc 2.39 o posterior, OpenGL, X11/Wayland |
+| Windows | `Whakoom-Desktop-3.3.0-setup.exe` | Windows 10/11, x64 |
+| Windows portable | `Whakoom-Desktop-3.3.0.exe` o ZIP | Mismos requisitos; no requiere instalación |
+| Linux | `Whakoom-Desktop-3.3.0-x86_64.AppImage` | x86_64, glibc 2.39 o posterior, OpenGL, X11/Wayland |
 
-En Linux: `chmod +x Whakoom-Desktop-3.2.0-x86_64.AppImage` y ejecutá el archivo. Si FUSE no está disponible, usá `./Whakoom-Desktop-3.2.0-x86_64.AppImage --appimage-extract-and-run`. Para guardar la sesión y los datos privados cifrados necesitás un servicio Secret Service desbloqueado, como GNOME Keyring o KWallet compatible. La verificación adicional mediante navegador integrado está disponible únicamente en Windows y requiere WebView2; el inicio con credenciales usa HTTPS en ambos sistemas.
+En Linux: `chmod +x Whakoom-Desktop-3.3.0-x86_64.AppImage` y ejecutá el archivo. Si FUSE no está disponible, usá `./Whakoom-Desktop-3.3.0-x86_64.AppImage --appimage-extract-and-run`. Para guardar la sesión y los datos privados cifrados necesitás un servicio Secret Service desbloqueado, como GNOME Keyring o KWallet compatible. La verificación adicional mediante navegador integrado está disponible únicamente en Windows y requiere WebView2; el inicio con credenciales usa HTTPS en ambos sistemas.
 
 Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA256SUMS.txt` de la misma publicación. Portable significa que no necesita instalador: los datos siguen en la carpeta de usuario, separados del ejecutable.
 
@@ -102,7 +102,7 @@ Las tiendas se abren en el navegador; no se realizan compras dentro de la aplica
 
 La comprobación de actualizaciones consulta únicamente el repositorio de este proyecto en GitHub, sin cookies de Whakoom. La instalación requiere una acción explícita dentro de la app, verifica SHA-256 y conserva los datos. Windows portable espera al cierre y mantiene una copia del ejecutable anterior; la instalación normal ejecuta el nuevo instalador después del cierre y vuelve a abrir la app. Linux reemplaza la AppImage con escritura atómica si su carpeta permite escribir. No se distribuyen firmas comerciales.
 
-Gastos, etiquetas, objetivos y reacciones a opiniones son locales. El gasto usa **importes que introducís manualmente**. Podés seleccionar la moneda en cada ficha; los totales se agrupan por moneda y no convierten divisas. Los registros anteriores conservan «sin moneda definida» hasta que les asignes una moneda. Las notas online dependen de los permisos que Whakoom conceda a la cuenta. Las herramientas locales no desbloquean funciones Pro del servicio.
+Gastos, etiquetas, objetivos y reacciones a opiniones son locales. El gasto usa **importes que introducís manualmente**. Podés seleccionar la moneda en cada ficha; los totales se agrupan por moneda y no convierten divisas. Los registros anteriores conservan «sin moneda definida» hasta que les asignes una moneda. Las notas online dependen de los permisos que Whakoom conceda a la cuenta. Si el servidor rechaza el editor de notas por permisos, se conservan localmente y la app pausa esa función para evitar solicitudes y avisos repetidos. Cuenta → Perfil muestra por separado los pendientes de confirmación y los datos no disponibles online, con detalles agrupados. Reintentar pendientes sólo retoma errores temporales; Volver a comprobar permisos permite consultar de nuevo después de un cambio de acceso. Las herramientas locales no desbloquean funciones Pro del servicio.
 
 La contraseña no se guarda. Windows protege la sesión con DPAPI; Linux usa el llavero Secret Service. Los respaldos excluyen credenciales, pero incluyen datos personales de biblioteca. Consultá [seguridad](SECURITY.md) y [arquitectura](docs/architecture.md).
 

@@ -1,0 +1,45 @@
+name: Build release packages
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  packages:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: System libraries and packagers
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev libssl-dev libx11-dev libxi-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libgl1-mesa-dev nsis xvfb
+      - name: Install Rust
+        run: rustup update stable --no-self-update
+      - name: Version
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')
+          printf 'APP_VERSION=%s\n' "$version" >> "$GITHUB_ENV"
+      - name: Verified Windows binary from draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p target/release dist
+          gh release download "v$APP_VERSION" --pattern "Whakoom-Desktop-$APP_VERSION.exe" --pattern SHA256SUMS.txt --dir dist
+          grep "  Whakoom-Desktop-$APP_VERSION.exe$" dist/SHA256SUMS.txt > dist/windows-checksum.txt
+          (cd dist && sha256sum --check windows-checksum.txt)
+          cp "dist/Whakoom-Desktop-$APP_VERSION.exe" target/release/whakoom-desktop.exe
+          makensis -V2 -DBUILD_DIR="$PWD/target/release" tools/installer.nsi
+      - name: Linux binary and AppImage
+        run: cargo build --locked --release --bins && bash tools/package-linux.sh --skip-build
+      - name: Linux interface smoke test
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          export WHAKOOM_DESKTOP_DATA_DIR="$RUNNER_TEMP/smoke-data"
+          timeout 40s xvfb-run -a target/release/whakoom-desktop --offline --headless-preview --preview-account-sync --preview-size 1280x1000 --smoke "$RUNNER_TEMP/account-sync.png"
+          test -s "$RUNNER_TEMP/account-sync.png"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: desktop-packages
+          if-no-files-found: error
+          path: |
+            dist/*-setup.exe
+            dist/*.AppImage
+            ${{ runner.temp }}/account-sync.png

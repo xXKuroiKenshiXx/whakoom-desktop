@@ -1,3 +1,4 @@
+mod account_sync_ui;
 mod badges_ui;
 mod catalog_ui;
 mod collection_ui;
@@ -1423,6 +1424,38 @@ impl App {
             app.open_shops(detail);
         }
         if std::env::args().any(|a| a == "--headless-preview")
+            && std::env::args().any(|a| a == "--preview-account-sync")
+        {
+            app.tab = Tab::Account;
+            app.account_page.section = account::Section::Profile;
+            app.prefs.setup_complete = true;
+            app.prefs.tutorial_complete = true;
+            app.onboarding = None;
+            if app.library.account.is_none() {
+                app.library.account = Some(social::User {
+                    username: "lector_ejemplo".into(),
+                    name: "Lector de ejemplo".into(),
+                    ..Default::default()
+                });
+                app.username = Some("lector_ejemplo".into());
+            }
+            for index in 1..=14 {
+                let item = Item {
+                    key: format!("comicPreview{index}"),
+                    title: format!("Tomo de ejemplo {index}"),
+                    ..Default::default()
+                };
+                sync::enqueue(&mut app.library, &item, sync::Change::Notes(String::new()));
+            }
+            if let Some(pending) = app.library.outbox.values().next().cloned() {
+                sync::pause_unavailable_notes(
+                    &mut app.library,
+                    &pending,
+                    "Whakoom no permite editar notas con los permisos actuales de esta cuenta. La nota se conserva en tu PC",
+                );
+            }
+        }
+        if std::env::args().any(|a| a == "--headless-preview")
             && std::env::args().any(|a| a == "--preview-update-notice")
         {
             app.updates.preview_notice();
@@ -1693,6 +1726,9 @@ impl App {
         self.save_library();
     }
     fn pump_sync(&mut self, ctx: &egui::Context) {
+        if sync::apply_known_restrictions(&mut self.library) {
+            self.save_library();
+        }
         if !self.verified
             || self.prefs.offline
             || self.pushing
@@ -1713,11 +1749,7 @@ impl App {
             .library
             .outbox
             .values()
-            .filter(|p| {
-                p.retry_at <= storage::now()
-                    && !p.error.contains("no permite")
-                    && !p.error.contains("no dispone")
-            })
+            .filter(|p| p.retry_at <= storage::now() && !p.unavailable())
             .min_by_key(|p| {
                 if matches!(p.change, sync::Change::EditionOwned(_)) {
                     0
@@ -1741,7 +1773,7 @@ impl App {
             .library
             .outbox
             .values()
-            .any(|p| p.retry_at > storage::now())
+            .any(|p| !p.unavailable() && p.retry_at > storage::now())
         {
             ctx.request_repaint_after(Duration::from_secs(5));
         }
@@ -2263,7 +2295,19 @@ impl App {
                                         (5 * (1u64 << current.attempts.min(6))).min(300)
                                     };
                             }
-                            if error.starts_with("Sincronizando serie:") {
+                            sync::pause_unavailable_notes(&mut self.library, &pending, &error);
+                            let unavailable = self
+                                .library
+                                .outbox
+                                .get(&pending.key())
+                                .is_some_and(|p| p.unavailable());
+                            if unavailable {
+                                self.status =
+                                    tr("Guardado localmente · revisá los permisos en Cuenta");
+                                if self.error.starts_with("Pendiente de sincronizar:") {
+                                    self.error.clear();
+                                }
+                            } else if error.starts_with("Sincronizando serie:") {
                                 self.status = error;
                                 self.error.clear();
                             } else {
@@ -4889,19 +4933,9 @@ impl App {
                 }
                 if !app.verified && icons::action(ui, Icon::Cloud, "Iniciar sesión", p).clicked() { app.show_login = true; }
                 app.badges_entry(ui);
-                if !app.library.outbox.is_empty() {
-                    ui.add_space(10.);
-                    ui.label(RichText::new(format!("{} cambios pendientes de confirmar", app.library.outbox.len())).color(p.accent));
-                    ui.collapsing("Ver pendientes", |ui| {
-                        for pending in app.library.outbox.values().take(12) {
-                            ui.label(format!("{} · {}", pending.item.title, pending.change.kind()));
-                            if !pending.error.is_empty() { ui.label(RichText::new(&pending.error).small().color(p.muted)); }
-                        }
-                    });
-                    if icons::action(ui, Icon::Refresh, "Reintentar pendientes", p).clicked() { app.retry_sync(); }
-                }
                 #[cfg(test)] app.ui_rects.insert("account-summary".into(),ui.min_rect());
             });
+            self.account_sync_ui(ui);
             }
             if self.account_badges {
                 self.badges_ui(ui);
@@ -5269,10 +5303,7 @@ impl App {
             });
     }
     fn retry_sync(&mut self) {
-        for pending in self.library.outbox.values_mut() {
-            pending.error.clear();
-            pending.retry_at = 0;
-        }
+        sync::retry(&mut self.library, false);
         self.next_push = Instant::now();
         self.save_library();
     }

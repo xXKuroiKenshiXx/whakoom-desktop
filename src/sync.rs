@@ -12,6 +12,17 @@ pub enum Change {
     EditionOwned(bool),
 }
 impl Change {
+    pub fn title(&self) -> &'static str {
+        match self {
+            Self::Owned(_) => "Colección",
+            Self::Wanted(_) | Self::EditionFavorite(_) => "Deseados",
+            Self::Read { .. } => "Lecturas",
+            Self::Rating(_) => "Valoraciones",
+            Self::Notes(_) => "Notas personales",
+            Self::Review(_) => "Opiniones",
+            Self::EditionOwned(_) => "Colecciones completas",
+        }
+    }
     pub fn kind(&self) -> &'static str {
         match self {
             Self::Owned(_) => "owned",
@@ -37,6 +48,9 @@ pub struct Pending {
     pub attempts: u32,
 }
 impl Pending {
+    pub fn unavailable(&self) -> bool {
+        self.error.contains("no permite") || self.error.contains("no dispone")
+    }
     pub fn key(&self) -> String {
         format!("{}:{}", self.item.key, self.change.kind())
     }
@@ -97,14 +111,79 @@ pub fn enqueue(library: &mut Library, item: &Item, change: Change) {
             }
         }
     }
+    let error = if matches!(change, Change::Notes(_)) {
+        library
+            .outbox
+            .values()
+            .find(|p| {
+                notes_permission_denied(p)
+                    || (p.item.key == item.key
+                        && matches!(p.change, Change::Notes(_))
+                        && p.unavailable())
+            })
+            .map(|p| p.error.clone())
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
     let pending = Pending {
         item: item.clone(),
         change,
-        error: String::new(),
+        error,
         retry_at: 0,
         attempts: 0,
     };
     library.outbox.insert(pending.key(), pending);
+}
+
+fn notes_permission_denied(pending: &Pending) -> bool {
+    matches!(pending.change, Change::Notes(_))
+        && pending
+            .error
+            .starts_with("Whakoom no permite editar notas con los permisos actuales")
+}
+
+pub fn pause_unavailable_notes(library: &mut Library, pending: &Pending, error: &str) {
+    if !matches!(pending.change, Change::Notes(_))
+        || !error.starts_with("Whakoom no permite editar notas con los permisos actuales")
+    {
+        return;
+    }
+    for current in library.outbox.values_mut() {
+        if matches!(current.change, Change::Notes(_)) {
+            current.error = error.into();
+        }
+    }
+}
+
+pub fn apply_known_restrictions(library: &mut Library) -> bool {
+    let Some(error) = library
+        .outbox
+        .values()
+        .find(|p| notes_permission_denied(p))
+        .map(|p| p.error.clone())
+    else {
+        return false;
+    };
+    let mut changed = false;
+    for pending in library.outbox.values_mut() {
+        if matches!(pending.change, Change::Notes(_)) && pending.error != error {
+            pending.error = error.clone();
+            changed = true;
+        }
+    }
+    changed
+}
+
+pub fn retry(library: &mut Library, unavailable: bool) {
+    for pending in library
+        .outbox
+        .values_mut()
+        .filter(|p| p.unavailable() == unavailable)
+    {
+        pending.error.clear();
+        pending.retry_at = 0;
+    }
 }
 
 pub fn confirm(library: &mut Library, pending: &Pending) {
@@ -303,6 +382,69 @@ pub fn resume_edition_batch(
 #[cfg(test)]
 mod review_tests {
     use super::*;
+    #[test]
+    fn denied_notes_are_local_and_do_not_block_other_changes_or_repeat_requests() {
+        let mut library = Library::default();
+        let first = Item {
+            key: "comic1".into(),
+            title: "Uno".into(),
+            ..Default::default()
+        };
+        let second = Item {
+            key: "comic2".into(),
+            title: "Dos".into(),
+            ..Default::default()
+        };
+        enqueue(&mut library, &first, Change::Notes("Nota uno".into()));
+        enqueue(&mut library, &second, Change::Notes("Nota dos".into()));
+        enqueue(&mut library, &second, Change::Owned(true));
+        let pending = library.outbox["comic1:notes"].clone();
+        let denied = "Whakoom no permite editar notas con los permisos actuales de esta cuenta. La nota se conserva en tu PC";
+        library.outbox.get_mut("comic1:notes").unwrap().error = denied.into();
+        assert!(apply_known_restrictions(&mut library));
+        assert!(!apply_known_restrictions(&mut library));
+        pause_unavailable_notes(&mut library, &pending, denied);
+        assert!(library.outbox["comic1:notes"].unavailable());
+        assert!(library.outbox["comic2:notes"].unavailable());
+        assert!(!library.outbox["comic2:owned"].unavailable());
+        retry(&mut library, false);
+        assert!(library.outbox["comic1:notes"].unavailable());
+        enqueue(&mut library, &second, Change::Notes("Nota editada".into()));
+        assert!(library.outbox["comic2:notes"].unavailable());
+        assert_eq!(
+            library.outbox["comic2:notes"].change,
+            Change::Notes("Nota editada".into())
+        );
+        let mut restored: Library =
+            serde_json::from_slice(&serde_json::to_vec(&library).unwrap()).unwrap();
+        assert!(restored.outbox["comic2:notes"].unavailable());
+        retry(&mut restored, true);
+        assert!(restored.outbox.values().all(|p| !p.unavailable()));
+        assert_eq!(restored.outbox.len(), 3);
+    }
+    #[test]
+    fn a_ficha_restriction_does_not_disable_notes_in_other_fichas_or_network_retries() {
+        let mut library = Library::default();
+        let first = Item {
+            key: "edicion1".into(),
+            ..Default::default()
+        };
+        let second = Item {
+            key: "comic2".into(),
+            ..Default::default()
+        };
+        enqueue(&mut library, &first, Change::Notes("Uno".into()));
+        let error = "La cuenta no dispone del editor de notas para esta ficha";
+        library.outbox.get_mut("edicion1:notes").unwrap().error = error.into();
+        let pending = library.outbox["edicion1:notes"].clone();
+        pause_unavailable_notes(&mut library, &pending, error);
+        enqueue(&mut library, &second, Change::Notes("Dos".into()));
+        assert!(!library.outbox["comic2:notes"].unavailable());
+        library.outbox.get_mut("comic2:notes").unwrap().error = "HTTP 429".into();
+        assert!(!library.outbox["comic2:notes"].unavailable());
+        enqueue(&mut library, &first, Change::Notes("Editada".into()));
+        assert!(library.outbox["edicion1:notes"].unavailable());
+    }
     #[test]
     fn public_review_is_durable_and_later_rating_cannot_be_overwritten_by_its_retry() {
         let mut library = Library::default();

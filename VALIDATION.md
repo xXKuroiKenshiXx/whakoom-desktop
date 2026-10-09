@@ -1,8 +1,12 @@
-# Validación de 3.2.0
+# Validación de 3.3.0
 
 Revisión: 9 de octubre de 2026. Los resultados describen las plataformas y rutas comprobadas; no constituyen una garantía de ausencia de errores.
 
-## Cambios posteriores a la publicación
+## Comprobaciones de 3.3.0
+
+153 pruebas aprobadas en Windows. En Linux pasan las pruebas disponibles; se mantiene omitida la prueba que requiere un Secret Service aislado y desbloqueado. Formato y Clippy aprobados en ambos sistemas. Las pruebas nuevas verifican que un rechazo de permisos de notas pausa los intentos repetidos, preserva las notas editadas y los pendientes al reiniciar, no frena otros cambios, y no confunde restricciones de una ficha ni HTTP 429 con un bloqueo de la función para toda la cuenta.
+
+## Cambios posteriores a la publicación de 3.2.0
 
 La revisión mantiene el número 3.2.0 y no reemplaza la release pública existente. En esta revisión: 151 pruebas aprobadas en Windows; 150 pruebas normales en Linux y la prueba adicional de archivos cifrados ejecutada con Secret Service en una sesión D-Bus y un llavero temporales aislados. Formato y Clippy comprobados en ambos sistemas.
 
