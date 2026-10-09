@@ -30,7 +30,7 @@ read-fonts = "0.41"
 
 [target.'cfg(windows)'.dependencies]
 wry = { version = "0.55.1", default-features = false, features = ["os-webview"] }
-windows-sys = { version = "0.60.2", features = ["Win32_Security_Cryptography", "Win32_Foundation", "Win32_System_SystemInformation", "Win32_Media_Audio"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Security_Cryptography", "Win32_Foundation", "Win32_System_SystemInformation", "Win32_Media_Audio"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3.6.3", default-features = false, features = ["sync-secret-service", "crypto-rust"] }
