@@ -80,7 +80,14 @@ impl App {
         let mut back = false;
         let mut submit = false;
         let mut retry = false;
-        ui.vertical(|ui| {
+        ui.painter().rect_filled(ui.max_rect(), 0, p.bg);
+        ui.add_space(24.);
+        let width = (ui.available_width() - 48.).clamp(280., 900.);
+        ui.horizontal(|ui| {
+            ui.add_space(((ui.available_width() - width) / 2.).max(0.));
+            egui::Frame::new().fill(p.surface).corner_radius(16).inner_margin(24).show(ui, |ui| {
+                ui.set_width(width - 48.);
+                ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 back = icons::action_with_min_size(ui, Icon::Arrow, "Volver", p, Vec2::new(100., 44.)).clicked();
                 ui.heading(tr("Sugerir un cambio"));
@@ -103,7 +110,7 @@ impl App {
                         });
                         ui.add_space(12.);
                         ui.label(tr("Explicá qué dato es incorrecto y cuál es la corrección"));
-                        ui.add(egui::TextEdit::multiline(&mut form.comment).desired_width(f32::INFINITY).desired_rows(8).char_limit(10000));
+                        ui.add(egui::TextEdit::multiline(&mut form.comment).desired_width(f32::INFINITY).desired_rows(8).font(egui::FontId::proportional(16.)).char_limit(10000));
                         ui.label(tr("Información adicional (opcional)"));
                         ui.add(egui::TextEdit::singleline(&mut form.extra).desired_width(f32::INFINITY).char_limit(2000));
                         ui.add_space(16.);
@@ -111,6 +118,8 @@ impl App {
                             egui::Button::new(tr("Enviar sugerencia")).min_size(Vec2::new(220., 48.))).clicked();
                     });
                 }
+            });
+                });
             });
         });
         if back && !self.suggestion_busy {
