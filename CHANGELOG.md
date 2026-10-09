@@ -2,6 +2,8 @@
 
 ## 3.3.0
 
+- Empaquetado reproducible en GitHub Actions con permisos de sólo lectura; se corrigen las rutas del instalador para compilarlo también con NSIS nativo en Windows.
+
 - Cuenta separa cambios pendientes de confirmación y datos locales no disponibles online. Los detalles se agrupan por acción y motivo, sin repetir avisos por cada tomo. Los rechazos de permisos de notas detienen los reintentos automáticos de esa función; los fallos temporales conservan sus reintentos. Una comprobación manual permite retomar cuando cambian los permisos.
 
 - El aviso de actualización es una notificación flotante que no desplaza el contenido; espera si se está mostrando una insignia.

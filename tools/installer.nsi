@@ -15,8 +15,8 @@ InstallDirRegKey HKCU "Software\WhakoomDesktop" "InstallDir"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 !define MUI_ABORTWARNING
-!define MUI_ICON "../assets/whakoom.ico"
-!define MUI_UNICON "../assets/whakoom.ico"
+!define MUI_ICON "..\assets\whakoom.ico"
+!define MUI_UNICON "..\assets\whakoom.ico"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
@@ -37,9 +37,9 @@ FunctionEnd
 Section "Whakoom Desktop"
   SetShellVarContext current
   SetOutPath "$INSTDIR"
-  File "${BUILD_DIR}/whakoom-desktop.exe"
-  File "../LICENSE"
-  File "../THIRD_PARTY_NOTICES.md"
+  File "${BUILD_DIR}\whakoom-desktop.exe"
+  File "..\LICENSE"
+  File "..\THIRD_PARTY_NOTICES.md"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   CreateDirectory "$SMPROGRAMS\Whakoom Desktop"
   CreateShortcut "$SMPROGRAMS\Whakoom Desktop\Whakoom Desktop.lnk" "$INSTDIR\whakoom-desktop.exe"
