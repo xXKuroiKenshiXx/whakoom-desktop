@@ -6,6 +6,10 @@ Revisión: 9 de octubre de 2026. Los resultados describen las plataformas y ruta
 
 153 pruebas aprobadas en Windows. En Linux pasan las pruebas disponibles; se mantiene omitida la prueba que requiere un Secret Service aislado y desbloqueado. Formato y Clippy aprobados en ambos sistemas. Las pruebas nuevas verifican que un rechazo de permisos de notas pausa los intentos repetidos, preserva las notas editadas y los pendientes al reiniciar, no frena otros cambios, y no confunde restricciones de una ficha ni HTTP 429 con un bloqueo de la función para toda la cuenta.
 
+Se verifican las pantallas de cuenta en Windows y en una AppImage arrancada bajo Xvfb con un llavero Secret Service aislado. La fixture incluye 14 notas rechazadas por permisos y muestra 0 pendientes de confirmación y 14 guardados localmente. El instalador NSIS nativo de Windows se extrae sin instalarlo: su ejecutable coincide por SHA-256 con el EXE portable. La AppImage descargada coincide con el hash emitido por el runner; todos los paquetes finales incluyen SHA-256.
+
+GitHub Actions aprueba Windows, Ubuntu 24.04, la web y la auditoría de dependencias. El empaquetado usa permisos de sólo lectura; no recibe cookies, contraseñas ni datos personales de Whakoom.
+
 ## Cambios posteriores a la publicación de 3.2.0
 
 La revisión mantiene el número 3.2.0 y no reemplaza la release pública existente. En esta revisión: 151 pruebas aprobadas en Windows; 150 pruebas normales en Linux y la prueba adicional de archivos cifrados ejecutada con Secret Service en una sesión D-Bus y un llavero temporales aislados. Formato y Clippy comprobados en ambos sistemas.
