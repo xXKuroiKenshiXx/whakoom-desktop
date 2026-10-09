@@ -137,7 +137,7 @@ impl App {
             .collect();
         ui.label(
             RichText::new(tr(
-                "El próximo tomo que te falta después del último que tenés.",
+                "El tomo de menor numeración que te falta en cada colección.",
             ))
             .color(p.muted),
         );

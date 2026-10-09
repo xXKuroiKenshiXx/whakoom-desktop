@@ -6,7 +6,7 @@ Cliente de escritorio **no oficial** de [Whakoom](https://www.whakoom.com), escr
 
 La captura usa títulos públicos y una biblioteca de ejemplo; no contiene una sesión real.
 
-Mi biblioteca abre en **Tomos faltantes**, mostrando el próximo tomo que te falta después del último que tenés en cada serie desde la caché, con actualización en segundo plano. La barra permite cambiar a **Series** o **Tomos**, y cada edición permite alternar entre **Todos, Tengo y Faltan**. Las tarjetas siguen abriendo durante la carga. La cuenta tiene sus secciones arriba, un diálogo para editar foto, nombre público y biografía e **Insignias** locales derivadas de tu biblioteca.
+Mi biblioteca abre en **Tomos faltantes**, mostrando el tomo de menor numeración que te falta en cada serie desde la caché, con actualización en segundo plano. La barra permite cambiar a **Series** o **Tomos**, y cada edición permite alternar entre **Todos, Tengo y Faltan**. Las tarjetas siguen abriendo durante la carga. La cuenta tiene sus secciones arriba, un diálogo para editar foto, nombre público y biografía e **Insignias** locales derivadas de tu biblioteca.
 
 ## Descargar 3.1.0
 

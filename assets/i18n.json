@@ -2819,11 +2819,11 @@
     "Последний опубликованный том, которого не хватает в каждой коллекции.",
     "每个收藏中缺少的最新出版卷。"
   ],
-  "El próximo tomo que te falta después del último que tenés.": [
-    "The next volume missing after the latest one you own.",
-    "O próximo volume que falta depois do último que você tem.",
-    "Следующий отсутствующий том после последнего имеющегося.",
-    "你拥有的最新卷之后缺少的下一卷。"
+  "El tomo de menor numeración que te falta en cada colección.": [
+    "The lowest-numbered volume missing from each collection.",
+    "O volume de menor numeração que falta em cada coleção.",
+    "Том с наименьшим номером, которого не хватает в каждой коллекции.",
+    "每个收藏中缺少的编号最小的一卷。"
   ],
   "Actualizando en segundo plano…": [
     "Updating in the background…",

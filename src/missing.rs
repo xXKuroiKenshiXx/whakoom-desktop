@@ -138,16 +138,7 @@ pub fn suggestions(library: &Library) -> Vec<Suggestion> {
             continue;
         }
         let missing: Vec<_> = volumes.iter().filter(|v| !owned(library, v)).collect();
-        let Some(last_owned) = volumes.iter().rposition(|v| owned(library, v)) else {
-            continue;
-        };
-        // Whakoom points to the next purchase after the highest owned volume.
-        // If that tail is complete, fall back to the earliest older gap.
-        let next = volumes
-            .iter()
-            .skip(last_owned + 1)
-            .find(|v| !owned(library, v))
-            .or_else(|| missing.first().copied());
+        let next = missing.first().copied();
         if let Some(next) = next {
             result.push(Suggestion {
                 edition: saved.item.clone(),
@@ -229,7 +220,7 @@ impl Api {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn next_missing_is_shown_and_fresh_editions_do_not_repeat_requests() {
+    fn earliest_missing_is_shown_and_fresh_editions_do_not_repeat_requests() {
         let mut l = Library::default();
         let edition = Item {
             key: "edicion12".into(),
@@ -238,7 +229,7 @@ mod tests {
         let volumes = (1..=5).map(volume).collect::<Vec<_>>();
         l.ensure(&volumes[1]).owned = true;
         l.cache_edition(&edition, &volumes, true);
-        assert_eq!(suggestions(&l)[0].next.key, "comic3");
+        assert_eq!(suggestions(&l)[0].next.key, "comic1");
         assert_eq!(suggestions(&l)[0].count, 4);
         assert!(refresh_candidates(&l, false).is_empty());
         assert_eq!(refresh_candidates(&l, true).len(), 1);
@@ -295,7 +286,7 @@ mod tests {
         }
     }
     #[test]
-    fn next_missing_preserves_earlier_gaps_when_the_latest_volume_is_owned() {
+    fn earliest_gap_is_prioritized_before_later_unowned_volumes() {
         let mut l = Library::default();
         let e = Item {
             key: "edicion12".into(),
@@ -307,12 +298,38 @@ mod tests {
         l.cache_edition(&e, &volumes, true);
         l.ensure(&volumes[1]).owned = true;
         let s = suggestions(&l);
-        assert_eq!(s[0].next.key, "comic3");
+        assert_eq!(s[0].next.key, "comic1");
         assert_eq!(s[0].count, 2);
         l.ensure(&volumes[2]).owned = true;
         assert_eq!(suggestions(&l)[0].next.key, "comic1");
         l.ensure(&volumes[0]).owned = true;
         assert!(suggestions(&l).is_empty());
+    }
+    #[test]
+    fn fullmetal_gaps_are_selected_numerically_and_advance_when_owned() {
+        let mut library = Library::default();
+        let edition = Item {
+            key: "edicion12".into(),
+            title: "Fullmetal Alchemist".into(),
+            ..Default::default()
+        };
+        // Pages may arrive out of order; #10 must never precede #5.
+        let volumes = (1..=20).rev().map(volume).collect::<Vec<_>>();
+        for item in &volumes {
+            if item.issue != "#5" && item.issue != "#10" && item.issue != "#20" {
+                library.ensure(item).owned = true;
+            }
+        }
+        library.cache_edition(&edition, &volumes, true);
+        let suggestion = &suggestions(&library)[0];
+        assert_eq!(suggestion.next.issue, "#5");
+        assert_eq!(suggestion.count, 3);
+        library.ensure(&volume(5)).owned = true;
+        assert_eq!(suggestions(&library)[0].next.issue, "#10");
+        library.ensure(&volume(10)).owned = true;
+        assert_eq!(suggestions(&library)[0].next.issue, "#20");
+        library.ensure(&volume(20)).owned = true;
+        assert!(suggestions(&library).is_empty());
     }
     #[test]
     fn partial_editions_and_uncollected_favorites_are_not_missing_collections() {
