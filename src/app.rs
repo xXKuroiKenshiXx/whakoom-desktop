@@ -1422,6 +1422,11 @@ impl App {
         {
             app.open_shops(detail);
         }
+        if std::env::args().any(|a| a == "--headless-preview")
+            && std::env::args().any(|a| a == "--preview-update-notice")
+        {
+            app.updates.preview_notice();
+        }
         if std::env::args().any(|a| a == "--preview-updates") {
             app.generation += 1;
             app.busy = false;
@@ -5725,11 +5730,6 @@ impl eframe::App for App {
             }
         }
         let p = self.p();
-        if self.updates.has_notice() {
-            egui::Panel::top("app-update-banner")
-                .frame(egui::Frame::new().fill(p.bg).inner_margin(8))
-                .show(ui, |ui| self.update_banner(ui));
-        }
         egui::Panel::bottom("status")
             .exact_size(32.)
             .frame(egui::Frame::new().fill(p.surface).inner_margin(7))
@@ -5755,6 +5755,7 @@ impl eframe::App for App {
         self.sidebar(ui);
         self.body(ui);
         self.achievement_ui(&ctx);
+        self.update_notice_ui(&ctx);
         self.cover_viewer_ui(&ctx);
         self.shop_dialog(&ctx);
         self.profile_editor_dialog(&ctx);

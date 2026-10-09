@@ -21,6 +21,19 @@ impl State {
     pub(super) fn has_notice(&self) -> bool {
         self.release.is_some() && !self.dismissed
     }
+    pub(super) fn preview_notice(&mut self) {
+        self.release = Some(updater::Release {
+            version: brand::VERSION.into(),
+            notes: String::new(),
+            url: String::new(),
+            asset: String::new(),
+            download: String::new(),
+            digest: String::new(),
+            size: 0,
+            package: updater::Package::WindowsExe,
+        });
+        self.dismissed = false;
+    }
 }
 impl Default for State {
     fn default() -> Self {
@@ -107,36 +120,57 @@ impl App {
             }
         }
     }
-    pub(super) fn update_banner(&mut self, ui: &mut egui::Ui) {
-        let Some(release) = self.updates.release.as_ref() else {
-            return;
-        };
-        if self.updates.dismissed {
+    pub(super) fn update_notice_ui(&mut self, ctx: &egui::Context) {
+        if !self.updates.has_notice() || self.badge_celebration.is_some() {
             return;
         }
+        let version = self.updates.release.as_ref().unwrap().version.clone();
         let p = self.p();
-        let version = release.version.clone();
-        egui::Frame::new()
-            .fill(p.selected)
-            .corner_radius(12)
-            .inner_margin(12)
-            .show(ui, |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    ui.label(
-                        RichText::new(format!("{} {version}", tr("Nueva versión disponible ·")))
-                            .strong()
-                            .color(p.accent),
-                    );
-                    if ui.button(tr("Ver actualización")).clicked() {
-                        self.select(Tab::Settings);
-                        self.settings_section = SettingsSection::Updates;
-                    }
-                    if ui.small_button(tr("Cerrar")).clicked() {
-                        self.updates.dismissed = true;
-                    }
-                });
+        let width = (ctx.content_rect().width() - 40.).clamp(230., 380.);
+        let mut open = false;
+        let mut dismiss = false;
+        egui::Area::new(egui::Id::new("app-update-notice"))
+            .order(egui::Order::Foreground)
+            .anchor(egui::Align2::RIGHT_BOTTOM, Vec2::new(-20., -52.))
+            .show(ctx, |ui| {
+                egui::Frame::new()
+                    .fill(p.surface)
+                    .stroke(egui::Stroke::new(1., p.accent))
+                    .corner_radius(16)
+                    .inner_margin(16)
+                    .show(ui, |ui| {
+                        ui.set_width(width - 32.);
+                        ui.horizontal(|ui| {
+                            let (rect, _) =
+                                ui.allocate_exact_size(Vec2::splat(26.), egui::Sense::hover());
+                            icons::paint(ui.painter(), rect, Icon::Download, p.accent);
+                            ui.label(
+                                RichText::new(format!(
+                                    "{} {version}",
+                                    tr("Nueva versión disponible ·")
+                                ))
+                                .strong()
+                                .color(p.accent),
+                            );
+                        });
+                        ui.add_space(10.);
+                        ui.horizontal(|ui| {
+                            open = ui
+                                .add_sized([170., 36.], egui::Button::new(tr("Ver actualización")))
+                                .clicked();
+                            dismiss = ui
+                                .add_sized([80., 36.], egui::Button::new(tr("Cerrar")))
+                                .clicked();
+                        });
+                    });
             });
-        ui.add_space(12.);
+        if open {
+            self.select(Tab::Settings);
+            self.settings_section = SettingsSection::Updates;
+        }
+        if open || dismiss {
+            self.updates.dismissed = true;
+        }
     }
     pub(super) fn updates_ui(&mut self, ui: &mut egui::Ui) {
         let p = self.p();

@@ -2,6 +2,8 @@
 
 ## Cambios pendientes de publicación
 
+- El aviso de actualización es una notificación flotante que no desplaza el contenido; espera si se está mostrando una insignia.
+
 - Lecturas muestra sólo leídos y tomos en lectura; se añade el estado local Leyendo.
 - Cifrado de biblioteca, preferencias y páginas privadas, migración de datos anteriores y respaldos cifrados portables. Se documenta qué datos se protegen y los límites del cifrado.
 - Insignias de 1000, 2000 y 4000 tomos; brillo según dificultad, holografía y zoom al pasar el mouse. Pro usa un indicador violeta más grande.
