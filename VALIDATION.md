@@ -1,4 +1,12 @@
-# Validación de 3.3.0
+# Validación de 3.4.0
+
+155 pruebas aprobadas en Windows; formato y Clippy sin advertencias.
+
+Formulario de sugerencias contrastado con el JavaScript público de Whakoom y una consulta autenticada de sólo lectura: cinco categorías y tipo de ficha `e`. No se publicó ninguna corrección ni se modificó una ficha real para probarlo. Las pruebas comprueban rechazo de destinos externos, categorías no ofrecidas por el servidor, formularios sin permiso y alineación del control Crear ficha.
+
+La edición y creación oficiales permanecen integradas mediante WebView2 en Windows. En Linux se ofrece el formulario nativo de sugerencias; crear o modificar directamente sigue pendiente de una integración equivalente. El permiso real de edición depende de Whakoom.
+
+## Validación anterior: 3.3.0
 
 Revisión: 9 de octubre de 2026. Los resultados describen las plataformas y rutas comprobadas; no constituyen una garantía de ausencia de errores.
 

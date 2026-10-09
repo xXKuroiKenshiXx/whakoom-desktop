@@ -78,8 +78,10 @@ jobs:
           dbus-run-session -- bash -c '
             printf "%s" "isolated-smoke-fixture" | gnome-keyring-daemon --unlock
             timeout 90s xvfb-run -a "$APP_BINARY" --offline --headless-preview --preview-visible --preview-account-sync --preview-size 1280x1440 --smoke "$RUNNER_TEMP/account-sync.png"
+            timeout 90s xvfb-run -a "$APP_BINARY" --offline --headless-preview --preview-visible --preview-suggestion --preview-size 1280x900 --smoke "$RUNNER_TEMP/suggestion.png"
           '
           test -s "$RUNNER_TEMP/account-sync.png"
+          test -s "$RUNNER_TEMP/suggestion.png"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -95,4 +97,4 @@ jobs:
         with:
           name: package-preview-Linux
           if-no-files-found: ignore
-          path: ${{ runner.temp }}/account-sync.png
+          path: ${{ runner.temp }}/*.png

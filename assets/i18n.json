@@ -1,56 +1,316 @@
 {
-  "Sincronización de tu cuenta": ["Account synchronization", "Sincronização da sua conta", "Синхронизация аккаунта", "账户同步"],
-  "Pendientes de confirmar": ["Awaiting confirmation", "Aguardando confirmação", "Ожидают подтверждения", "待确认"],
-  "Guardados localmente": ["Saved locally", "Salvos localmente", "Сохранены локально", "已保存在本地"],
-  "No hay cambios esperando confirmación online.": ["No changes are awaiting online confirmation.", "Não há alterações aguardando confirmação online.", "Нет изменений, ожидающих подтверждения онлайн.", "没有等待在线确认的更改。"],
-  "Whakoom no permite enviar algunos datos con los permisos actuales de esta cuenta o ficha. Se conservan en tu PC y no se reintentan automáticamente.": ["Whakoom does not allow some data to be sent with the current account or title permissions. It remains on your PC and is not retried automatically.", "Whakoom não permite enviar alguns dados com as permissões atuais da conta ou ficha. Eles são mantidos no seu PC sem novas tentativas automáticas.", "Whakoom не позволяет отправить некоторые данные с текущими разрешениями аккаунта или карточки. Они остаются на вашем ПК без автоматических повторных попыток.", "Whakoom 不允许以此账户或条目的当前权限发送部分数据。这些数据会保留在电脑上，不会自动重试。"],
-  "Cambios pendientes": ["Pending changes", "Alterações pendentes", "Ожидающие изменения", "待处理更改"],
-  "Funciones no disponibles online": ["Features unavailable online", "Funções indisponíveis online", "Недоступные онлайн функции", "在线不可用的功能"],
-  "Ver títulos": ["View titles", "Ver títulos", "Показать названия", "查看标题"],
-  "Volver a comprobar permisos": ["Check permissions again", "Verificar permissões novamente", "Проверить разрешения снова", "重新检查权限"],
-  "Comprobá los permisos sólo si cambió tu suscripción o acceso. Las funciones locales siguen disponibles sin Pro.": ["Check permissions only if your subscription or access has changed. Local features remain available without Pro.", "Verifique as permissões apenas se sua assinatura ou acesso mudou. As funções locais continuam disponíveis sem Pro.", "Проверяйте разрешения, только если изменилась подписка или доступ. Локальные функции доступны без Pro.", "仅在订阅或访问权限改变后重新检查。本地功能无需 Pro 仍然可用。"],
-  "Guardado localmente · revisá los permisos en Cuenta": ["Saved locally · check permissions in Account", "Salvo localmente · verifique as permissões em Conta", "Сохранено локально · проверьте разрешения в Аккаунте", "已保存在本地 · 在账户中查看权限"],
-  "Consultá tus mangas y tomos": ["Look up your manga and volumes", "Consulte seus mangás e volumes", "Ищите мангу и тома", "查询漫画与单行本"],
-  "Descubrí tus insignias": ["Discover your badges", "Descubra suas medalhas", "Откройте свои награды", "发现你的徽章"],
-  "Desde la ficha de una serie o de un tomo, usá Buscar en Listado Manga debajo de la portada. La búsqueda abre su serie: elegí un tomo individual para consultar sus datos y edición.": ["On a series or volume page, use Search on Listado Manga below the cover. The search opens its series: choose an individual volume to view its details and edition.", "Na ficha de uma série ou volume, use Buscar no Listado Manga abaixo da capa. A busca abre sua série: escolha um volume individual para consultar seus dados e edição.", "На странице серии или тома нажмите «Поиск в Listado Manga» под обложкой. Поиск открывает серию: выберите отдельный том, чтобы посмотреть его данные и издание.", "在系列或单行本详情页中，使用封面下方的“在 Listado Manga 中搜索”。搜索会打开对应系列：选择单本即可查看其资料和版本。"],
-  "Sumá lecturas, tomos y series completas para desbloquear insignias. Cada medalla tiene un objetivo y muestra tu progreso. Encontralas en Cuenta → Perfil → Insignias. Los logros se guardan localmente y no cambian tu suscripción Pro.": ["Read more, collect volumes and complete series to unlock badges. Each medal has a goal and shows your progress. Find them in Account → Profile → Badges. Achievements are saved locally and do not change your Pro subscription.", "Acumule leituras, volumes e séries completas para desbloquear medalhas. Cada medalha tem uma meta e mostra seu progresso. Encontre-as em Conta → Perfil → Medalhas. As conquistas são salvas localmente e não alteram sua assinatura Pro.", "Читайте, собирайте тома и завершайте серии, чтобы получать награды. У каждой медали есть цель и показатель прогресса. Они доступны в разделе Аккаунт → Профиль → Награды. Достижения сохраняются локально и не меняют подписку Pro.", "通过阅读、收集单行本和完成系列来解锁徽章。每枚徽章都有目标和进度。可在账户 → 个人资料 → 徽章中查看。成就保存在本地，不会改变你的 Pro 订阅。"],
-  "Podés volver a ver esta guía desde Ajustes → General.": ["You can replay this guide in Settings → General.", "Você pode rever este guia em Ajustes → Geral.", "Этот гид можно повторить в разделе Настройки → Общие.", "可在设置 → 常规中重新查看本指南。"],
-  "Los nuevos logros tienen sonido y efectos. Podés desactivarlos en Ajustes y volver a ver esta guía desde General.": ["New achievements have sound and effects. You can disable them in Settings and replay this guide under General.", "As novas conquistas têm som e efeitos. Você pode desativá-los em Ajustes e rever este guia em Geral.", "Новые достижения сопровождаются звуком и эффектами. Их можно отключить в Настройках, а повторить гид — в разделе Общие.", "新成就带有音效和特效。可在设置中关闭，也可在常规中重新查看本指南。"],
-  "Leyendo": ["Reading", "Lendo", "Читаю", "阅读中"],
-  "Leyendo · estado local": ["Reading · local status", "Lendo · estado local", "Читаю · локальный статус", "阅读中 · 本地状态"],
-  "Ver tutorial": ["View tutorial", "Ver tutorial", "Открыть руководство", "查看教程"],
-  "Privacidad en este equipo": ["Privacy on this device", "Privacidade neste dispositivo", "Конфиденциальность на этом устройстве", "此设备上的隐私"],
-  "Guardar respaldo cifrado": ["Save encrypted backup", "Salvar backup criptografado", "Сохранить зашифрованную копию", "保存加密备份"],
-  "Al menos 12 caracteres": ["At least 12 characters", "Pelo menos 12 caracteres", "Не менее 12 символов", "至少 12 个字符"],
-  "Contraseña del respaldo · distinta a tu contraseña de Whakoom": ["Backup password · separate from your Whakoom password", "Senha do backup · diferente da sua senha do Whakoom", "Пароль резервной копии · отличается от пароля Whakoom", "备份密码 · 与 Whakoom 密码不同"],
-  "JSON y CSV son exportaciones sin cifrar: contienen tus notas y datos de colección.": ["JSON and CSV exports are unencrypted: they contain your notes and collection data.", "Exportações JSON e CSV não são criptografadas: contêm suas notas e dados da coleção.", "Экспорт JSON и CSV не зашифрован: он содержит заметки и данные коллекции.", "JSON 和 CSV 导出未加密，包含笔记和收藏数据。"],
-  "Si perdés esta contraseña no se puede recuperar el respaldo. Para restaurarlo, escribila antes de elegir el archivo.": ["If you lose this password, the backup cannot be recovered. Enter it before choosing a file to restore.", "Se perder esta senha, o backup não poderá ser recuperado. Digite-a antes de escolher o arquivo para restaurar.", "Если потерять пароль, копию нельзя восстановить. Введите его перед выбором файла.", "如果丢失密码，备份无法恢复。恢复时请先输入密码，再选择文件。"],
-  "Dos valoraciones, dos colores": ["Two ratings, two colors", "Duas avaliações, duas cores", "Две оценки, два цвета", "两种评分，两种颜色"],
-  "Tu comunidad, a tu manera": ["Your community, your way", "Sua comunidade, do seu jeito", "Ваше сообщество, ваши правила", "你的社区，由你安排"],
-  "Conocé tus ritmos": ["Discover your reading habits", "Conheça seus ritmos", "Узнайте свой ритм", "了解你的阅读节奏"],
-  "Biblioteca monumental": ["Monumental library", "Biblioteca monumental", "Монументальная библиотека", "宏伟书库"],
-  "Archivo de historias": ["Archive of stories", "Arquivo de histórias", "Архив историй", "故事档案"],
-  "Universo de papel": ["Paper universe", "Universo de papel", "Бумажная вселенная", "纸上宇宙"],
-  "Añadí 1000 tomos": ["Add 1000 volumes", "Adicione 1000 volumes", "Добавьте 1000 томов", "添加 1000 册"],
-  "Añadí 2000 tomos": ["Add 2000 volumes", "Adicione 2000 volumes", "Добавьте 2000 томов", "添加 2000 册"],
-  "Añadí 4000 tomos": ["Add 4000 volumes", "Adicione 4000 volumes", "Добавьте 4000 томов", "添加 4000 册"],
-  "Tus tomos leídos y en lectura · el orden se guarda en este equipo.": ["Read and currently reading volumes · order is saved on this device.", "Volumes lidos e em leitura · a ordem é salva neste dispositivo.", "Прочитанные и читаемые тома · порядок сохраняется на этом устройстве.", "已读和正在阅读的册数 · 顺序保存在此设备。"],
-  "Las estrellas doradas son la valoración de la comunidad. Las violetas son tu puntuación: podés votar desde la ficha del tomo o la serie.": ["Gold stars show the community rating. Purple stars show your rating: vote from a volume or series page.", "As estrelas douradas mostram a avaliação da comunidade. As roxas mostram sua nota: avalie na ficha do volume ou da série.", "Золотые звёзды — оценка сообщества. Фиолетовые — ваша оценка: голосуйте на странице тома или серии.", "金色星星是社区评分，紫色星星是你的评分。你可以在单册或系列页面评分。"],
-  "Seguidos muestra a quienes seguís en Whakoom; Seguidores, a quienes te siguen. Tus personas favoritas forman una lista local que organizás con el corazón.": ["Following shows people you follow on Whakoom; Followers shows people who follow you. Your favorite people form a local list you organize with the heart.", "Seguindo mostra quem você segue no Whakoom; Seguidores mostra quem segue você. Suas pessoas favoritas formam uma lista local organizada com o coração.", "Подписки показывают, на кого вы подписаны в Whakoom; подписчики — кто подписан на вас. Избранные люди — локальный список, который вы создаёте с помощью сердечка.", "关注列表显示你在 Whakoom 关注的人，粉丝列表显示关注你的人。你可以用爱心整理本地收藏人物列表。"],
-  "Las estadísticas usan tus tomos y las fechas de compra y lectura disponibles. Podés completar las fechas desde las fichas. Las insignias y las notas son locales; este cliente no incluye todas las funciones Pro ni cambia tu suscripción de Whakoom.": ["Statistics use your volumes and available purchase and reading dates. Add missing dates from their pages. Badges and notes are local; this client does not include every Pro feature or change your Whakoom subscription.", "As estatísticas usam seus volumes e as datas disponíveis de compra e leitura. Complete as datas nas fichas. Insígnias e notas são locais; este cliente não inclui todas as funções Pro nem altera sua assinatura do Whakoom.", "Статистика использует ваши тома и доступные даты покупки и чтения. Даты можно заполнить на страницах томов. Значки и заметки локальны; клиент не включает все функции Pro и не меняет подписку Whakoom.", "统计使用你的册数和已有的购买、阅读日期。你可以在条目页面补充日期。徽章和笔记保存在本地；此客户端不包含全部 Pro 功能，也不会更改你的 Whakoom 订阅。"],
-  "Crear ficha": ["Create entry", "Criar ficha", "Создать карточку", "创建条目"],
-  "Crear cómic o colección": ["Create comic or series", "Criar quadrinho ou coleção", "Создать комикс или серию", "创建漫画或系列"],
-  "Modificar ficha": ["Edit entry", "Editar ficha", "Редактировать карточку", "编辑条目"],
-  "Sugerir un cambio": ["Suggest a change", "Sugerir alteração", "Предложить изменение", "建议更改"],
-  "Añadir tomos a la serie": ["Add volumes to series", "Adicionar volumes à série", "Добавить тома в серию", "向系列添加册数"],
-  "Formulario oficial de Whakoom · los cambios se guardan al confirmarlos aquí": ["Official Whakoom form · confirm here to save changes", "Formulário oficial do Whakoom · confirme aqui para salvar", "Официальная форма Whakoom · подтвердите изменения здесь", "Whakoom 官方表单 · 在此确认以保存更改"],
-  "Comprobá que no exista antes de crear una ficha. Whakoom te pedirá título, idioma, editorial y números publicados.": ["Check for an existing entry first. Whakoom will ask for title, language, publisher and published volumes.", "Verifique se a ficha já existe. O Whakoom pedirá título, idioma, editora e volumes publicados.", "Сначала проверьте наличие карточки. Whakoom запросит название, язык, издателя и опубликованные тома.", "创建前请检查是否已有条目。Whakoom 将要求标题、语言、出版社和已出版册数。"],
-  "En la ficha original, abrí Modificar desde el menú de opciones. Los campos disponibles dependen de la edición y de tus permisos.": ["Open Edit from the original entry's options. Available fields depend on the edition and your permissions.", "Abra Modificar nas opções da ficha original. Os campos dependem da edição e das suas permissões.", "Откройте редактирование в меню исходной карточки. Поля зависят от издания и ваших прав.", "在原始条目的选项菜单中选择编辑。可用字段取决于版本和您的权限。"],
-  "Elegí el tipo de error y explicá la corrección. Tu sugerencia se envía al equipo de Whakoom desde su formulario.": ["Choose the issue type and explain the correction. The official form sends your suggestion to Whakoom's team.", "Escolha o tipo de erro e explique a correção. O formulário oficial envia sua sugestão à equipe do Whakoom.", "Выберите тип ошибки и опишите исправление. Форма отправляет предложение команде Whakoom.", "选择错误类型并说明更正内容。官方表单将建议发送给 Whakoom 团队。"],
-  "Usá Añadir números o Crear el siguiente número en la serie original. Comprobá la numeración antes de guardar.": ["Use Add issues or Create next issue on the original series. Check numbering before saving.", "Use Adicionar números ou Criar próximo número na série original. Confira a numeração antes de salvar.", "Добавьте номера или создайте следующий номер в исходной серии. Проверьте нумерацию перед сохранением.", "在原始系列中添加册数或创建下一册。保存前请检查编号。"],
-  "No se pudo abrir el formulario oficial": ["Could not open the official form", "Não foi possível abrir o formulário oficial", "Не удалось открыть официальную форму", "无法打开官方表单"],
-  "No se pudo conectar la sesión al formulario": ["Could not connect your session to the form", "Não foi possível conectar sua sessão ao formulário", "Не удалось подключить сеанс к форме", "无法将会话连接到表单"],
-  "No se pudo abrir el formulario integrado; verificá que WebView2 esté instalado": ["Could not open the embedded form; check that WebView2 is installed", "Não foi possível abrir o formulário integrado; verifique se o WebView2 está instalado", "Не удалось открыть встроенную форму; проверьте установку WebView2", "无法打开内嵌表单；请检查是否安装了 WebView2"],
+  "Sincronización de tu cuenta": [
+    "Account synchronization",
+    "Sincronização da sua conta",
+    "Синхронизация аккаунта",
+    "账户同步"
+  ],
+  "Pendientes de confirmar": [
+    "Awaiting confirmation",
+    "Aguardando confirmação",
+    "Ожидают подтверждения",
+    "待确认"
+  ],
+  "Guardados localmente": [
+    "Saved locally",
+    "Salvos localmente",
+    "Сохранены локально",
+    "已保存在本地"
+  ],
+  "No hay cambios esperando confirmación online.": [
+    "No changes are awaiting online confirmation.",
+    "Não há alterações aguardando confirmação online.",
+    "Нет изменений, ожидающих подтверждения онлайн.",
+    "没有等待在线确认的更改。"
+  ],
+  "Whakoom no permite enviar algunos datos con los permisos actuales de esta cuenta o ficha. Se conservan en tu PC y no se reintentan automáticamente.": [
+    "Whakoom does not allow some data to be sent with the current account or title permissions. It remains on your PC and is not retried automatically.",
+    "Whakoom não permite enviar alguns dados com as permissões atuais da conta ou ficha. Eles são mantidos no seu PC sem novas tentativas automáticas.",
+    "Whakoom не позволяет отправить некоторые данные с текущими разрешениями аккаунта или карточки. Они остаются на вашем ПК без автоматических повторных попыток.",
+    "Whakoom 不允许以此账户或条目的当前权限发送部分数据。这些数据会保留在电脑上，不会自动重试。"
+  ],
+  "Cambios pendientes": [
+    "Pending changes",
+    "Alterações pendentes",
+    "Ожидающие изменения",
+    "待处理更改"
+  ],
+  "Funciones no disponibles online": [
+    "Features unavailable online",
+    "Funções indisponíveis online",
+    "Недоступные онлайн функции",
+    "在线不可用的功能"
+  ],
+  "Ver títulos": [
+    "View titles",
+    "Ver títulos",
+    "Показать названия",
+    "查看标题"
+  ],
+  "Volver a comprobar permisos": [
+    "Check permissions again",
+    "Verificar permissões novamente",
+    "Проверить разрешения снова",
+    "重新检查权限"
+  ],
+  "Comprobá los permisos sólo si cambió tu suscripción o acceso. Las funciones locales siguen disponibles sin Pro.": [
+    "Check permissions only if your subscription or access has changed. Local features remain available without Pro.",
+    "Verifique as permissões apenas se sua assinatura ou acesso mudou. As funções locais continuam disponíveis sem Pro.",
+    "Проверяйте разрешения, только если изменилась подписка или доступ. Локальные функции доступны без Pro.",
+    "仅在订阅或访问权限改变后重新检查。本地功能无需 Pro 仍然可用。"
+  ],
+  "Guardado localmente · revisá los permisos en Cuenta": [
+    "Saved locally · check permissions in Account",
+    "Salvo localmente · verifique as permissões em Conta",
+    "Сохранено локально · проверьте разрешения в Аккаунте",
+    "已保存在本地 · 在账户中查看权限"
+  ],
+  "Consultá tus mangas y tomos": [
+    "Look up your manga and volumes",
+    "Consulte seus mangás e volumes",
+    "Ищите мангу и тома",
+    "查询漫画与单行本"
+  ],
+  "Descubrí tus insignias": [
+    "Discover your badges",
+    "Descubra suas medalhas",
+    "Откройте свои награды",
+    "发现你的徽章"
+  ],
+  "Desde la ficha de una serie o de un tomo, usá Buscar en Listado Manga debajo de la portada. La búsqueda abre su serie: elegí un tomo individual para consultar sus datos y edición.": [
+    "On a series or volume page, use Search on Listado Manga below the cover. The search opens its series: choose an individual volume to view its details and edition.",
+    "Na ficha de uma série ou volume, use Buscar no Listado Manga abaixo da capa. A busca abre sua série: escolha um volume individual para consultar seus dados e edição.",
+    "На странице серии или тома нажмите «Поиск в Listado Manga» под обложкой. Поиск открывает серию: выберите отдельный том, чтобы посмотреть его данные и издание.",
+    "在系列或单行本详情页中，使用封面下方的“在 Listado Manga 中搜索”。搜索会打开对应系列：选择单本即可查看其资料和版本。"
+  ],
+  "Sumá lecturas, tomos y series completas para desbloquear insignias. Cada medalla tiene un objetivo y muestra tu progreso. Encontralas en Cuenta → Perfil → Insignias. Los logros se guardan localmente y no cambian tu suscripción Pro.": [
+    "Read more, collect volumes and complete series to unlock badges. Each medal has a goal and shows your progress. Find them in Account → Profile → Badges. Achievements are saved locally and do not change your Pro subscription.",
+    "Acumule leituras, volumes e séries completas para desbloquear medalhas. Cada medalha tem uma meta e mostra seu progresso. Encontre-as em Conta → Perfil → Medalhas. As conquistas são salvas localmente e não alteram sua assinatura Pro.",
+    "Читайте, собирайте тома и завершайте серии, чтобы получать награды. У каждой медали есть цель и показатель прогресса. Они доступны в разделе Аккаунт → Профиль → Награды. Достижения сохраняются локально и не меняют подписку Pro.",
+    "通过阅读、收集单行本和完成系列来解锁徽章。每枚徽章都有目标和进度。可在账户 → 个人资料 → 徽章中查看。成就保存在本地，不会改变你的 Pro 订阅。"
+  ],
+  "Podés volver a ver esta guía desde Ajustes → General.": [
+    "You can replay this guide in Settings → General.",
+    "Você pode rever este guia em Ajustes → Geral.",
+    "Этот гид можно повторить в разделе Настройки → Общие.",
+    "可在设置 → 常规中重新查看本指南。"
+  ],
+  "Los nuevos logros tienen sonido y efectos. Podés desactivarlos en Ajustes y volver a ver esta guía desde General.": [
+    "New achievements have sound and effects. You can disable them in Settings and replay this guide under General.",
+    "As novas conquistas têm som e efeitos. Você pode desativá-los em Ajustes e rever este guia em Geral.",
+    "Новые достижения сопровождаются звуком и эффектами. Их можно отключить в Настройках, а повторить гид — в разделе Общие.",
+    "新成就带有音效和特效。可在设置中关闭，也可在常规中重新查看本指南。"
+  ],
+  "Leyendo": [
+    "Reading",
+    "Lendo",
+    "Читаю",
+    "阅读中"
+  ],
+  "Leyendo · estado local": [
+    "Reading · local status",
+    "Lendo · estado local",
+    "Читаю · локальный статус",
+    "阅读中 · 本地状态"
+  ],
+  "Ver tutorial": [
+    "View tutorial",
+    "Ver tutorial",
+    "Открыть руководство",
+    "查看教程"
+  ],
+  "Privacidad en este equipo": [
+    "Privacy on this device",
+    "Privacidade neste dispositivo",
+    "Конфиденциальность на этом устройстве",
+    "此设备上的隐私"
+  ],
+  "Guardar respaldo cifrado": [
+    "Save encrypted backup",
+    "Salvar backup criptografado",
+    "Сохранить зашифрованную копию",
+    "保存加密备份"
+  ],
+  "Al menos 12 caracteres": [
+    "At least 12 characters",
+    "Pelo menos 12 caracteres",
+    "Не менее 12 символов",
+    "至少 12 个字符"
+  ],
+  "Contraseña del respaldo · distinta a tu contraseña de Whakoom": [
+    "Backup password · separate from your Whakoom password",
+    "Senha do backup · diferente da sua senha do Whakoom",
+    "Пароль резервной копии · отличается от пароля Whakoom",
+    "备份密码 · 与 Whakoom 密码不同"
+  ],
+  "JSON y CSV son exportaciones sin cifrar: contienen tus notas y datos de colección.": [
+    "JSON and CSV exports are unencrypted: they contain your notes and collection data.",
+    "Exportações JSON e CSV não são criptografadas: contêm suas notas e dados da coleção.",
+    "Экспорт JSON и CSV не зашифрован: он содержит заметки и данные коллекции.",
+    "JSON 和 CSV 导出未加密，包含笔记和收藏数据。"
+  ],
+  "Si perdés esta contraseña no se puede recuperar el respaldo. Para restaurarlo, escribila antes de elegir el archivo.": [
+    "If you lose this password, the backup cannot be recovered. Enter it before choosing a file to restore.",
+    "Se perder esta senha, o backup não poderá ser recuperado. Digite-a antes de escolher o arquivo para restaurar.",
+    "Если потерять пароль, копию нельзя восстановить. Введите его перед выбором файла.",
+    "如果丢失密码，备份无法恢复。恢复时请先输入密码，再选择文件。"
+  ],
+  "Dos valoraciones, dos colores": [
+    "Two ratings, two colors",
+    "Duas avaliações, duas cores",
+    "Две оценки, два цвета",
+    "两种评分，两种颜色"
+  ],
+  "Tu comunidad, a tu manera": [
+    "Your community, your way",
+    "Sua comunidade, do seu jeito",
+    "Ваше сообщество, ваши правила",
+    "你的社区，由你安排"
+  ],
+  "Conocé tus ritmos": [
+    "Discover your reading habits",
+    "Conheça seus ritmos",
+    "Узнайте свой ритм",
+    "了解你的阅读节奏"
+  ],
+  "Biblioteca monumental": [
+    "Monumental library",
+    "Biblioteca monumental",
+    "Монументальная библиотека",
+    "宏伟书库"
+  ],
+  "Archivo de historias": [
+    "Archive of stories",
+    "Arquivo de histórias",
+    "Архив историй",
+    "故事档案"
+  ],
+  "Universo de papel": [
+    "Paper universe",
+    "Universo de papel",
+    "Бумажная вселенная",
+    "纸上宇宙"
+  ],
+  "Añadí 1000 tomos": [
+    "Add 1000 volumes",
+    "Adicione 1000 volumes",
+    "Добавьте 1000 томов",
+    "添加 1000 册"
+  ],
+  "Añadí 2000 tomos": [
+    "Add 2000 volumes",
+    "Adicione 2000 volumes",
+    "Добавьте 2000 томов",
+    "添加 2000 册"
+  ],
+  "Añadí 4000 tomos": [
+    "Add 4000 volumes",
+    "Adicione 4000 volumes",
+    "Добавьте 4000 томов",
+    "添加 4000 册"
+  ],
+  "Tus tomos leídos y en lectura · el orden se guarda en este equipo.": [
+    "Read and currently reading volumes · order is saved on this device.",
+    "Volumes lidos e em leitura · a ordem é salva neste dispositivo.",
+    "Прочитанные и читаемые тома · порядок сохраняется на этом устройстве.",
+    "已读和正在阅读的册数 · 顺序保存在此设备。"
+  ],
+  "Las estrellas doradas son la valoración de la comunidad. Las violetas son tu puntuación: podés votar desde la ficha del tomo o la serie.": [
+    "Gold stars show the community rating. Purple stars show your rating: vote from a volume or series page.",
+    "As estrelas douradas mostram a avaliação da comunidade. As roxas mostram sua nota: avalie na ficha do volume ou da série.",
+    "Золотые звёзды — оценка сообщества. Фиолетовые — ваша оценка: голосуйте на странице тома или серии.",
+    "金色星星是社区评分，紫色星星是你的评分。你可以在单册或系列页面评分。"
+  ],
+  "Seguidos muestra a quienes seguís en Whakoom; Seguidores, a quienes te siguen. Tus personas favoritas forman una lista local que organizás con el corazón.": [
+    "Following shows people you follow on Whakoom; Followers shows people who follow you. Your favorite people form a local list you organize with the heart.",
+    "Seguindo mostra quem você segue no Whakoom; Seguidores mostra quem segue você. Suas pessoas favoritas formam uma lista local organizada com o coração.",
+    "Подписки показывают, на кого вы подписаны в Whakoom; подписчики — кто подписан на вас. Избранные люди — локальный список, который вы создаёте с помощью сердечка.",
+    "关注列表显示你在 Whakoom 关注的人，粉丝列表显示关注你的人。你可以用爱心整理本地收藏人物列表。"
+  ],
+  "Las estadísticas usan tus tomos y las fechas de compra y lectura disponibles. Podés completar las fechas desde las fichas. Las insignias y las notas son locales; este cliente no incluye todas las funciones Pro ni cambia tu suscripción de Whakoom.": [
+    "Statistics use your volumes and available purchase and reading dates. Add missing dates from their pages. Badges and notes are local; this client does not include every Pro feature or change your Whakoom subscription.",
+    "As estatísticas usam seus volumes e as datas disponíveis de compra e leitura. Complete as datas nas fichas. Insígnias e notas são locais; este cliente não inclui todas as funções Pro nem altera sua assinatura do Whakoom.",
+    "Статистика использует ваши тома и доступные даты покупки и чтения. Даты можно заполнить на страницах томов. Значки и заметки локальны; клиент не включает все функции Pro и не меняет подписку Whakoom.",
+    "统计使用你的册数和已有的购买、阅读日期。你可以在条目页面补充日期。徽章和笔记保存在本地；此客户端不包含全部 Pro 功能，也不会更改你的 Whakoom 订阅。"
+  ],
+  "Crear ficha": [
+    "Create entry",
+    "Criar ficha",
+    "Создать карточку",
+    "创建条目"
+  ],
+  "Crear cómic o colección": [
+    "Create comic or series",
+    "Criar quadrinho ou coleção",
+    "Создать комикс или серию",
+    "创建漫画或系列"
+  ],
+  "Modificar ficha": [
+    "Edit entry",
+    "Editar ficha",
+    "Редактировать карточку",
+    "编辑条目"
+  ],
+  "Sugerir un cambio": [
+    "Suggest a change",
+    "Sugerir alteração",
+    "Предложить изменение",
+    "建议更改"
+  ],
+  "Añadir tomos a la serie": [
+    "Add volumes to series",
+    "Adicionar volumes à série",
+    "Добавить тома в серию",
+    "向系列添加册数"
+  ],
+  "Formulario oficial de Whakoom · los cambios se guardan al confirmarlos aquí": [
+    "Official Whakoom form · confirm here to save changes",
+    "Formulário oficial do Whakoom · confirme aqui para salvar",
+    "Официальная форма Whakoom · подтвердите изменения здесь",
+    "Whakoom 官方表单 · 在此确认以保存更改"
+  ],
+  "Comprobá que no exista antes de crear una ficha. Whakoom te pedirá título, idioma, editorial y números publicados.": [
+    "Check for an existing entry first. Whakoom will ask for title, language, publisher and published volumes.",
+    "Verifique se a ficha já existe. O Whakoom pedirá título, idioma, editora e volumes publicados.",
+    "Сначала проверьте наличие карточки. Whakoom запросит название, язык, издателя и опубликованные тома.",
+    "创建前请检查是否已有条目。Whakoom 将要求标题、语言、出版社和已出版册数。"
+  ],
+  "En la ficha original, abrí Modificar desde el menú de opciones. Los campos disponibles dependen de la edición y de tus permisos.": [
+    "Open Edit from the original entry's options. Available fields depend on the edition and your permissions.",
+    "Abra Modificar nas opções da ficha original. Os campos dependem da edição e das suas permissões.",
+    "Откройте редактирование в меню исходной карточки. Поля зависят от издания и ваших прав.",
+    "在原始条目的选项菜单中选择编辑。可用字段取决于版本和您的权限。"
+  ],
+  "Elegí el tipo de error y explicá la corrección. Tu sugerencia se envía al equipo de Whakoom desde su formulario.": [
+    "Choose the issue type and explain the correction. The official form sends your suggestion to Whakoom's team.",
+    "Escolha o tipo de erro e explique a correção. O formulário oficial envia sua sugestão à equipe do Whakoom.",
+    "Выберите тип ошибки и опишите исправление. Форма отправляет предложение команде Whakoom.",
+    "选择错误类型并说明更正内容。官方表单将建议发送给 Whakoom 团队。"
+  ],
+  "Usá Añadir números o Crear el siguiente número en la serie original. Comprobá la numeración antes de guardar.": [
+    "Use Add issues or Create next issue on the original series. Check numbering before saving.",
+    "Use Adicionar números ou Criar próximo número na série original. Confira a numeração antes de salvar.",
+    "Добавьте номера или создайте следующий номер в исходной серии. Проверьте нумерацию перед сохранением.",
+    "在原始系列中添加册数或创建下一册。保存前请检查编号。"
+  ],
+  "No se pudo abrir el formulario oficial": [
+    "Could not open the official form",
+    "Não foi possível abrir o formulário oficial",
+    "Не удалось открыть официальную форму",
+    "无法打开官方表单"
+  ],
+  "No se pudo conectar la sesión al formulario": [
+    "Could not connect your session to the form",
+    "Não foi possível conectar sua sessão ao formulário",
+    "Не удалось подключить сеанс к форме",
+    "无法将会话连接到表单"
+  ],
+  "No se pudo abrir el formulario integrado; verificá que WebView2 esté instalado": [
+    "Could not open the embedded form; check that WebView2 is installed",
+    "Não foi possível abrir o formulário integrado; verifique se o WebView2 está instalado",
+    "Не удалось открыть встроенную форму; проверьте установку WebView2",
+    "无法打开内嵌表单；请检查是否安装了 WebView2"
+  ],
   "Novedades": [
     "New releases",
     "Novidades",
@@ -2907,56 +3167,352 @@
     "Локальные достижения, рассчитанные по вашей библиотеке",
     "根据你的收藏计算的本地成就"
   ],
-  "Primera lectura": ["First reading", "Primeira leitura", "Первое чтение", "首次阅读"],
-  "Leé 10 tomos": ["Read 10 volumes", "Leia 10 volumes", "Прочитайте 10 томов", "阅读 10 卷"],
-  "Lector constante": ["Steady reader", "Leitor constante", "Постоянный читатель", "坚持阅读"],
-  "Leé 50 tomos": ["Read 50 volumes", "Leia 50 volumes", "Прочитайте 50 томов", "阅读 50 卷"],
-  "Centena": ["One hundred", "Centena", "Сотня", "一百卷"],
-  "Leé 100 tomos": ["Read 100 volumes", "Leia 100 volumes", "Прочитайте 100 томов", "阅读 100 卷"],
-  "Estantería inicial": ["Starter shelf", "Estante inicial", "Начальная полка", "入门书架"],
-  "Añadí 10 tomos": ["Add 10 volumes", "Adicione 10 volumes", "Добавьте 10 томов", "添加 10 卷"],
-  "Gran colección": ["Large collection", "Grande coleção", "Большая коллекция", "大型收藏"],
-  "Añadí 100 tomos": ["Add 100 volumes", "Adicione 100 volumes", "Добавьте 100 томов", "添加 100 卷"],
-  "Coleccionista": ["Collector", "Colecionador", "Коллекционер", "收藏家"],
-  "Completá o seguí 5 series": ["Complete or follow 5 series", "Complete ou siga 5 séries", "Завершите или отслеживайте 5 серий", "完成或关注 5 个系列"],
-  "En la mira": ["On the radar", "Na mira", "В поле зрения", "关注中"],
-  "Guardá 10 tomos deseados": ["Save 10 wanted volumes", "Salve 10 volumes desejados", "Сохраните 10 желаемых томов", "收藏 10 卷想要的作品"],
-  "Criterio propio": ["Your own taste", "Critério próprio", "Собственное мнение", "自己的品味"],
-  "Valorá 10 tomos": ["Rate 10 volumes", "Avalie 10 volumes", "Оцените 10 томов", "评价 10 卷"],
-  "Serie completada": ["Series complete", "Série completa", "Серия завершена", "系列已完成"],
-  "Seguí 5 series": ["Follow 5 series", "Acompanhe 5 séries", "Соберите тома 5 серий", "收藏 5 个系列"],
-  "Bronce": ["Bronze", "Bronze", "Бронза", "铜"],
-  "Plata": ["Silver", "Prata", "Серебро", "银"],
-  "Oro": ["Gold", "Ouro", "Золото", "金"],
-  "Prisma": ["Prism", "Prisma", "Призма", "棱彩"],
-  "Maratón de historias": ["Story marathon", "Maratona de histórias", "Марафон историй", "故事马拉松"],
-  "Leé 250 tomos": ["Read 250 volumes", "Leia 250 volumes", "Прочитайте 250 томов", "阅读 250 卷"],
-  "Biblioteca vivida": ["A library of memories", "Biblioteca de memórias", "Библиотека воспоминаний", "阅读的回忆"],
-  "Leé 500 tomos": ["Read 500 volumes", "Leia 500 volumes", "Прочитайте 500 томов", "阅读 500 卷"],
-  "Estanterías sin fin": ["Endless shelves", "Estantes sem fim", "Бесконечные полки", "无尽书架"],
-  "Añadí 250 tomos": ["Add 250 volumes", "Adicione 250 volumes", "Добавьте 250 томов", "收藏 250 卷"],
-  "Archivo legendario": ["Legendary archive", "Arquivo lendário", "Легендарный архив", "传奇藏书"],
-  "Añadí 500 tomos": ["Add 500 volumes", "Adicione 500 volumes", "Добавьте 500 томов", "收藏 500 卷"],
-  "Primera serie completa": ["First complete series", "Primeira série completa", "Первая полная серия", "首个完整系列"],
-  "Tené todos los tomos de una serie": ["Own every volume of a series", "Tenha todos os volumes de uma série", "Соберите все тома одной серии", "收齐一个系列的所有卷"],
-  "Cerrando historias": ["Completing stories", "Completando histórias", "Завершённые истории", "圆满故事"],
-  "Completá 10 series": ["Complete 10 series", "Complete 10 séries", "Соберите 10 полных серий", "收齐 10 个系列"],
-  "Entre líneas": ["Between the lines", "Entre linhas", "Между строк", "字里行间"],
-  "Escribí notas en 10 tomos": ["Write notes for 10 volumes", "Escreva notas em 10 volumes", "Напишите заметки к 10 томам", "为 10 卷写笔记"],
-  "Volver a casa": ["Coming home", "Voltar para casa", "Возвращение домой", "重温旧梦"],
-  "Registrá 10 relecturas con fecha": ["Record 10 dated rereads", "Registre 10 releituras com data", "Запишите 10 перечитываний с датой", "记录 10 次有日期的重读"],
-  "Todo en su lugar": ["Everything in its place", "Tudo em seu lugar", "Всё на своих местах", "井井有条"],
-  "Organizá 25 tomos con etiquetas o ubicación": ["Organize 25 volumes with tags or a location", "Organize 25 volumes com etiquetas ou localização", "Укажите метки или расположение для 25 томов", "为 25 卷添加标签或存放位置"],
-  "Voz de lector": ["A reader's voice", "Voz de leitor", "Голос читателя", "读者之声"],
-  "Valorá 50 tomos": ["Rate 50 volumes", "Avalie 50 volumes", "Оцените 50 томов", "评价 50 卷"],
-  "Tus historias dejan huella": ["Your stories leave a mark", "Suas histórias deixam marcas", "Ваши истории оставляют след", "你的故事留下印记"],
-  "Las insignias se guardan en este equipo y acompañan tu progreso.": ["Badges are saved on this device and track your progress.", "As insígnias ficam neste dispositivo e acompanham seu progresso.", "Значки сохраняются на этом устройстве и отражают ваш прогресс.", "徽章保存在此设备上，记录你的进步。"],
-  "Conseguida": ["Unlocked", "Conquistada", "Получено", "已解锁"],
-  "En progreso": ["In progress", "Em progresso", "В процессе", "进行中"],
-  "¡Insignia desbloqueada!": ["Badge unlocked!", "Insígnia desbloqueada!", "Значок получен!", "徽章已解锁！"],
-  "¡Nuevas insignias!": ["New badges!", "Novas insígnias!", "Новые значки!", "获得新徽章！"],
-  "Ver insignias": ["View badges", "Ver insígnias", "Открыть значки", "查看徽章"],
-  "Sonido al conseguir insignias": ["Sound when earning badges", "Som ao conquistar insígnias", "Звук при получении значков", "获得徽章时播放声音"],
-  "Suscripción Pro de Whakoom": ["Whakoom Pro subscription", "Assinatura Pro do Whakoom", "Подписка Whakoom Pro", "Whakoom Pro 订阅"],
-  "Volver al perfil": ["Back to profile", "Voltar ao perfil", "Вернуться к профилю", "返回个人资料"]
+  "Primera lectura": [
+    "First reading",
+    "Primeira leitura",
+    "Первое чтение",
+    "首次阅读"
+  ],
+  "Leé 10 tomos": [
+    "Read 10 volumes",
+    "Leia 10 volumes",
+    "Прочитайте 10 томов",
+    "阅读 10 卷"
+  ],
+  "Lector constante": [
+    "Steady reader",
+    "Leitor constante",
+    "Постоянный читатель",
+    "坚持阅读"
+  ],
+  "Leé 50 tomos": [
+    "Read 50 volumes",
+    "Leia 50 volumes",
+    "Прочитайте 50 томов",
+    "阅读 50 卷"
+  ],
+  "Centena": [
+    "One hundred",
+    "Centena",
+    "Сотня",
+    "一百卷"
+  ],
+  "Leé 100 tomos": [
+    "Read 100 volumes",
+    "Leia 100 volumes",
+    "Прочитайте 100 томов",
+    "阅读 100 卷"
+  ],
+  "Estantería inicial": [
+    "Starter shelf",
+    "Estante inicial",
+    "Начальная полка",
+    "入门书架"
+  ],
+  "Añadí 10 tomos": [
+    "Add 10 volumes",
+    "Adicione 10 volumes",
+    "Добавьте 10 томов",
+    "添加 10 卷"
+  ],
+  "Gran colección": [
+    "Large collection",
+    "Grande coleção",
+    "Большая коллекция",
+    "大型收藏"
+  ],
+  "Añadí 100 tomos": [
+    "Add 100 volumes",
+    "Adicione 100 volumes",
+    "Добавьте 100 томов",
+    "添加 100 卷"
+  ],
+  "Coleccionista": [
+    "Collector",
+    "Colecionador",
+    "Коллекционер",
+    "收藏家"
+  ],
+  "Completá o seguí 5 series": [
+    "Complete or follow 5 series",
+    "Complete ou siga 5 séries",
+    "Завершите или отслеживайте 5 серий",
+    "完成或关注 5 个系列"
+  ],
+  "En la mira": [
+    "On the radar",
+    "Na mira",
+    "В поле зрения",
+    "关注中"
+  ],
+  "Guardá 10 tomos deseados": [
+    "Save 10 wanted volumes",
+    "Salve 10 volumes desejados",
+    "Сохраните 10 желаемых томов",
+    "收藏 10 卷想要的作品"
+  ],
+  "Criterio propio": [
+    "Your own taste",
+    "Critério próprio",
+    "Собственное мнение",
+    "自己的品味"
+  ],
+  "Valorá 10 tomos": [
+    "Rate 10 volumes",
+    "Avalie 10 volumes",
+    "Оцените 10 томов",
+    "评价 10 卷"
+  ],
+  "Serie completada": [
+    "Series complete",
+    "Série completa",
+    "Серия завершена",
+    "系列已完成"
+  ],
+  "Seguí 5 series": [
+    "Follow 5 series",
+    "Acompanhe 5 séries",
+    "Соберите тома 5 серий",
+    "收藏 5 个系列"
+  ],
+  "Bronce": [
+    "Bronze",
+    "Bronze",
+    "Бронза",
+    "铜"
+  ],
+  "Plata": [
+    "Silver",
+    "Prata",
+    "Серебро",
+    "银"
+  ],
+  "Oro": [
+    "Gold",
+    "Ouro",
+    "Золото",
+    "金"
+  ],
+  "Prisma": [
+    "Prism",
+    "Prisma",
+    "Призма",
+    "棱彩"
+  ],
+  "Maratón de historias": [
+    "Story marathon",
+    "Maratona de histórias",
+    "Марафон историй",
+    "故事马拉松"
+  ],
+  "Leé 250 tomos": [
+    "Read 250 volumes",
+    "Leia 250 volumes",
+    "Прочитайте 250 томов",
+    "阅读 250 卷"
+  ],
+  "Biblioteca vivida": [
+    "A library of memories",
+    "Biblioteca de memórias",
+    "Библиотека воспоминаний",
+    "阅读的回忆"
+  ],
+  "Leé 500 tomos": [
+    "Read 500 volumes",
+    "Leia 500 volumes",
+    "Прочитайте 500 томов",
+    "阅读 500 卷"
+  ],
+  "Estanterías sin fin": [
+    "Endless shelves",
+    "Estantes sem fim",
+    "Бесконечные полки",
+    "无尽书架"
+  ],
+  "Añadí 250 tomos": [
+    "Add 250 volumes",
+    "Adicione 250 volumes",
+    "Добавьте 250 томов",
+    "收藏 250 卷"
+  ],
+  "Archivo legendario": [
+    "Legendary archive",
+    "Arquivo lendário",
+    "Легендарный архив",
+    "传奇藏书"
+  ],
+  "Añadí 500 tomos": [
+    "Add 500 volumes",
+    "Adicione 500 volumes",
+    "Добавьте 500 томов",
+    "收藏 500 卷"
+  ],
+  "Primera serie completa": [
+    "First complete series",
+    "Primeira série completa",
+    "Первая полная серия",
+    "首个完整系列"
+  ],
+  "Tené todos los tomos de una serie": [
+    "Own every volume of a series",
+    "Tenha todos os volumes de uma série",
+    "Соберите все тома одной серии",
+    "收齐一个系列的所有卷"
+  ],
+  "Cerrando historias": [
+    "Completing stories",
+    "Completando histórias",
+    "Завершённые истории",
+    "圆满故事"
+  ],
+  "Completá 10 series": [
+    "Complete 10 series",
+    "Complete 10 séries",
+    "Соберите 10 полных серий",
+    "收齐 10 个系列"
+  ],
+  "Entre líneas": [
+    "Between the lines",
+    "Entre linhas",
+    "Между строк",
+    "字里行间"
+  ],
+  "Escribí notas en 10 tomos": [
+    "Write notes for 10 volumes",
+    "Escreva notas em 10 volumes",
+    "Напишите заметки к 10 томам",
+    "为 10 卷写笔记"
+  ],
+  "Volver a casa": [
+    "Coming home",
+    "Voltar para casa",
+    "Возвращение домой",
+    "重温旧梦"
+  ],
+  "Registrá 10 relecturas con fecha": [
+    "Record 10 dated rereads",
+    "Registre 10 releituras com data",
+    "Запишите 10 перечитываний с датой",
+    "记录 10 次有日期的重读"
+  ],
+  "Todo en su lugar": [
+    "Everything in its place",
+    "Tudo em seu lugar",
+    "Всё на своих местах",
+    "井井有条"
+  ],
+  "Organizá 25 tomos con etiquetas o ubicación": [
+    "Organize 25 volumes with tags or a location",
+    "Organize 25 volumes com etiquetas ou localização",
+    "Укажите метки или расположение для 25 томов",
+    "为 25 卷添加标签或存放位置"
+  ],
+  "Voz de lector": [
+    "A reader's voice",
+    "Voz de leitor",
+    "Голос читателя",
+    "读者之声"
+  ],
+  "Valorá 50 tomos": [
+    "Rate 50 volumes",
+    "Avalie 50 volumes",
+    "Оцените 50 томов",
+    "评价 50 卷"
+  ],
+  "Tus historias dejan huella": [
+    "Your stories leave a mark",
+    "Suas histórias deixam marcas",
+    "Ваши истории оставляют след",
+    "你的故事留下印记"
+  ],
+  "Las insignias se guardan en este equipo y acompañan tu progreso.": [
+    "Badges are saved on this device and track your progress.",
+    "As insígnias ficam neste dispositivo e acompanham seu progresso.",
+    "Значки сохраняются на этом устройстве и отражают ваш прогресс.",
+    "徽章保存在此设备上，记录你的进步。"
+  ],
+  "Conseguida": [
+    "Unlocked",
+    "Conquistada",
+    "Получено",
+    "已解锁"
+  ],
+  "En progreso": [
+    "In progress",
+    "Em progresso",
+    "В процессе",
+    "进行中"
+  ],
+  "¡Insignia desbloqueada!": [
+    "Badge unlocked!",
+    "Insígnia desbloqueada!",
+    "Значок получен!",
+    "徽章已解锁！"
+  ],
+  "¡Nuevas insignias!": [
+    "New badges!",
+    "Novas insígnias!",
+    "Новые значки!",
+    "获得新徽章！"
+  ],
+  "Ver insignias": [
+    "View badges",
+    "Ver insígnias",
+    "Открыть значки",
+    "查看徽章"
+  ],
+  "Sonido al conseguir insignias": [
+    "Sound when earning badges",
+    "Som ao conquistar insígnias",
+    "Звук при получении значков",
+    "获得徽章时播放声音"
+  ],
+  "Suscripción Pro de Whakoom": [
+    "Whakoom Pro subscription",
+    "Assinatura Pro do Whakoom",
+    "Подписка Whakoom Pro",
+    "Whakoom Pro 订阅"
+  ],
+  "Volver al perfil": [
+    "Back to profile",
+    "Voltar ao perfil",
+    "Вернуться к профилю",
+    "返回个人资料"
+  ],
+  "Tipo de corrección": [
+    "Correction type",
+    "Tipo de correção",
+    "Тип исправления",
+    "更正类型"
+  ],
+  "Explicá qué dato es incorrecto y cuál es la corrección": [
+    "Explain what is incorrect and how to correct it",
+    "Explique qual dado está incorreto e como corrigi-lo",
+    "Объясните, какие данные неверны и как их исправить",
+    "请说明错误信息和正确内容"
+  ],
+  "Información adicional (opcional)": [
+    "Additional information (optional)",
+    "Informações adicionais (opcional)",
+    "Дополнительная информация (необязательно)",
+    "补充信息（可选）"
+  ],
+  "Enviar sugerencia": [
+    "Send suggestion",
+    "Enviar sugestão",
+    "Отправить предложение",
+    "提交建议"
+  ],
+  "Sugerencia enviada a Whakoom": [
+    "Suggestion sent to Whakoom",
+    "Sugestão enviada ao Whakoom",
+    "Предложение отправлено в Whakoom",
+    "建议已提交至 Whakoom"
+  ],
+  "La sugerencia se envía a Whakoom cuando pulsás Enviar. Los cambios están sujetos a revisión.": [
+    "The suggestion is sent to Whakoom when you press Send. Changes are subject to review.",
+    "A sugestão é enviada ao Whakoom quando você toca em Enviar. As alterações estão sujeitas a revisão.",
+    "Предложение отправляется в Whakoom после нажатия кнопки. Изменения проходят проверку.",
+    "点击提交后，建议将发送至 Whakoom。更改需要审核。"
+  ]
 }

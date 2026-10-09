@@ -1,5 +1,47 @@
 use whakoom_desktop::api::Api;
 fn main() {
+    if std::env::args().any(|a| a == "--verify-collaboration-forms") {
+        let result = (|| -> Result<(), String> {
+            let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;
+            let api = Api::with_user_agent(saved.cookie, &saved.user_agent)?;
+            let item = whakoom_desktop::api::Item {
+                key: "edicion627715".into(),
+                url: "/ediciones/627715/a_silent_voice_-_complete_collectors_edition-hardcover"
+                    .into(),
+                ..Default::default()
+            };
+            let html = api.html(&item.url)?;
+            let document = scraper::Html::parse_document(&html);
+            for a in document.select(&scraper::Selector::parse("a[href]").unwrap()) {
+                let text = a.text().collect::<String>().trim().to_lowercase();
+                if (text.contains("modific") || text.contains("editar"))
+                    && let Ok(url) =
+                        whakoom_desktop::api::safe_url(a.value().attr("href").unwrap_or(""))
+                {
+                    println!(
+                        "Enlace oficial de edición: {}",
+                        url::Url::parse(&url).unwrap().path()
+                    );
+                }
+            }
+            let form = api.suggestion_form(whakoom_desktop::contributions::Request::for_item(
+                whakoom_desktop::contributions::Action::Suggest,
+                &item,
+            )?)?;
+            println!(
+                "Formulario de sugerencias: tipo {}, {} categorías",
+                form.kind,
+                form.types.len()
+            );
+            println!("Sólo lectura: no se envió ninguna sugerencia ni modificación");
+            Ok(())
+        })();
+        if let Err(error) = result {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if std::env::args().any(|a| a == "--verify-shop-resolution") {
         let result = (|| -> Result<(), String> {
             let saved = whakoom_desktop::session::load().ok_or("Sesión no disponible")?;

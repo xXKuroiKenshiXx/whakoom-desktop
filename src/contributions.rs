@@ -23,7 +23,7 @@ impl Action {
                 "Comprobá que no exista antes de crear una ficha. Whakoom te pedirá título, idioma, editorial y números publicados."
             }
             Self::Edit => {
-                "En la ficha original, abrí Modificar desde el menú de opciones. Los campos disponibles dependen de la edición y de tus permisos."
+                "El editor oficial se abre aquí. Los campos disponibles dependen de la edición y de los permisos de tu cuenta."
             }
             Self::Suggest => {
                 "Elegí el tipo de error y explicá la corrección. Tu sugerencia se envía al equipo de Whakoom desde su formulario."
@@ -75,28 +75,34 @@ impl Request {
     }
     /// Only opens an official menu or dialog; never writes or submits any data.
     pub fn opening_script(&self) -> String {
-        if self.action == Action::Create {
-            return String::new();
-        }
-        let path = url::Url::parse(&self.url).unwrap().path().to_string();
-        let path = serde_json::to_string(&path).unwrap();
+        let path = serde_json::to_string(url::Url::parse(&self.url).unwrap().path()).unwrap();
         let selector = match self.action {
             Action::Suggest => "a.show-bug-report, button.add-bug-report",
             Action::AddVolume => "a.create-next-issue, button.add-issues",
             _ => "",
         };
         let editing = self.action == Action::Edit;
+        let creating = self.action == Action::Create;
         format!(
             r#"(()=>{{
             if(window.top!==window || location.origin!=='https://www.whakoom.com')return;
+            const style=document.createElement('style');
+            style.textContent='#header,#topHeader,#wrapper-header,#footer,.ad-container,.adsbygoogle{{display:none!important}} body{{padding-top:0!important}} #wrapper,#wrapperBody,#content{{margin-top:0!important}}';
             let attempts=0;
             const timer=setInterval(()=>{{
-                if(++attempts>40){{clearInterval(timer);return;}}
-                if(location.pathname!=={path} || !document.querySelector('#user-avatar img'))return;
+                if(document.head && !style.isConnected)document.head.append(style);
+                if(location.pathname!=={path} || {creating}){{clearInterval(timer);return;}}
                 let target='{selector}' ? document.querySelector('{selector}') : null;
-                if({editing}) target=[...document.querySelectorAll('.mn-opt a, .mn-opt button, .edition-header a, .edition-header button, .menu.edition a, ul.v2-menu a')].find(e=>/^(modificar|editar|modify|edit)$/i.test(e.textContent.trim()));
-                if(target){{clearInterval(timer);target.click();}}
-            }},500);
+                if({editing}) target=[...document.querySelectorAll('a,button')].find(e=>/^(modificar( ficha| datos)?|editar( ficha)?|modify|edit)$/i.test(e.textContent.trim()));
+                if(target){{clearInterval(timer);target.click();return;}}
+                if(++attempts>=40){{
+                    clearInterval(timer);
+                    const message=document.createElement('p');
+                    message.textContent='Whakoom no habilitó este formulario para tu cuenta. Podés volver y usar Sugerir un cambio; no se ha enviado ninguna modificación.';
+                    message.style.cssText='padding:20px;margin:16px;background:#172532;color:#f5f7fa;font:16px sans-serif;border-radius:12px';
+                    (document.querySelector('#content')||document.body)?.prepend(message);
+                }}
+            }},250);
         }})();"#
         )
     }
@@ -200,5 +206,112 @@ mod tests {
         ] {
             assert!(cookie_pairs(value).is_err());
         }
+    }
+}
+
+/// An ephemeral correction form. Identity and report types come from the server,
+/// never from a user-supplied endpoint. Drafts are not stored with account data.
+#[derive(Clone, Debug)]
+pub struct Suggestion {
+    pub request: Request,
+    pub id: u64,
+    pub kind: String,
+    pub types: Vec<(String, String)>,
+    pub selected: String,
+    pub comment: String,
+    pub extra: String,
+}
+impl Suggestion {
+    pub fn parse(request: Request, html: &str) -> Result<Self, String> {
+        use scraper::{Html, Selector};
+        let document = Html::parse_fragment(html);
+        let root = document
+            .select(&Selector::parse("#bugReport").unwrap())
+            .next()
+            .ok_or(
+                "Whakoom no permite sugerencias en esta ficha. Revisá la conexión de tu cuenta",
+            )?;
+        let id = root
+            .value()
+            .attr("data-item-id")
+            .and_then(|s| s.parse::<u64>().ok())
+            .filter(|id| *id > 0)
+            .ok_or("Identificador de sugerencia inválido")?;
+        let kind = root.value().attr("data-item-type").unwrap_or("");
+        if !matches!(kind, "e" | "c") {
+            return Err("Tipo de sugerencia no reconocido".into());
+        }
+        let types: Vec<_> = root
+            .select(&Selector::parse(".bug-type a[href]").unwrap())
+            .filter_map(|a| {
+                let value = a.value().attr("href")?.strip_prefix("#br-")?;
+                if value.is_empty() || value.len() > 8 || !value.bytes().all(|b| b.is_ascii_digit())
+                {
+                    return None;
+                }
+                let title = a.text().collect::<Vec<_>>().join(" ").trim().to_owned();
+                (!title.is_empty()).then(|| (value.to_owned(), title))
+            })
+            .collect();
+        if types.is_empty() {
+            return Err("Whakoom no devolvió tipos de corrección disponibles".into());
+        }
+        Ok(Self {
+            request,
+            id,
+            kind: kind.into(),
+            selected: types[0].0.clone(),
+            types,
+            comment: String::new(),
+            extra: String::new(),
+        })
+    }
+    pub fn body(&self) -> Result<serde_json::Value, String> {
+        if self.comment.trim().is_empty()
+            || self.comment.len() > 10000
+            || self.extra.len() > 2000
+            || !self.types.iter().any(|(id, _)| id == &self.selected)
+            || !matches!(self.kind.as_str(), "e" | "c")
+            || self.id == 0
+        {
+            return Err(
+                "Elegí una corrección y escribí una explicación de hasta 10.000 caracteres".into(),
+            );
+        }
+        Ok(
+            serde_json::json!({"biid":self.id,"bt":self.selected,"bc":self.comment.trim(),"ed":self.extra.trim(),"bpd":null}),
+        )
+    }
+}
+
+#[cfg(test)]
+mod suggestion_tests {
+    use super::*;
+    fn request() -> Request {
+        Request::for_item(
+            Action::Suggest,
+            &Item {
+                key: "edicion123".into(),
+                url: "/ediciones/123/title".into(),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+    }
+    #[test]
+    fn server_types_and_submission_are_validated() {
+        let html = r##"<div id="bugReport" data-item-id="123" data-item-type="e"><div class="bug-type"><a href="#br-2">Título incorrecto</a><a href="https://evil.test">No permitido</a></div></div>"##;
+        let mut form = Suggestion::parse(request(), html).unwrap();
+        assert_eq!(form.types.len(), 1);
+        assert!(form.body().is_err());
+        form.comment = " Corregir la tilde 日本語 ".into();
+        assert_eq!(form.body().unwrap()["bc"], "Corregir la tilde 日本語");
+        form.selected = "999".into();
+        assert!(form.body().is_err());
+        assert!(
+            Suggestion::parse(request(), &html.replace("type=\"e\"", "type=\"../../bad\""))
+                .is_err()
+        );
+        assert!(Suggestion::parse(request(), "<p>Inicia sesión</p>").is_err());
     }
 }

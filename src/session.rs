@@ -10,9 +10,7 @@ pub struct Session {
 }
 
 pub fn data_dir() -> PathBuf {
-    if let Some(path) =
-        std::env::var_os("WHAKOOM_DESKTOP_DATA_DIR").or_else(|| std::env::var_os("QOMIC_DATA_DIR"))
-    {
+    if let Some(path) = std::env::var_os("WHAKOOM_DESKTOP_DATA_DIR") {
         return PathBuf::from(path);
     }
     #[cfg(not(windows))]

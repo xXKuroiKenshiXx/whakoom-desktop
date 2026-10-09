@@ -22,7 +22,13 @@ impl App {
                             palette.text = p.accent;
                             palette.muted = p.accent;
                         }
-                        let response = icons::action(ui, icon, title, palette);
+                        let response = icons::action_with_min_size(
+                            ui,
+                            icon,
+                            title,
+                            palette,
+                            Vec2::new(0., 44.),
+                        );
                         #[cfg(test)]
                         {
                             self.ui_rects
@@ -52,7 +58,7 @@ impl App {
                                     Icon::Quill,
                                     "Crear ficha",
                                     p,
-                                    Vec2::new(140., 40.),
+                                    Vec2::new(140., 44.),
                                 )
                             })
                             .inner;

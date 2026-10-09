@@ -134,6 +134,8 @@ enum SettingsSection {
 }
 
 enum Job {
+    Suggestion(whakoom_desktop::contributions::Request, String),
+    SendSuggestion(whakoom_desktop::contributions::Suggestion, String),
     Browse(discover::Section, u32, String, bool),
     Lists(lists::Section, u32, String, bool),
     ListDetail(String, String, bool),
@@ -179,6 +181,12 @@ enum Job {
     Help(help::Request, bool),
 }
 enum Data {
+    Suggestion(
+        String,
+        String,
+        Result<whakoom_desktop::contributions::Suggestion, String>,
+    ),
+    SuggestionSent(String, String, Result<(), String>),
     Lists(String, lists::ListPage),
     List(String, Box<lists::ComicList>),
     ListMore(String, u64, Page),
@@ -849,6 +857,27 @@ fn worker(
                     api.personal_review(&detail),
                 )),
                 Job::OnlineStats(owner) => Ok(Data::OnlineStats(owner, api.reading_statistics())),
+                Job::Suggestion(request, owner) => {
+                    let key = request
+                        .item
+                        .as_ref()
+                        .map(|i| i.key.clone())
+                        .unwrap_or_default();
+                    Ok(Data::Suggestion(owner, key, api.suggestion_form(request)))
+                }
+                Job::SendSuggestion(form, owner) => {
+                    let key = form
+                        .request
+                        .item
+                        .as_ref()
+                        .map(|i| i.key.clone())
+                        .unwrap_or_default();
+                    Ok(Data::SuggestionSent(
+                        owner,
+                        key,
+                        api.submit_suggestion(&form),
+                    ))
+                }
                 Job::Help(request, offline) => Ok(Data::Help(help::fetch(request, offline))),
                 Job::Reviews(item, numeric_id, page) => api
                     .discussion_page(&item, numeric_id, page)
@@ -868,6 +897,11 @@ fn worker(
     (tx, erx)
 }
 struct App {
+    suggestion: Option<whakoom_desktop::contributions::Request>,
+    suggestion_form: Option<whakoom_desktop::contributions::Suggestion>,
+    suggestion_busy: bool,
+    suggestion_generation: u64,
+    suggestion_error: String,
     tx: mpsc::Sender<(u64, Job)>,
     rx: mpsc::Receiver<Event>,
     cancel: Arc<AtomicBool>,
@@ -1109,6 +1143,11 @@ impl App {
                 .map(PathBuf::from)
         };
         let mut app = Self {
+            suggestion: None,
+            suggestion_form: None,
+            suggestion_busy: false,
+            suggestion_generation: 0,
+            suggestion_error: String::new(),
             tx,
             rx,
             cancel,
@@ -1422,6 +1461,24 @@ impl App {
             && let Some(detail) = app.detail.clone()
         {
             app.open_shops(detail);
+        }
+        if std::env::args().any(|a| a == "--headless-preview")
+            && std::env::args().any(|a| a == "--preview-suggestion")
+        {
+            use whakoom_desktop::contributions::{Action, Request, Suggestion};
+            let request = Request::for_item(
+                Action::Suggest,
+                &Item {
+                    key: "edicion123".into(),
+                    title: "Serie de ejemplo".into(),
+                    url: "/ediciones/123/ejemplo".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            app.suggestion_form = Some(Suggestion::parse(request.clone(), r##"<div id="bugReport" data-item-id="123" data-item-type="e"><div class="bug-type"><a href="#br-5">Datos de publicación</a><a href="#br-3">Portada</a><a href="#br-0">Otro cambio</a></div></div>"##).unwrap());
+            app.suggestion = Some(request);
+            app.onboarding = None;
         }
         if std::env::args().any(|a| a == "--headless-preview")
             && std::env::args().any(|a| a == "--preview-account-sync")
@@ -2214,6 +2271,46 @@ impl App {
                     self.status =
                         "La colección no se pudo actualizar; tus cambios siguen guardados".into();
                 }
+                Ok(Data::Suggestion(owner, key, result))
+                    if event.id == self.suggestion_generation
+                        && owner == self.library.owner
+                        && self
+                            .suggestion
+                            .as_ref()
+                            .and_then(|r| r.item.as_ref())
+                            .is_some_and(|i| i.key == key) =>
+                {
+                    self.suggestion_busy = false;
+                    if relevant {
+                        self.busy = false;
+                    }
+                    match result {
+                        Ok(form) => self.suggestion_form = Some(form),
+                        Err(e) => self.suggestion_error = e,
+                    }
+                }
+                Ok(Data::SuggestionSent(owner, key, result))
+                    if event.id == self.suggestion_generation
+                        && owner == self.library.owner
+                        && self
+                            .suggestion
+                            .as_ref()
+                            .and_then(|r| r.item.as_ref())
+                            .is_some_and(|i| i.key == key) =>
+                {
+                    self.suggestion_busy = false;
+                    if relevant {
+                        self.busy = false;
+                    }
+                    match result {
+                        Ok(()) => {
+                            self.suggestion = None;
+                            self.suggestion_form = None;
+                            self.status = tr("Sugerencia enviada a Whakoom");
+                        }
+                        Err(e) => self.suggestion_error = e,
+                    }
+                }
                 Ok(Data::Help(result)) if relevant => {
                     self.busy = false;
                     match result {
@@ -2662,6 +2759,9 @@ impl App {
                     }
                 }
                 Ok(Data::Logout(warning)) => {
+                    self.suggestion = None;
+                    self.suggestion_form = None;
+                    self.suggestion_busy = false;
                     #[cfg(windows)]
                     {
                         self.contribution_requested = None;
@@ -3601,7 +3701,10 @@ impl App {
         }
         if self.tab == Tab::News {
             ui.horizontal_wrapped(|ui| {
-                ui.label(RichText::new(tr("Novedades")).size(16.).strong());
+                ui.add_sized(
+                    [110., 44.],
+                    egui::Label::new(RichText::new(tr("Novedades")).size(16.).strong()),
+                );
                 for (selected, label) in [(false, "Todas"), (true, "Mis series")] {
                     let button = ui.add_sized(
                         [150., 44.],
@@ -5760,6 +5863,9 @@ impl eframe::App for App {
                 return;
             }
         }
+        if self.suggestion_ui(ui) {
+            return;
+        }
         let p = self.p();
         egui::Panel::bottom("status")
             .exact_size(32.)
@@ -6245,6 +6351,72 @@ mod ui_tests {
         assert!(!app.ui_rects.contains_key("account-summary"));
     }
     #[test]
+    fn suggestion_replies_are_bound_to_owner_and_form_request() {
+        use whakoom_desktop::contributions::{Action, Request, Suggestion};
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        let request = Request::for_item(
+            Action::Suggest,
+            &Item {
+                key: "edicion123".into(),
+                url: "/ediciones/123/test".into(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let form = Suggestion::parse(request.clone(), r##"<div id="bugReport" data-item-id="123" data-item-type="e"><div class="bug-type"><a href="#br-2">Título</a></div></div>"##).unwrap();
+        app.suggestion = Some(request);
+        app.suggestion_generation = 5;
+        app.generation = 9;
+        let (tx, rx) = mpsc::channel();
+        app.rx = rx;
+        tx.send(Event {
+            id: 4,
+            data: Ok(Data::Suggestion(
+                app.library.owner.clone(),
+                "edicion123".into(),
+                Ok(form.clone()),
+            )),
+        })
+        .unwrap();
+        tx.send(Event {
+            id: 5,
+            data: Ok(Data::Suggestion(
+                "another-owner".into(),
+                "edicion123".into(),
+                Ok(form.clone()),
+            )),
+        })
+        .unwrap();
+        app.poll(&ctx);
+        assert!(app.suggestion_form.is_none());
+        tx.send(Event {
+            id: 5,
+            data: Ok(Data::Suggestion(
+                app.library.owner.clone(),
+                "edicion123".into(),
+                Ok(form),
+            )),
+        })
+        .unwrap();
+        app.poll(&ctx);
+        assert!(app.suggestion_form.is_some());
+        tx.send(Event {
+            id: 4,
+            data: Ok(Data::SuggestionSent(
+                app.library.owner.clone(),
+                "edicion123".into(),
+                Ok(()),
+            )),
+        })
+        .unwrap();
+        app.poll(&ctx);
+        assert!(app.suggestion.is_some());
+    }
+    #[test]
     fn collaboration_opens_official_forms_without_changing_library() {
         use whakoom_desktop::contributions::{Action, Request};
         let ctx = egui::Context::default();
@@ -6256,11 +6428,18 @@ mod ui_tests {
         app.tx = tx;
         app.select(Tab::Catalog);
         app.prefs.offline = false;
+        app.verified = true;
         app.prefs.animations = false;
         app.busy = false;
         app.query = "A & B 日本語".into();
         for _ in 0..3 {
             frame(&mut app, &ctx, vec![]);
+        }
+        let create = app.ui_rects["catalog-create"];
+        for label in ["Buscar", "Explorar", "Listas", "Usuarios"] {
+            let rect = app.ui_rects[&format!("catalog-{label}")];
+            assert!((rect.height() - create.height()).abs() < 0.1);
+            assert!((rect.center().y - create.center().y).abs() < 0.1);
         }
         let before = serde_json::to_vec(&app.library).unwrap();
         let position = app.ui_rects["catalog-create"].center();
@@ -6287,14 +6466,12 @@ mod ui_tests {
             ..Default::default()
         };
         app.open_contribution(Request::for_item(Action::Suggest, &item));
-        #[cfg(windows)]
-        {
-            assert_eq!(
-                app.contribution_requested.as_ref().unwrap().url,
-                "https://www.whakoom.com/comics/abc/serie/1"
-            );
-            app.contribution_requested = None;
-        }
+        assert_eq!(
+            app.suggestion.as_ref().unwrap().item.as_ref().unwrap().key,
+            item.key
+        );
+        assert!(app.suggestion_busy);
+        assert!(app.suggestion_form.is_none());
         app.prefs.offline = true;
         app.open_contribution(Request::create(""));
         #[cfg(windows)]

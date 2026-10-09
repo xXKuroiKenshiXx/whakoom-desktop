@@ -8,23 +8,23 @@ La captura usa títulos públicos y una biblioteca de ejemplo; no contiene una s
 
 Mi biblioteca abre en **Tomos faltantes**, mostrando el tomo de menor numeración que te falta en cada serie desde la caché, con actualización en segundo plano. La barra permite cambiar a **Series** o **Tomos**, y cada edición permite alternar entre **Todos, Tengo y Faltan**. Las tarjetas siguen abriendo durante la carga. La cuenta tiene sus secciones arriba, un diálogo para editar foto, nombre público y biografía e **Insignias** locales derivadas de tu biblioteca.
 
-## Descargar 3.3.0
+## Descargar 3.4.0
 
-[Descargas y notas de la versión](https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/tag/v3.3.0)
+[Descargas y notas de la versión](https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/tag/v3.4.0)
 
 | Sistema | Archivo | Requisitos |
 | --- | --- | --- |
-| Windows | `Whakoom-Desktop-3.3.0-setup.exe` | Windows 10/11, x64 |
-| Windows portable | `Whakoom-Desktop-3.3.0.exe` o ZIP | Mismos requisitos; no requiere instalación |
-| Linux | `Whakoom-Desktop-3.3.0-x86_64.AppImage` | x86_64, glibc 2.39 o posterior, OpenGL, X11/Wayland |
+| Windows | `Whakoom-Desktop-3.4.0-setup.exe` | Windows 10/11, x64 |
+| Windows portable | `Whakoom-Desktop-3.4.0.exe` o ZIP | Mismos requisitos; no requiere instalación |
+| Linux | `Whakoom-Desktop-3.4.0-x86_64.AppImage` | x86_64, glibc 2.39 o posterior, OpenGL, X11/Wayland |
 
-En Linux: `chmod +x Whakoom-Desktop-3.3.0-x86_64.AppImage` y ejecutá el archivo. Si FUSE no está disponible, usá `./Whakoom-Desktop-3.3.0-x86_64.AppImage --appimage-extract-and-run`. Para guardar la sesión y los datos privados cifrados necesitás un servicio Secret Service desbloqueado, como GNOME Keyring o KWallet compatible. La verificación adicional mediante navegador integrado está disponible únicamente en Windows y requiere WebView2; el inicio con credenciales usa HTTPS en ambos sistemas.
+En Linux: `chmod +x Whakoom-Desktop-3.4.0-x86_64.AppImage` y ejecutá el archivo. Si FUSE no está disponible, usá `./Whakoom-Desktop-3.4.0-x86_64.AppImage --appimage-extract-and-run`. Para guardar la sesión y los datos privados cifrados necesitás un servicio Secret Service desbloqueado, como GNOME Keyring o KWallet compatible. La verificación adicional mediante navegador integrado está disponible únicamente en Windows y requiere WebView2; el inicio con credenciales usa HTTPS en ambos sistemas.
 
 Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA256SUMS.txt` de la misma publicación. Portable significa que no necesita instalador: los datos siguen en la carpeta de usuario, separados del ejecutable.
 
 ## Funciones
 
-- Colaborar con el catálogo real: Crear ficha desde Catálogo; Modificar ficha y Sugerir un cambio en series y tomos; Añadir tomos en series. Los formularios originales conservan las validaciones y permisos de Whakoom. En Windows se integran con la sesión conectada; en Linux se abren en el navegador predeterminado, donde necesitás tu sesión de Whakoom. Sólo se publica al confirmar en el formulario oficial. [Creación de fichas](https://whakoom.zendesk.com/hc/es/articles/205934241), [correcciones](https://whakoom.zendesk.com/hc/es/articles/205934431) y [sugerencias](https://whakoom.zendesk.com/hc/es/articles/205934441).
+- Colaboración con el catálogo: sugerencias nativas con confirmación en Windows y Linux; creación, edición y nuevos tomos con el formulario oficial integrado en Windows. Whakoom determina los permisos y la revisión de cambios.
 
 - Insignias: 21 logros locales con medallas, progreso, aviso y sonido al desbloquear. Se guardan por cuenta y en el respaldo; no se repiten al reiniciar. El sonido tiene una opción propia en Ajustes y los destellos respetan Animaciones. En Linux el sonido usa `paplay` o `aplay`, si están instalados.
 - Etiqueta Pro para tu cuenta y otras personas cuando aparece la marca de suscripción en los datos de Whakoom. No depende de las insignias locales ni habilita servicios de pago.
@@ -138,3 +138,7 @@ Las fuentes incluyen licencias propias, detalladas en [avisos de terceros](THIRD
 [`web/`](web/README.md) contiene una aplicación Astro independiente: importa respaldos cifrados o JSON, muestra biblioteca, lecturas, deseados y estadísticas, permite notas y estados de lectura y exporta un respaldo cifrado compatible con Desktop. La biblioteca queda cifrada en IndexedDB; no se envía a un servidor.
 
 Es una compañera local: no inicia sesión en Whakoom ni sincroniza directamente con esa cuenta. Netlify necesita un servidor adicional para ofrecer esa conexión. Conectá este repositorio en tu cuenta Netlify usando `netlify.toml`. No se publica una GitHub Page.
+
+### Colaboración con el catálogo
+
+Sugerir un cambio usa un formulario nativo y la sesión de Whakoom en Windows y Linux. Los tipos de corrección proceden del servidor y el envío requiere confirmación explícita. Modificar, crear fichas y añadir números utilizan los formularios oficiales integrados en Windows mediante WebView2. Si la cuenta no tiene permiso, se informa del bloqueo; no se abre el navegador externo. La edición y creación integradas todavía no están disponibles en Linux. Los cambios del catálogo están sujetos a los permisos y revisión de Whakoom.

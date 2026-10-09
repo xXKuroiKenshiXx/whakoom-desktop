@@ -40,19 +40,109 @@ impl App {
         }
         match request {
             Ok(request) => {
+                if !self.verified || self.library.owner.is_empty() {
+                    self.error = tr("Conectá tu cuenta para colaborar con el catálogo");
+                    return;
+                }
+                if request.action == Action::Suggest {
+                    self.suggestion_form = None;
+                    self.suggestion_error.clear();
+                    self.suggestion_busy = true;
+                    self.suggestion = Some(request.clone());
+                    self.send(Job::Suggestion(request, self.library.owner.clone()));
+                    self.suggestion_generation = self.generation;
+                    if !self.busy {
+                        self.suggestion_busy = false;
+                        self.suggestion_error = self.error.clone();
+                    }
+                    return;
+                }
                 #[cfg(windows)]
                 {
                     self.contribution_requested = Some(request);
                 }
                 #[cfg(not(windows))]
                 {
-                    if self.persist && webbrowser::open(&request.url).is_err() {
-                        self.error = tr("No se pudo abrir el formulario oficial");
-                    }
+                    let _ = request;
+                    self.error = tr(
+                        "La edición y creación integradas requieren Windows por ahora. Podés sugerir cambios desde esta aplicación en ambos sistemas",
+                    );
                 }
             }
             Err(error) => self.error = error,
         }
+    }
+    pub(super) fn suggestion_ui(&mut self, ui: &mut egui::Ui) -> bool {
+        let Some(request) = self.suggestion.clone() else {
+            return false;
+        };
+        let p = self.p();
+        let mut back = false;
+        let mut submit = false;
+        let mut retry = false;
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                back = icons::action_with_min_size(ui, Icon::Arrow, "Volver", p, Vec2::new(100., 44.)).clicked();
+                ui.heading(tr("Sugerir un cambio"));
+            });
+            if let Some(item) = &request.item { ui.label(RichText::new(&item.title).size(19.).color(p.accent)); }
+            ui.add_space(12.);
+            ui.label(tr("La sugerencia se envía a Whakoom cuando pulsás Enviar. Los cambios están sujetos a revisión."));
+            if !self.suggestion_error.is_empty() {
+                ui.label(RichText::new(tr(&self.suggestion_error)).color(p.accent));
+                if self.suggestion_form.is_none() && !self.suggestion_busy { retry = ui.button(tr("Reintentar")).clicked(); }
+            }
+            if self.suggestion_busy { ui.spinner(); ui.label(tr("Consultando Whakoom…")); }
+            egui::ScrollArea::vertical().id_salt("native-suggestion").show(ui, |ui| {
+                if let Some(form) = &mut self.suggestion_form {
+                    ui.add_enabled_ui(!self.suggestion_busy, |ui| {
+                        ui.label(tr("Tipo de corrección"));
+                        let selected = form.types.iter().find(|(id, _)| id == &form.selected).map(|(_, text)| text.as_str()).unwrap_or("");
+                        egui::ComboBox::from_id_salt("suggestion-type").selected_text(selected).width(300.).show_ui(ui, |ui| {
+                            for (id, text) in &form.types { ui.selectable_value(&mut form.selected, id.clone(), text); }
+                        });
+                        ui.add_space(12.);
+                        ui.label(tr("Explicá qué dato es incorrecto y cuál es la corrección"));
+                        ui.add(egui::TextEdit::multiline(&mut form.comment).desired_width(f32::INFINITY).desired_rows(8).char_limit(10000));
+                        ui.label(tr("Información adicional (opcional)"));
+                        ui.add(egui::TextEdit::singleline(&mut form.extra).desired_width(f32::INFINITY).char_limit(2000));
+                        ui.add_space(16.);
+                        submit = ui.add_enabled(form.body().is_ok() && self.verified && !self.prefs.offline,
+                            egui::Button::new(tr("Enviar sugerencia")).min_size(Vec2::new(220., 48.))).clicked();
+                    });
+                }
+            });
+        });
+        if back && !self.suggestion_busy {
+            self.suggestion = None;
+            self.suggestion_form = None;
+            self.suggestion_error.clear();
+        } else if back && self.suggestion_form.is_none() {
+            if self.generation == self.suggestion_generation {
+                self.busy = false;
+            }
+            self.suggestion = None;
+            self.suggestion_busy = false;
+        } else if retry {
+            self.suggestion_busy = true;
+            self.suggestion_error.clear();
+            self.send(Job::Suggestion(request, self.library.owner.clone()));
+            self.suggestion_generation = self.generation;
+            if !self.busy {
+                self.suggestion_busy = false;
+                self.suggestion_error = self.error.clone();
+            }
+        } else if submit && let Some(form) = self.suggestion_form.clone() {
+            self.suggestion_busy = true;
+            self.suggestion_error.clear();
+            self.send(Job::SendSuggestion(form, self.library.owner.clone()));
+            self.suggestion_generation = self.generation;
+            if !self.busy {
+                self.suggestion_busy = false;
+                self.suggestion_error = self.error.clone();
+            }
+        }
+        true
     }
     #[cfg(windows)]
     pub(super) fn open_contribution_browser(
@@ -140,16 +230,26 @@ impl App {
         let ctx = ui.ctx().clone();
         let mut close = false;
         let mut reload = false;
+        let mut suggest = false;
         let header=egui::Panel::top("catalog-contribution-header").min_size(112.).resizable(false).frame(egui::Frame::new().fill(self.p().surface).inner_margin(12)).show(ui,|ui|{
             ui.horizontal_wrapped(|ui| {
                 close=icons::action_with_min_size(ui,Icon::Arrow,"Volver a la aplicación",self.p(),Vec2::new(180.,44.)).clicked();
                 ui.heading(tr(request.action.title()));
                 reload=icons::refresh(ui,self.p()).clicked();
+                if request.action == Action::Edit {
+                    suggest = icons::action_with_min_size(ui, Icon::Help, "Sugerir un cambio", self.p(), Vec2::new(160.,44.)).clicked();
+                }
             });
             ui.label(RichText::new(tr("Formulario oficial de Whakoom · los cambios se guardan al confirmarlos aquí")).color(self.p().accent));
             ui.label(tr(request.action.instructions()));
         });
         let content_top = header.response.rect.bottom();
+        if suggest && let Some(item) = &request.item {
+            self.contribution_view = None;
+            self.contribution_current = None;
+            self.open_contribution(Request::for_item(Action::Suggest, item));
+            return true;
+        }
         if close {
             self.contribution_view = None;
             self.contribution_current = None;

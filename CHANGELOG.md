@@ -1,5 +1,14 @@
 # Cambios
 
+## 3.4.0
+
+- Sugerencias de corrección en un formulario nativo, con categorías obtenidas de Whakoom y confirmación de envío.
+- Apertura directa del editor oficial dentro de Windows, sin lanzar el navegador externo y con aviso si la cuenta no tiene permiso.
+- Alturas uniformes en Catálogo y alineación de Novedades con sus filtros.
+- Retirada del antiguo nombre del ajuste de carpeta de datos; la carpeta de usuario no se mueve.
+- Verificación de identidad, permisos y categorías antes de publicar una sugerencia.
+
+
 ## 3.3.0
 
 - Empaquetado reproducible en GitHub Actions con permisos de sólo lectura; se corrigen las rutas del instalador para compilarlo también con NSIS nativo en Windows.

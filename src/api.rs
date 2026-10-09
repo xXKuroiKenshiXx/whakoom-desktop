@@ -900,6 +900,66 @@ impl Api {
             .filter(|n| *n > page);
         Ok(result)
     }
+    pub fn suggestion_form(
+        &self,
+        request: crate::contributions::Request,
+    ) -> Result<crate::contributions::Suggestion, String> {
+        use scraper::{Html, Selector};
+        if self.cookie.is_empty() {
+            return Err("Conectá tu cuenta para sugerir cambios".into());
+        }
+        let item = request
+            .item
+            .as_ref()
+            .ok_or("Falta la ficha de la sugerencia")?;
+        let validated =
+            crate::contributions::Request::for_item(crate::contributions::Action::Suggest, item)?;
+        if request.action != crate::contributions::Action::Suggest || request.url != validated.url {
+            return Err("La sugerencia no corresponde a la ficha seleccionada".into());
+        }
+        let html = self.request(&request.url, None)?;
+        let document = Html::parse_document(&html);
+        let bid = document
+            .select(&Selector::parse("a.show-bug-report, button.add-bug-report").unwrap())
+            .find_map(|a| a.value().attr("data-item-id"))
+            .filter(|s| {
+                !s.is_empty()
+                    && s.len() <= 128
+                    && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+            })
+            .ok_or("Whakoom no permite sugerencias en esta ficha o solicita iniciar sesión")?;
+        let response = self.post_referred(
+            "/wkws.asmx/br",
+            serde_json::json!({"bid":bid,"tid":null}),
+            &request.url,
+        )?;
+        crate::contributions::Suggestion::parse(request, response["Html"].as_str().unwrap_or(""))
+    }
+    pub fn submit_suggestion(&self, form: &crate::contributions::Suggestion) -> Result<(), String> {
+        form.body()?;
+        // Revalidate server identity and permissions immediately before submitting.
+        let fresh = self.suggestion_form(form.request.clone())?;
+        if fresh.id != form.id
+            || fresh.kind != form.kind
+            || !fresh.types.iter().any(|(id, _)| id == &form.selected)
+        {
+            return Err("La ficha cambió. Volvé a abrir el formulario antes de enviar".into());
+        }
+        let response = self.post_referred(
+            &format!("/wkws.asmx/pb{}", fresh.kind),
+            form.body()?,
+            &form.request.url,
+        )?;
+        if matches!(response["ExtraInfo"].as_str(), Some("1" | "2")) {
+            Ok(())
+        } else {
+            Err(response["Title"]
+                .as_str()
+                .filter(|s| !s.is_empty())
+                .unwrap_or("Whakoom no confirmó la sugerencia")
+                .into())
+        }
+    }
     pub fn account_page(
         &self,
         section: crate::account::Section,
