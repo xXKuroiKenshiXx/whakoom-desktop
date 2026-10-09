@@ -16,15 +16,20 @@ impl App {
             .count();
         ui.add_space(10.);
         ui.horizontal(|ui| {
-            let button = icons::action(ui, Icon::Medal, "Insignias", p)
-                .on_hover_text(tr("Logros locales calculados desde tu biblioteca"));
+            let button =
+                icons::prominent_action(ui, Icon::Medal, "Insignias", p, Vec2::new(200., 52.))
+                    .on_hover_text(tr("Logros locales calculados desde tu biblioteca"));
             #[cfg(test)]
             self.ui_rects
                 .insert("account-badges-open".into(), button.rect);
             if button.clicked() {
                 self.account_badges = true;
             }
-            ui.label(RichText::new(format!("{earned} / {}", all.len())).color(p.muted));
+            ui.label(
+                RichText::new(format!("{earned} / {}", all.len()))
+                    .size(17.)
+                    .color(p.muted),
+            );
         });
     }
     fn check_achievements(&mut self, ctx: &egui::Context) {

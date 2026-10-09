@@ -1,6 +1,6 @@
 [package]
 name = "whakoom-desktop"
-version = "3.1.0"
+version = "3.2.0"
 edition = "2024"
 rust-version = "1.95"
 description = "Cliente de escritorio no oficial de Whakoom, escrito en Rust"

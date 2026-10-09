@@ -1,8 +1,16 @@
-# Validación de 3.1.0
+# Validación de 3.2.0
 
 Revisión: 9 de octubre de 2026. Los resultados describen las plataformas y rutas comprobadas; no constituyen una garantía de ausencia de errores.
 
-## Comprobaciones de 3.1.0
+## Comprobaciones de 3.2.0
+
+147 pruebas aprobadas en Windows x64/MSVC y 147 en Linux x86_64, con formato y Clippy sin advertencias. Las pruebas nuevas comprueban la codificación del título al crear fichas, la correspondencia entre URL e identificador antes de editar, el rechazo de enlaces externos y cookies malformadas, que abrir un formulario no cambie la biblioteca ni publique contenido, y las dimensiones ampliadas de los controles de cuenta.
+
+Las rutas de colaboración se contrastaron con la documentación oficial de creación, modificación y sugerencias y con el script público `/js/950/wk.global.min.js`: `/newedition?s=`, los controles `show-bug-report` / `add-bug-report` y `create-next-issue` / `add-issues`. La integración abre el formulario original; no se envió una ficha ni una corrección real durante las pruebas. El servidor determina los permisos y la revisión de sugerencias. Windows usa WebView2 y cookies HttpOnly limitadas al dominio de Whakoom; Linux usa el navegador predeterminado con su propia sesión.
+
+Compilaciones finales de ambos sistemas, instalador NSIS y AppImage x86_64 generados. El AppImage arrancó bajo Xvfb y produjo una captura de la cuenta sin conexión con datos ficticios. El código de su sección ELF `.text` coincide con el binario compilado; el empaquetador modifica las rutas de bibliotecas. Las capturas nativas de Windows verifican la tipografía y los controles ampliados. Los ejecutables y paquetes se distribuyen con SHA-256.
+
+## Comprobaciones anteriores de 3.1.0
 
 Insignias y Pro: 144 pruebas aprobadas en Windows, incluidos desbloqueo único, persistencia tras reiniciar, cambios de cuenta, apertura desde el aviso, igualdad de tarjetas, conteo de series realmente adquiridas y compatibilidad con respaldos anteriores. El indicador Pro se reconoce en el ámbito del usuario; los enlaces a upgrade y los textos de biografías/comentarios no lo activan. La hoja de estilos pública `/css/950/screen.global.min.css` confirma `#public-profile-h .pro-badge`; los perfiles públicos consultados sin ese marcador no se etiquetan como Pro. El sonido PCM generado tiene una cabecera válida, amplitud limitada y desvanecimiento. El aviso y los iconos se verifican con capturas de datos ficticios; esta revisión no añade una nueva prueba interactiva de audio Linux.
 

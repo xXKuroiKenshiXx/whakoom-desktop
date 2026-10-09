@@ -7,6 +7,7 @@ pub mod notifications;
 pub mod api;
 pub mod brand;
 pub mod catalog;
+pub mod contributions;
 pub mod covers;
 pub mod discover;
 pub mod discussion;

@@ -1,4 +1,17 @@
 {
+  "Crear ficha": ["Create entry", "Criar ficha", "Создать карточку", "创建条目"],
+  "Crear cómic o colección": ["Create comic or series", "Criar quadrinho ou coleção", "Создать комикс или серию", "创建漫画或系列"],
+  "Modificar ficha": ["Edit entry", "Editar ficha", "Редактировать карточку", "编辑条目"],
+  "Sugerir un cambio": ["Suggest a change", "Sugerir alteração", "Предложить изменение", "建议更改"],
+  "Añadir tomos a la serie": ["Add volumes to series", "Adicionar volumes à série", "Добавить тома в серию", "向系列添加册数"],
+  "Formulario oficial de Whakoom · los cambios se guardan al confirmarlos aquí": ["Official Whakoom form · confirm here to save changes", "Formulário oficial do Whakoom · confirme aqui para salvar", "Официальная форма Whakoom · подтвердите изменения здесь", "Whakoom 官方表单 · 在此确认以保存更改"],
+  "Comprobá que no exista antes de crear una ficha. Whakoom te pedirá título, idioma, editorial y números publicados.": ["Check for an existing entry first. Whakoom will ask for title, language, publisher and published volumes.", "Verifique se a ficha já existe. O Whakoom pedirá título, idioma, editora e volumes publicados.", "Сначала проверьте наличие карточки. Whakoom запросит название, язык, издателя и опубликованные тома.", "创建前请检查是否已有条目。Whakoom 将要求标题、语言、出版社和已出版册数。"],
+  "En la ficha original, abrí Modificar desde el menú de opciones. Los campos disponibles dependen de la edición y de tus permisos.": ["Open Edit from the original entry's options. Available fields depend on the edition and your permissions.", "Abra Modificar nas opções da ficha original. Os campos dependem da edição e das suas permissões.", "Откройте редактирование в меню исходной карточки. Поля зависят от издания и ваших прав.", "在原始条目的选项菜单中选择编辑。可用字段取决于版本和您的权限。"],
+  "Elegí el tipo de error y explicá la corrección. Tu sugerencia se envía al equipo de Whakoom desde su formulario.": ["Choose the issue type and explain the correction. The official form sends your suggestion to Whakoom's team.", "Escolha o tipo de erro e explique a correção. O formulário oficial envia sua sugestão à equipe do Whakoom.", "Выберите тип ошибки и опишите исправление. Форма отправляет предложение команде Whakoom.", "选择错误类型并说明更正内容。官方表单将建议发送给 Whakoom 团队。"],
+  "Usá Añadir números o Crear el siguiente número en la serie original. Comprobá la numeración antes de guardar.": ["Use Add issues or Create next issue on the original series. Check numbering before saving.", "Use Adicionar números ou Criar próximo número na série original. Confira a numeração antes de salvar.", "Добавьте номера или создайте следующий номер в исходной серии. Проверьте нумерацию перед сохранением.", "在原始系列中添加册数或创建下一册。保存前请检查编号。"],
+  "No se pudo abrir el formulario oficial": ["Could not open the official form", "Não foi possível abrir o formulário oficial", "Не удалось открыть официальную форму", "无法打开官方表单"],
+  "No se pudo conectar la sesión al formulario": ["Could not connect your session to the form", "Não foi possível conectar sua sessão ao formulário", "Не удалось подключить сеанс к форме", "无法将会话连接到表单"],
+  "No se pudo abrir el formulario integrado; verificá que WebView2 esté instalado": ["Could not open the embedded form; check that WebView2 is installed", "Não foi possível abrir o formulário integrado; verifique se o WebView2 está instalado", "Не удалось открыть встроенную форму; проверьте установку WebView2", "无法打开内嵌表单；请检查是否安装了 WebView2"],
   "Novedades": [
     "New releases",
     "Novidades",

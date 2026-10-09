@@ -197,6 +197,7 @@ impl App {
                         }
                     });
                 });
+                self.contribution_actions(ui, &item);
             });
         ui.add_space(16.);
     }

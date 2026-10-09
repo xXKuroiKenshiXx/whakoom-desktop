@@ -1,6 +1,7 @@
 mod badges_ui;
 mod catalog_ui;
 mod collection_ui;
+mod contributions_ui;
 mod cover_viewer;
 mod edition_ui;
 mod help_ui;
@@ -891,6 +892,12 @@ struct App {
     support_view: Option<wry::WebView>,
     #[cfg(windows)]
     support_context: Option<wry::WebContext>,
+    #[cfg(windows)]
+    contribution_requested: Option<whakoom_desktop::contributions::Request>,
+    #[cfg(windows)]
+    contribution_current: Option<whakoom_desktop::contributions::Request>,
+    #[cfg(windows)]
+    contribution_view: Option<wry::WebView>,
     manga_page: manga_site::Page,
     manga_query: String,
     manga_loading: bool,
@@ -1125,6 +1132,12 @@ impl App {
             support_view: None,
             #[cfg(windows)]
             support_context: None,
+            #[cfg(windows)]
+            contribution_requested: None,
+            #[cfg(windows)]
+            contribution_current: None,
+            #[cfg(windows)]
+            contribution_view: None,
             manga_page: Default::default(),
             manga_query: String::new(),
             manga_loading: false,
@@ -1428,14 +1441,14 @@ impl App {
             app.profile_editor = true;
         }
         if std::env::args().any(|a| a == "--headless-preview")
-            && std::env::args().any(|a| a == "--preview-badges")
+            && std::env::args().any(|a| a == "--preview-badges" || a == "--preview-account")
         {
             app.generation += 1;
             app.busy = false;
             app.error.clear();
             app.status.clear();
             app.tab = Tab::Account;
-            app.account_badges = true;
+            app.account_badges = std::env::args().any(|a| a == "--preview-badges");
         }
         if let Some(filter) = arg("--preview-edition-filter") {
             app.edition_filter = match filter.to_string_lossy().as_ref() {
@@ -2581,6 +2594,14 @@ impl App {
                     }
                 }
                 Ok(Data::Logout(warning)) => {
+                    #[cfg(windows)]
+                    {
+                        self.contribution_requested = None;
+                        self.contribution_current = None;
+                        self.contribution_view = None;
+                        self.login_view = None;
+                        self.web_context = None;
+                    }
                     self.review_editor = None;
                     self.review_loading = false;
                     self.review_error.clear();
@@ -4796,12 +4817,16 @@ impl App {
         let mut unblock = None;
         let mut cancel_subscription = false;
         egui::ScrollArea::vertical().id_salt("account-page").max_height((ui.available_height()-64.).max(100.)).show(ui, |ui| {
-            ui.spacing_mut().interact_size.y = 38.;
+            ui.spacing_mut().interact_size.y = 44.;
+            for style in [egui::TextStyle::Body,egui::TextStyle::Button] {
+                ui.style_mut().text_styles.insert(style,egui::FontId::proportional(16.));
+            }
+            ui.style_mut().text_styles.insert(egui::TextStyle::Small,egui::FontId::proportional(13.));
             ui.horizontal_wrapped(|ui| {
                 for section in account::Section::ALL {
                     let mut palette=p;
                     if page.section==section {palette.surface=p.selected;palette.text=p.accent;palette.muted=p.accent;}
-                    let button=icons::action(ui,Self::account_section_icon(section),section.title(),palette).on_hover_cursor(egui::CursorIcon::PointingHand);
+                    let button=icons::prominent_action(ui,Self::account_section_icon(section),section.title(),palette,Vec2::new(100.,44.));
                     #[cfg(test)] self.ui_rects.insert(format!("account-section-{section:?}"),button.rect);
                     if button.clicked() {self.account_badges=false; if page.section!=section {next_section=Some(section);}}
                 }
@@ -4810,11 +4835,11 @@ impl App {
             self.setting_card(ui, Icon::User, "Tu cuenta de Whakoom", |app, ui| {
                 if let Some(user) = app.library.account.clone() {
                     ui.horizontal(|ui| {
-                        let (rect, _) = ui.allocate_exact_size(Vec2::splat(64.), egui::Sense::hover());
+                        let (rect, _) = ui.allocate_exact_size(Vec2::splat(80.), egui::Sense::hover());
                         app.avatar_at(ui, &user.avatar, rect);
                         ui.vertical(|ui| {
                             ui.horizontal_wrapped(|ui| {
-                                ui.label(RichText::new(if user.name.is_empty() { &user.username } else { &user.name }).size(22.).strong());
+                                ui.label(RichText::new(if user.name.is_empty() { &user.username } else { &user.name }).size(25.).strong());
                                 if user.pro { whakoom_desktop::badge_art::pro(ui,p); }
                             });
                             ui.label(RichText::new(format!("@{}", user.username)).color(p.muted));
@@ -4824,16 +4849,16 @@ impl App {
                     });
                     ui.add_space(12.);
                     ui.horizontal_wrapped(|ui| {
-                        if icons::action(ui, Icon::User, "Ver mi perfil", p).clicked() { app.select(Tab::Profile); }
+                        if icons::prominent_action(ui, Icon::User, "Ver mi perfil", p,Vec2::new(150.,44.)).clicked() { app.select(Tab::Profile); }
                         let enabled = !app.busy && !app.syncing && !app.pushing;
                         if ui.add_enabled(enabled, egui::Button::new(tr("Desconectar"))).clicked() { app.send(Job::Logout); }
                         if ui.add_enabled(enabled, egui::Button::new(tr("Desconectar y borrar cookies"))).clicked() {
-                            #[cfg(windows)] { app.login_view = None; app.web_context = None; app.support_view = None; app.support_context = None; app.support_requested = None; }
+                            #[cfg(windows)] { app.login_view = None; app.contribution_view=None;app.contribution_current=None;app.contribution_requested=None; app.web_context = None; app.support_view = None; app.support_context = None; app.support_requested = None; }
                             app.send(Job::ForgetCookies);
                         }
                     });
                     ui.add_space(10.);
-                    let edit=ui.add_enabled_ui(app.verified&&!app.prefs.offline,|ui|icons::action(ui,Icon::User,"Cambiar foto, nombre público y biografía",p)).inner;
+                    let edit=ui.add_enabled_ui(app.verified&&!app.prefs.offline,|ui|icons::prominent_action(ui,Icon::User,"Cambiar foto, nombre público y biografía",p,Vec2::new(380.,52.))).inner;
                     #[cfg(test)] app.ui_rects.insert("profile-edit-open".into(),edit.rect);
                     if edit.clicked(){app.profile_editor=true;}
 
@@ -5346,6 +5371,7 @@ impl App {
                                 ui.label(format!("{} {}", d.language, d.date));
                                 if let Some(owners) = d.owners { ui.label(RichText::new(i18n::trf("{0} personas lo tienen", &[owners.to_string()])).color(p.accent)); }
                                 if !d.isbn.is_empty() { ui.label(format!("ISBN · {}", d.isbn.join(" · "))); }
+                                self.contribution_actions(ui, &d.item);
                                 ui.horizontal(|ui| {
                                     rating::display(ui, d.item.community_rating, self.prefs.dark, 18.);
                                     ui.label(RichText::new(if d.item.community_rating > 0. { format!("{:.1}", d.item.community_rating).replace('.', ",") } else { "Sin nota pública".into() }).size(12.).color(p.muted));
@@ -5667,7 +5693,13 @@ impl eframe::App for App {
             if let Some(url) = self.support_requested.take() {
                 self.open_support_browser(_frame, &url);
             }
-            if self.support_browser_ui(ui) || self.browser_ui(ui) {
+            if let Some(request) = self.contribution_requested.take() {
+                self.open_contribution_browser(_frame, request);
+            }
+            if self.contribution_browser_ui(ui)
+                || self.support_browser_ui(ui)
+                || self.browser_ui(ui)
+            {
                 return;
             }
         }
@@ -5686,9 +5718,12 @@ impl eframe::App for App {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(
                             RichText::new(tr(if self.prefs.offline {
-                                "SIN CONEXIÓN · Whakoom Desktop 3.1.0"
+                                concat!(
+                                    "SIN CONEXIÓN · Whakoom Desktop ",
+                                    env!("CARGO_PKG_VERSION")
+                                )
                             } else {
-                                "Whakoom Desktop 3.1.0"
+                                concat!("Whakoom Desktop ", env!("CARGO_PKG_VERSION"))
                             }))
                             .size(11.)
                             .color(p.muted),
@@ -6124,6 +6159,10 @@ mod ui_tests {
                 < app.ui_rects["account-summary"].top()
         );
         assert!(!app.ui_rects.contains_key("account-save"));
+        assert!(app.ui_rects["profile-edit-open"].height() >= 52.);
+        assert!(app.ui_rects["profile-edit-open"].width() >= 380.);
+        assert!(app.ui_rects["account-badges-open"].height() >= 52.);
+        assert!(app.ui_rects["account-badges-open"].width() >= 200.);
         let pos = app.ui_rects["profile-edit-open"].center();
         click(&mut app, &ctx, pos);
         assert!(app.profile_editor);
@@ -6148,6 +6187,64 @@ mod ui_tests {
         frame(&mut app, &ctx, vec![]);
         assert!(app.account_page.section == account::Section::Account);
         assert!(!app.ui_rects.contains_key("account-summary"));
+    }
+    #[test]
+    fn collaboration_opens_official_forms_without_changing_library() {
+        use whakoom_desktop::contributions::{Action, Request};
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        let (tx, _jobs) = mpsc::channel();
+        app.tx = tx;
+        app.select(Tab::Catalog);
+        app.prefs.offline = false;
+        app.prefs.animations = false;
+        app.busy = false;
+        app.query = "A & B 日本語".into();
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let before = serde_json::to_vec(&app.library).unwrap();
+        let position = app.ui_rects["catalog-create"].center();
+        click(&mut app, &ctx, position);
+        #[cfg(windows)]
+        {
+            let request = app.contribution_requested.as_ref().unwrap();
+            assert_eq!(request.action, Action::Create);
+            assert_eq!(
+                url::Url::parse(&request.url)
+                    .unwrap()
+                    .query_pairs()
+                    .next()
+                    .unwrap()
+                    .1,
+                "A & B 日本語"
+            );
+            app.contribution_requested = None;
+        }
+        assert_eq!(serde_json::to_vec(&app.library).unwrap(), before);
+        let item = Item {
+            key: "comicabc".into(),
+            url: "/comics/abc/serie/1".into(),
+            ..Default::default()
+        };
+        app.open_contribution(Request::for_item(Action::Suggest, &item));
+        #[cfg(windows)]
+        {
+            assert_eq!(
+                app.contribution_requested.as_ref().unwrap().url,
+                "https://www.whakoom.com/comics/abc/serie/1"
+            );
+            app.contribution_requested = None;
+        }
+        app.prefs.offline = true;
+        app.open_contribution(Request::create(""));
+        #[cfg(windows)]
+        assert!(app.contribution_requested.is_none());
+        assert!(app.library.outbox.is_empty());
+        assert_eq!(serde_json::to_vec(&app.library).unwrap(), before);
     }
     #[test]
     fn avatar_reply_preserves_profile_draft_and_save_closes_editor() {

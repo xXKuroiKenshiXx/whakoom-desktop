@@ -9,3 +9,5 @@ El nombre y la marca Whakoom pertenecen a sus titulares; la licencia MIT del có
 `onboarding.png` muestra el asistente inicial sobre la misma biblioteca de ejemplo, sin datos de una sesión real.
 
 `badges.png` muestra las medallas vectoriales con una biblioteca y cuenta ficticias. El indicador Pro de esa captura es un dato de la vista de prueba; no corresponde a una suscripción real. El sonido de logro se sintetiza en `src/achievement_sound.rs`, sin muestras de terceros.
+
+`account.png` muestra los controles ampliados de la cuenta en 3.2.0 con el usuario ficticio `lector_demo`. El indicador Pro forma parte de esos datos de prueba; no contiene cookies ni una cuenta autenticada.

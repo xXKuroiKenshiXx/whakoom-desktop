@@ -1,5 +1,11 @@
 # Cambios
 
+## 3.2.0
+
+- Catálogo incorpora Crear ficha; las series y los tomos permiten Modificar ficha y Sugerir un cambio. Las series también ofrecen Añadir tomos. Usan los formularios oficiales de Whakoom, conservando validaciones, permisos y revisión de sugerencias.
+- Windows integra los formularios con la sesión conectada mediante cookies HttpOnly del mismo dominio, sin contraseñas en JavaScript. Linux abre el formulario en el navegador predeterminado, con su propia sesión. Al volver en Windows se consulta de nuevo la ficha.
+- Cuenta y editor de perfil: tipografía más grande, pestañas de 44 px y botones amplios para cambiar el perfil y abrir Insignias, con textos que se adaptan a ventanas pequeñas.
+
 ## 3.1.0
 
 - Insignias: 18 logros con medallas vectoriales, niveles de bronce, plata, oro y prisma, progreso y desbloqueos persistentes por cuenta. Se añaden diez logros de lecturas, colección, series completas, notas, relecturas, organización y valoraciones.

@@ -54,10 +54,16 @@ foreach ($previous in Get-ChildItem -LiteralPath $distRoot -File) {
         $previous.Name -notin @($exe,"$prefix-portable.zip","$prefix-source.zip","$prefix-setup.exe","$prefix-x86_64.AppImage")) {
         $resolved = [IO.Path]::GetFullPath($previous.FullName)
         if ([IO.Path]::GetDirectoryName($resolved) -ne $distRoot) { throw 'Distribución fuera del proyecto' }
-        Remove-Item -LiteralPath $resolved -Force
+        try { Remove-Item -LiteralPath $resolved -Force -ErrorAction Stop }
+        catch {
+            if ($_.Exception -is [IO.IOException] -or $_.Exception -is [UnauthorizedAccessException]) {
+                Write-Warning "Se conserva $($previous.Name): está en uso o no se puede retirar. Los paquetes actuales se generan igualmente."
+            } else { throw }
+        }
     }
 }
-$hashes = foreach ($file in Get-ChildItem -LiteralPath $distRoot -File | Where-Object { $_.Extension -in '.exe','.zip','.AppImage' }) {
+$currentFiles = @($exe,"$prefix-portable.zip","$prefix-source.zip","$prefix-setup.exe","$prefix-x86_64.AppImage")
+$hashes = foreach ($file in Get-ChildItem -LiteralPath $distRoot -File | Where-Object { $_.Name -in $currentFiles }) {
     $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  $($file.Name)"
 }

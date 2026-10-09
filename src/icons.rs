@@ -667,13 +667,54 @@ pub fn action_with_min_size(
     p: crate::theme::Palette,
     minimum: Vec2,
 ) -> egui::Response {
+    action_text(ui, icon, label, p, minimum, 13., false)
+}
+
+/// Larger account controls; long translations wrap instead of leaving the viewport.
+pub fn prominent_action(
+    ui: &mut egui::Ui,
+    icon: Icon,
+    label: &str,
+    p: crate::theme::Palette,
+    minimum: Vec2,
+) -> egui::Response {
+    action_text(ui, icon, label, p, minimum, 16., true)
+}
+
+fn action_text(
+    ui: &mut egui::Ui,
+    icon: Icon,
+    label: &str,
+    p: crate::theme::Palette,
+    minimum: Vec2,
+    size: f32,
+    wrap: bool,
+) -> egui::Response {
     let translated = crate::i18n::tr(label);
     let label = translated.as_str();
-    let text = ui
-        .painter()
-        .layout_no_wrap(label.into(), egui::FontId::proportional(13.), p.text);
+    let width = ui.available_width().max(100.);
+    let text = ui.painter().layout(
+        label.into(),
+        egui::FontId::proportional(size),
+        p.text,
+        if wrap {
+            (width - 48.).max(50.)
+        } else {
+            f32::INFINITY
+        },
+    );
+    let desired_width = (text.size().x + 48.).max(minimum.x);
     let (r, response) = ui.allocate_exact_size(
-        Vec2::new((text.size().x + 48.).max(minimum.x), 32_f32.max(minimum.y)),
+        Vec2::new(
+            if wrap {
+                desired_width.min(width)
+            } else {
+                desired_width
+            },
+            32_f32
+                .max(minimum.y)
+                .max(text.size().y + if wrap { 24. } else { 0. }),
+        ),
         egui::Sense::click(),
     );
     ui.painter().rect_filled(
@@ -685,6 +726,10 @@ pub fn action_with_min_size(
             p.surface
         },
     );
+    if wrap {
+        ui.painter()
+            .rect_stroke(r, 8, Stroke::new(1., p.border), egui::StrokeKind::Inside);
+    }
     paint(
         ui.painter(),
         egui::Rect::from_min_size(
@@ -699,7 +744,7 @@ pub fn action_with_min_size(
         text,
         p.text,
     );
-    response
+    response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 pub fn toggle(

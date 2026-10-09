@@ -6,7 +6,11 @@ use serde_json::{Value, json};
 use std::{collections::HashSet, io::Read, time::Duration};
 
 pub const BASE: &str = "https://www.whakoom.com";
-pub const USER_AGENT: &str = "WhakoomDesktop/3.1.0 (unofficial desktop client)";
+pub const USER_AGENT: &str = concat!(
+    "WhakoomDesktop/",
+    env!("CARGO_PKG_VERSION"),
+    " (unofficial desktop client)"
+);
 const MAX_BODY: u64 = 4 * 1024 * 1024;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]

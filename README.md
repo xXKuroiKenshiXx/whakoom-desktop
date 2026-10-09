@@ -8,21 +8,23 @@ La captura usa títulos públicos y una biblioteca de ejemplo; no contiene una s
 
 Mi biblioteca abre en **Tomos faltantes**, mostrando el tomo de menor numeración que te falta en cada serie desde la caché, con actualización en segundo plano. La barra permite cambiar a **Series** o **Tomos**, y cada edición permite alternar entre **Todos, Tengo y Faltan**. Las tarjetas siguen abriendo durante la carga. La cuenta tiene sus secciones arriba, un diálogo para editar foto, nombre público y biografía e **Insignias** locales derivadas de tu biblioteca.
 
-## Descargar 3.1.0
+## Descargar 3.2.0
 
-[Descargas y notas de la versión](https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/tag/v3.1.0)
+[Descargas y notas de la versión](https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/tag/v3.2.0)
 
 | Sistema | Archivo | Requisitos |
 | --- | --- | --- |
-| Windows | `Whakoom-Desktop-3.1.0-setup.exe` | Windows 10/11, x64 |
-| Windows portable | `Whakoom-Desktop-3.1.0.exe` o ZIP | Mismos requisitos; no requiere instalación |
-| Linux | `Whakoom-Desktop-3.1.0-x86_64.AppImage` | x86_64, glibc 2.39 o posterior, OpenGL, X11/Wayland |
+| Windows | `Whakoom-Desktop-3.2.0-setup.exe` | Windows 10/11, x64 |
+| Windows portable | `Whakoom-Desktop-3.2.0.exe` o ZIP | Mismos requisitos; no requiere instalación |
+| Linux | `Whakoom-Desktop-3.2.0-x86_64.AppImage` | x86_64, glibc 2.39 o posterior, OpenGL, X11/Wayland |
 
-En Linux: `chmod +x Whakoom-Desktop-3.1.0-x86_64.AppImage` y ejecutá el archivo. Si FUSE no está disponible, usá `./Whakoom-Desktop-3.1.0-x86_64.AppImage --appimage-extract-and-run`. Para recordar la sesión necesitás un servicio Secret Service desbloqueado, como GNOME Keyring o KWallet compatible. La verificación adicional mediante navegador integrado está disponible únicamente en Windows y requiere WebView2; el inicio con credenciales usa HTTPS en ambos sistemas.
+En Linux: `chmod +x Whakoom-Desktop-3.2.0-x86_64.AppImage` y ejecutá el archivo. Si FUSE no está disponible, usá `./Whakoom-Desktop-3.2.0-x86_64.AppImage --appimage-extract-and-run`. Para recordar la sesión necesitás un servicio Secret Service desbloqueado, como GNOME Keyring o KWallet compatible. La verificación adicional mediante navegador integrado está disponible únicamente en Windows y requiere WebView2; el inicio con credenciales usa HTTPS en ambos sistemas.
 
 Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA256SUMS.txt` de la misma publicación. Portable significa que no necesita instalador: los datos siguen en la carpeta de usuario, separados del ejecutable.
 
 ## Funciones
+
+- Colaborar con el catálogo real: Crear ficha desde Catálogo; Modificar ficha y Sugerir un cambio en series y tomos; Añadir tomos en series. Los formularios originales conservan las validaciones y permisos de Whakoom. En Windows se integran con la sesión conectada; en Linux se abren en el navegador predeterminado, donde necesitás tu sesión de Whakoom. Sólo se publica al confirmar en el formulario oficial. [Creación de fichas](https://whakoom.zendesk.com/hc/es/articles/205934241), [correcciones](https://whakoom.zendesk.com/hc/es/articles/205934431) y [sugerencias](https://whakoom.zendesk.com/hc/es/articles/205934441).
 
 - Insignias: 18 logros locales con medallas, progreso, aviso y sonido al desbloquear. Se guardan por cuenta y en el respaldo; no se repiten al reiniciar. El sonido tiene una opción propia en Ajustes y los destellos respetan Animaciones. En Linux el sonido usa `paplay` o `aplay`, si están instalados.
 - Etiqueta Pro para tu cuenta y otras personas cuando aparece la marca de suscripción en los datos de Whakoom. No depende de las insignias locales ni habilita servicios de pago.
@@ -63,6 +65,10 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 ![Listas públicas](assets/lists.png)
 
 ![Personas y actividad de ejemplo](assets/friends.png)
+
+![Cuenta con controles ampliados](assets/account.png)
+
+La cuenta de esta captura es ficticia; su indicador Pro no representa una suscripción real.
 
 ![Insignias con una biblioteca de ejemplo](assets/badges.png)
 

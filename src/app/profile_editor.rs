@@ -13,6 +13,12 @@ impl App {
         let mut save = false;
         let mut avatar = None;
         egui::Modal::new(egui::Id::new("public-profile-editor")).show(ctx, |ui| {
+            ui.style_mut()
+                .text_styles
+                .insert(egui::TextStyle::Body, egui::FontId::proportional(16.));
+            ui.style_mut()
+                .text_styles
+                .insert(egui::TextStyle::Button, egui::FontId::proportional(16.));
             ui.set_width((ui.ctx().content_rect().width() - 64.).clamp(280., 520.));
             ui.heading(tr("Foto, nombre público y biografía"));
             ui.add_space(14.);
@@ -29,8 +35,14 @@ impl App {
                                     ui.allocate_exact_size(Vec2::splat(80.), egui::Sense::hover());
                                 self.avatar_at(ui, &page.avatar, rect);
                                 ui.vertical(|ui| {
-                                    if icons::action(ui, Icon::User, "Cambiar foto de perfil", p)
-                                        .clicked()
+                                    if icons::prominent_action(
+                                        ui,
+                                        Icon::User,
+                                        "Cambiar foto de perfil",
+                                        p,
+                                        Vec2::new(210., 48.),
+                                    )
+                                    .clicked()
                                     {
                                         avatar = rfd::FileDialog::new()
                                             .add_filter("Imagen", &["png", "jpg", "jpeg", "webp"])

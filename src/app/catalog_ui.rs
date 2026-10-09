@@ -44,6 +44,26 @@ impl App {
                             self.refresh(1);
                         }
                     }
+                    if self.catalog_mode == CatalogMode::Search {
+                        let create = ui
+                            .add_enabled_ui(!self.prefs.offline, |ui| {
+                                icons::action_with_min_size(
+                                    ui,
+                                    Icon::Quill,
+                                    "Crear ficha",
+                                    p,
+                                    Vec2::new(140., 40.),
+                                )
+                            })
+                            .inner;
+                        #[cfg(test)]
+                        self.ui_rects.insert("catalog-create".into(), create.rect);
+                        if create.clicked() {
+                            self.open_contribution(
+                                whakoom_desktop::contributions::Request::create(&self.query),
+                            );
+                        }
+                    }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
                             .add_enabled_ui(!self.busy, |ui| icons::refresh(ui, p))
