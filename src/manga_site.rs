@@ -205,20 +205,8 @@ fn parse_search(bytes: &[u8]) -> Result<Vec<Link>, String> {
         .take(1000)
         .collect())
 }
-pub fn fetch(url: &str, query: Option<&str>) -> Result<Page, String> {
+fn fetch_search(query: &str, queries: Vec<String>) -> Result<Page, String> {
     let connector = client()?;
-    let Some(q) = query else {
-        let target = safe_url(url)?;
-        return parse(
-            &String::from_utf8(read(&connector, &target)?)
-                .map_err(|_| "Página con codificación inválida")?,
-            &target,
-        );
-    };
-    if q.trim().is_empty() || q.len() > 500 {
-        return Err("Escribí un título para buscar".into());
-    }
-    let queries = search_variants(q);
     let mut results = vec![];
     let mut errors = vec![];
     let mut seen = HashSet::new();
@@ -254,7 +242,7 @@ pub fn fetch(url: &str, query: Option<&str>) -> Result<Page, String> {
     if errors.len() == queries.len() {
         return Err(errors.into_iter().next().unwrap());
     }
-    let tokens = words(q);
+    let tokens = words(query);
     results.sort_by_cached_key(|link| {
         let title = words(&link.title).join(" ");
         std::cmp::Reverse(
@@ -267,11 +255,43 @@ pub fn fetch(url: &str, query: Option<&str>) -> Result<Page, String> {
     results.truncate(100);
     Ok(Page {
         url: format!("{BASE}/buscador.php"),
-        title: format!("Listado Manga · {q}"),
+        title: format!("Listado Manga · {query}"),
         results,
         queries,
         ..Default::default()
     })
+}
+
+/// Returns the first useful search page quickly. Remaining variants are
+/// fetched by the worker and replace this page when they finish.
+pub fn fetch_fast(url: &str, query: &str) -> Result<Page, String> {
+    if url::Url::parse(&safe_url(url)?).is_err() {
+        return Err("Dirección de Listado Manga inválida".into());
+    }
+    if query.trim().is_empty() || query.len() > 500 {
+        return Err("Escribí un título para buscar".into());
+    }
+    let mut queries = search_variants(query);
+    queries.truncate(1);
+    fetch_search(query, queries)
+}
+
+pub fn fetch(url: &str, query: Option<&str>) -> Result<Page, String> {
+    let connector = client()?;
+    if query.is_none() {
+        let target = safe_url(url)?;
+        return parse(
+            &String::from_utf8(read(&connector, &target)?)
+                .map_err(|_| "Página con codificación inválida")?,
+            &target,
+        );
+    }
+    let q = query.unwrap();
+    if q.trim().is_empty() || q.len() > 500 {
+        return Err("Escribí un título para buscar".into());
+    }
+    drop(connector);
+    fetch_search(q, search_variants(q))
 }
 #[cfg(test)]
 mod tests {

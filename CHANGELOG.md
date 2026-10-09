@@ -2,6 +2,9 @@
 
 ## 3.1.0
 
+- Listado Manga muestra la primera coincidencia sin esperar todas las variantes; las búsquedas amplias y las portadas se incorporan progresivamente en segundo plano.
+- Las acciones de series mantienen un ancho uniforme y las colecciones completas muestran «Serie completada» en lugar de «Te faltan 0 tomos».
+
 - Mi biblioteca abre en Tomos faltantes con el último tomo publicado que falta de cada colección. Los datos guardados aparecen al entrar; se actualizan sólo las ediciones desconocidas o con más de tres horas, en tandas de hasta tres consultas. Recargar fuerza la actualización.
 - Buscador de biblioteca más amplio y alto, con lupa y modos Tomos faltantes, Series y Tomos dentro de la misma barra; se adapta a ventanas estrechas.
 - El gasto total de «Tu colección en cifras» queda integrado en «Tus ritmos de compra y lectura», conservando la separación por monedas.

@@ -404,18 +404,33 @@ fn worker(
                     let events = etx.clone();
                     let context = ctx.clone();
                     std::thread::spawn(move || {
-                        let page = manga_site::fetch(&url, query.as_deref());
+                        let page = match query.as_deref() {
+                            Some(query) => manga_site::fetch_fast(&url, query),
+                            None => manga_site::fetch(&url, None),
+                        };
                         if cancelled.load(Ordering::Relaxed) {
                             return;
                         }
-                        let links = page.as_ref().map(|p| p.results.clone()).unwrap_or_default();
+                        let mut links = page.as_ref().map(|p| p.results.clone()).unwrap_or_default();
                         let _ = events.send(Event {
                             id,
                             data: Ok(Data::Manga(page)),
                         });
                         context.request_repaint();
-                        if query.is_none() {
+                        let Some(query) = query.as_deref() else {
                             return;
+                        };
+                        // The first exact query is painted immediately. Broader variants
+                        // enrich the page afterwards, without blocking navigation.
+                        if let Ok(full) = manga_site::fetch(&url, Some(query)) {
+                            if !cancelled.load(Ordering::Relaxed) {
+                                links = full.results.clone();
+                                let _ = events.send(Event {
+                                    id,
+                                    data: Ok(Data::Manga(Ok(full))),
+                                });
+                                context.request_repaint();
+                            }
                         }
                         for batch in links.chunks(3) {
                             if cancelled.load(Ordering::Relaxed) {
@@ -3734,13 +3749,15 @@ impl App {
                 }
             });
             if let Some((owned, total)) = missing::progress(&self.library, &group.volumes) {
+                let missing_count = total.saturating_sub(owned);
                 child.add(
                     egui::ProgressBar::new(owned as f32 / total.max(1) as f32)
                         .desired_width(cover_width)
-                        .text(i18n::trf(
-                            "Te faltan {0} tomos",
-                            &[total.saturating_sub(owned).to_string()],
-                        )),
+                        .text(if missing_count == 0 {
+                            tr("Serie completada")
+                        } else {
+                            i18n::trf("Te faltan {0} tomos", &[missing_count.to_string()])
+                        }),
                 );
             } else {
                 child.label(

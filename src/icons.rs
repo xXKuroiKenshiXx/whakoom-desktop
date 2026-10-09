@@ -592,15 +592,25 @@ pub fn toggle(
     value: &mut bool,
     p: crate::theme::Palette,
 ) -> egui::Response {
+    toggle_sized(ui, icon, label, value, p, None)
+}
+
+pub fn toggle_sized(
+    ui: &mut egui::Ui,
+    icon: Icon,
+    label: &str,
+    value: &mut bool,
+    p: crate::theme::Palette,
+    width: Option<f32>,
+) -> egui::Response {
     let translated = crate::i18n::tr(label);
     let label = translated.as_str();
     let text = ui
         .painter()
         .layout_no_wrap(label.into(), egui::FontId::proportional(14.), p.text);
-    let (rect, mut response) = ui.allocate_exact_size(
-        Vec2::new((text.size().x + 58.).max(130.), 42.),
-        egui::Sense::click(),
-    );
+    let width = width.unwrap_or((text.size().x + 58.).max(130.));
+    let (rect, mut response) =
+        ui.allocate_exact_size(Vec2::new(width, 42.), egui::Sense::click());
     if response.clicked() {
         *value = !*value;
         response.mark_changed();

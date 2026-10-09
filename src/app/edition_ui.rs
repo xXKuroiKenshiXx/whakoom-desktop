@@ -87,7 +87,11 @@ impl App {
                                 egui::ProgressBar::new(owned as f32 / volumes.len().max(1) as f32)
                                     .desired_width(ui.available_width().min(420.))
                                     .text(i18n::trf(
-                                        "Te faltan {0} tomos",
+                                        if volumes.len().saturating_sub(owned) == 0 {
+                                            "Serie completada"
+                                        } else {
+                                            "Te faltan {0} tomos"
+                                        },
                                         &[volumes.len().saturating_sub(owned).to_string()],
                                     )),
                             );
@@ -154,7 +158,14 @@ impl App {
                             .entries
                             .get(&item.key)
                             .map_or(saved.favorite, |e| e.wanted);
-                        let wish = icons::toggle(ui, Icon::Heart, "Lo quiero", &mut wanted, p);
+                        let wish = icons::toggle_sized(
+                            ui,
+                            Icon::Heart,
+                            "Lo quiero",
+                            &mut wanted,
+                            p,
+                            Some(280.),
+                        );
                         #[cfg(test)]
                         self.ui_rects.insert("favorite-edition".into(), wish.rect);
                         if wish.changed() {
