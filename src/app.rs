@@ -650,7 +650,7 @@ fn worker(
                         .join("pages")
                         .join(format!("{key}.lists.json"));
                     if offline {
-                        std::fs::read(path)
+                        whakoom_desktop::vault::read(&path)
                             .map_err(|_| "No hay listas guardadas de esta sección".to_string())
                             .and_then(|b| {
                                 serde_json::from_slice(&b)
@@ -660,7 +660,7 @@ fn worker(
                     } else {
                         api.lists(section, &owner, page).map(|p| {
                             if let Ok(bytes) = serde_json::to_vec(&p) {
-                                let _ = storage::atomic_write(&path, &bytes);
+                                let _ = whakoom_desktop::vault::write(&path, &bytes);
                             }
                             Data::Lists(owner, p)
                         })
@@ -672,7 +672,7 @@ fn worker(
                         storage::key(&format!("{owner}:{url}"))
                     ));
                     if offline {
-                        std::fs::read(path)
+                        whakoom_desktop::vault::read(&path)
                             .map_err(|_| "Esta lista no está guardada todavía".to_string())
                             .and_then(|b| {
                                 serde_json::from_slice(&b)
@@ -682,7 +682,7 @@ fn worker(
                     } else {
                         api.comic_list(&url).map(|p| {
                             if let Ok(bytes) = serde_json::to_vec(&p) {
-                                let _ = storage::atomic_write(&path, &bytes);
+                                let _ = whakoom_desktop::vault::write(&path, &bytes);
                             }
                             Data::List(owner, Box::new(p))
                         })
@@ -954,6 +954,7 @@ struct App {
     library_valid: bool,
     persist: bool,
     writer: Writer,
+    backup_password: zeroize::Zeroizing<String>,
     stats: Stats,
     tab: Tab,
     items: Vec<Item>,
@@ -1198,6 +1199,7 @@ impl App {
             library_valid,
             persist: !preview,
             writer: Writer::new(),
+            backup_password: zeroize::Zeroizing::new(String::new()),
             stats,
             tab: if preview { Tab::Library } else { Tab::News },
             items: vec![],
@@ -1389,8 +1391,13 @@ impl App {
             app.open_item(item);
             app.edition_reviews = std::env::args().any(|a| a == "--preview-opinions");
         }
+        if app.persist {
+            app.writer.migrate_private_files();
+        }
         if !preview && !app.prefs.setup_complete {
             app.onboarding = Some(onboarding::Wizard::new(&app.prefs.cover_cache, true));
+        } else if !preview && !app.prefs.tutorial_complete {
+            app.onboarding = Some(onboarding::Wizard::tutorial(&app.prefs.cover_cache));
         }
         if std::env::args()
             .any(|a| a == "--preview-onboarding" || a == "--preview-onboarding-quality")
@@ -1655,6 +1662,9 @@ impl App {
             }
             if !read_pending {
                 e.read = d.read;
+                if e.read {
+                    e.reading = false;
+                }
                 if !d.read_date.is_empty() || !d.read {
                     e.read_date = d.read_date.clone();
                 }
@@ -1748,7 +1758,7 @@ impl App {
                             WantedFilter::Volumes => e.item.key.starts_with("comic"),
                         }
                 }
-                Tab::Reading => e.owned && !e.read,
+                Tab::Reading => e.read || e.reading,
                 _ => true,
             })
             .map(|e| e.item.clone())
@@ -2999,7 +3009,7 @@ impl App {
             );
             let painter = ui.painter().with_clip_rect(label_rect);
             let pro = self.library.account.as_ref().is_some_and(|u| u.pro);
-            let name_width = (label_rect.width() - if pro { 52. } else { 0. }).max(24.);
+            let name_width = (label_rect.width() - if pro { 68. } else { 0. }).max(24.);
             let name = painter.layout(
                 self.username.clone().unwrap_or_else(|| tr("Cuenta")),
                 egui::FontId::proportional(14.),
@@ -3014,8 +3024,8 @@ impl App {
                 .galley(label_rect.min, name, p.text);
             if pro {
                 let badge = egui::Rect::from_min_size(
-                    egui::Pos2::new(label_rect.right() - 44., label_rect.top()),
-                    Vec2::new(44., 20.),
+                    egui::Pos2::new(label_rect.right() - 60., label_rect.top()),
+                    Vec2::new(60., 24.),
                 );
                 whakoom_desktop::badge_art::pro_at(&painter, badge, p);
             }
@@ -3358,7 +3368,7 @@ impl App {
                         Tab::News => "Novedades reales para descubrir, coleccionar y leer.",
                         Tab::Catalog => "Encontrá títulos y ediciones de Whakoom.",
                         Tab::Wanted => "Las historias que querés sumar a tu biblioteca.",
-                        Tab::Reading => "Tu próxima lectura está acá.",
+                        Tab::Reading => "Tus tomos leídos y en lectura aparecerán acá.",
                         Tab::Stats => "Conocé tu colección y tus hábitos de lectura.",
                         Tab::Settings => "Tu biblioteca, a tu manera.",
                         Tab::Friends => "Las personas que seguís, tus seguidores y tus favoritos.",
@@ -3532,21 +3542,19 @@ impl App {
             return;
         }
         if self.tab == Tab::News {
-            let mut accent = p;
-            accent.surface = p.selected;
-            accent.text = p.accent;
-            accent.muted = p.accent;
-            if icons::toggle(
-                ui,
-                Icon::Book,
-                "Novedades de mis series",
-                &mut self.news_owned_only,
-                accent,
-            )
-            .changed()
-            {
-                self.begin_transition(1.);
-            }
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new(tr("Novedades")).size(16.).strong());
+                for (selected, label) in [(false, "Todas"), (true, "Mis series")] {
+                    let button = ui.add_sized(
+                        [150., 44.],
+                        egui::Button::new(tr(label)).selected(self.news_owned_only == selected),
+                    );
+                    if button.clicked() && self.news_owned_only != selected {
+                        self.news_owned_only = selected;
+                        self.begin_transition(1.);
+                    }
+                }
+            });
         }
 
         ui.add_space(18.);
@@ -4557,7 +4565,7 @@ impl App {
                                     ui.painter(),
                                     egui::Rect::from_min_size(
                                         rect.min + Vec2::new(85., 82.),
-                                        Vec2::new(44., 22.),
+                                        Vec2::new(60., 28.),
                                     ),
                                     p,
                                 );
@@ -5414,6 +5422,10 @@ impl App {
                     ui.set_width(ui.available_width());
                     ui.heading(tr("Tu lectura y tus notas")); ui.add_space(12.);
                     let e = self.library.ensure(&d.item);
+                    if !e.read {
+                        changed |= icons::toggle(ui, Icon::OpenBook, "Leyendo · estado local", &mut e.reading, p).changed();
+                        ui.add_space(10.);
+                    } else { e.reading = false; }
                     ui.scope(|ui| {
                         ui.spacing_mut().interact_size.y=44.;
                         for (label,key,date) in [("Fecha de lectura",d.item.key.clone(),&mut e.read_date),("Fecha de compra",format!("purchase:{}",d.item.key),&mut e.purchase_date)] {
@@ -6080,6 +6092,8 @@ mod ui_tests {
             assert_eq!(app.items.len(), count);
             assert_eq!(app.wanted_filter, filter);
         }
+        app.library.entries.get_mut("comica").unwrap().read = true;
+        app.library.entries.get_mut("comicb").unwrap().reading = true;
         app.select(Tab::Reading);
         app.prefs.list_view = true;
         for _ in 0..3 {
@@ -6090,7 +6104,8 @@ mod ui_tests {
         click(&mut app, &ctx, pos);
         frame(&mut app, &ctx, vec![]);
         assert!(!app.prefs.list_view);
-        assert_eq!(app.card_rects.len(), 3);
+        assert_eq!(app.card_rects.len(), 2);
+        assert!(!app.items.iter().any(|i| i.key == "comicc"));
         let pos = app.ui_rects["view-toggle"].center();
         click(&mut app, &ctx, pos);
         assert!(app.prefs.list_view);

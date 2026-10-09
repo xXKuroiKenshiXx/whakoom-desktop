@@ -53,6 +53,7 @@ pub struct Preferences {
     pub language: crate::i18n::Language,
     pub friends_carousel: bool,
     pub setup_complete: bool,
+    pub tutorial_complete: bool,
     pub check_updates: bool,
 }
 impl Default for Preferences {
@@ -72,19 +73,20 @@ impl Default for Preferences {
             language: Default::default(),
             friends_carousel: true,
             setup_complete: false,
+            tutorial_complete: false,
             check_updates: true,
         }
     }
 }
 impl Preferences {
     pub fn load() -> Self {
-        fs::read(session::data_dir().join("settings.json"))
+        crate::vault::read(&session::data_dir().join("settings.json"))
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok())
             .unwrap_or_default()
     }
     pub fn save(&self) -> Result<(), String> {
-        atomic_write(
+        crate::vault::write(
             &session::data_dir().join("settings.json"),
             &serde_json::to_vec(self).map_err(|e| e.to_string())?,
         )
@@ -98,6 +100,7 @@ pub struct Entry {
     pub owned: bool,
     pub wanted: bool,
     pub read: bool,
+    pub reading: bool,
     pub read_date: String,
     pub notes: String,
     pub tags: String,
@@ -124,6 +127,7 @@ impl Default for Entry {
             owned: false,
             wanted: false,
             read: false,
+            reading: false,
             read_date: String::new(),
             notes: String::new(),
             tags: String::new(),
@@ -295,7 +299,7 @@ impl Library {
                 ..Default::default()
             });
         }
-        let lib: Self = serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?)
+        let lib: Self = serde_json::from_slice(&crate::vault::read(&path)?)
             .map_err(|e| format!("No se pudo leer tu biblioteca: {e}"))?;
         if lib.owner != owner {
             return Err("La biblioteca pertenece a otra cuenta".into());
@@ -509,11 +513,21 @@ impl Library {
         Ok(())
     }
     pub fn import(path: &Path, owner: &str) -> Result<Self, String> {
+        Self::import_with_password(path, owner, "")
+    }
+    pub fn import_with_password(path: &Path, owner: &str, password: &str) -> Result<Self, String> {
         if fs::metadata(path).map_err(|e| e.to_string())?.len() > 32 * 1024 * 1024 {
             return Err("Respaldo demasiado grande".into());
         }
-        let mut lib: Self = serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
+        let bytes = zeroize::Zeroizing::new(fs::read(path).map_err(|e| e.to_string())?);
+        let value: serde_json::Value =
+            serde_json::from_slice(&bytes).map_err(|_| "Respaldo inválido")?;
+        let decoded = if value.get("format").is_some() {
+            crate::backup_crypto::decrypt(&bytes, password)?
+        } else {
+            bytes
+        };
+        let mut lib: Self = serde_json::from_slice(&decoded).map_err(|e| e.to_string())?;
         lib.validate()?;
         lib.owner = owner.into();
         Ok(lib)
@@ -582,6 +596,12 @@ pub fn reading_month(date: &str) -> Option<&str> {
     (year > 0 && day > 0 && day <= days).then_some(&date[..7])
 }
 pub enum Save {
+    Migrate,
+    EncryptedExport(
+        PathBuf,
+        zeroize::Zeroizing<Vec<u8>>,
+        zeroize::Zeroizing<String>,
+    ),
     Library(Box<Library>),
     File(PathBuf, Vec<u8>),
     Flush(mpsc::Sender<()>),
@@ -604,7 +624,13 @@ impl Writer {
                 let mut libs = BTreeMap::new();
                 let mut files = vec![];
                 let mut barriers = vec![];
+                let mut migrate = false;
+                let mut encrypted_exports = vec![];
                 let mut add = |job| match job {
+                    Save::Migrate => migrate = true,
+                    Save::EncryptedExport(path, bytes, password) => {
+                        encrypted_exports.push((path, bytes, password))
+                    }
                     Save::Library(l) => {
                         libs.insert(l.owner.clone(), l);
                     }
@@ -615,10 +641,14 @@ impl Writer {
                 for j in rx.try_iter() {
                     add(j);
                 }
+                if migrate && let Err(e) = crate::vault::migrate_private_files() {
+                    let _ = etx.send(e);
+                }
                 for l in libs.into_values() {
                     let result = serde_json::to_vec(&l)
+                        .map(zeroize::Zeroizing::new)
                         .map_err(|e| e.to_string())
-                        .and_then(|b| atomic_write(&Library::path(&l.owner), &b));
+                        .and_then(|b| crate::vault::write(&Library::path(&l.owner), &b));
                     if let Err(e) = result {
                         let _ = etx.send(e);
                     }
@@ -626,6 +656,13 @@ impl Writer {
                 for (p, b) in files {
                     if let Err(e) = atomic_write(&p, &b) {
                         let _ = etx.send(e);
+                    }
+                }
+                for (path, bytes, password) in encrypted_exports {
+                    if let Err(error) = crate::backup_crypto::encrypt(&bytes, &password)
+                        .and_then(|encrypted| atomic_write(&path, &encrypted))
+                    {
+                        let _ = etx.send(error);
                     }
                 }
                 for tx in barriers {
@@ -638,8 +675,18 @@ impl Writer {
     pub fn library(&self, l: &Library) {
         let _ = self.tx.send(Save::Library(Box::new(l.clone())));
     }
+    pub fn migrate_private_files(&self) {
+        let _ = self.tx.send(Save::Migrate);
+    }
     pub fn file(&self, p: PathBuf, b: Vec<u8>) {
         let _ = self.tx.send(Save::File(p, b));
+    }
+    pub fn encrypted_export(&self, path: PathBuf, bytes: Vec<u8>, password: String) {
+        let _ = self.tx.send(Save::EncryptedExport(
+            path,
+            zeroize::Zeroizing::new(bytes),
+            zeroize::Zeroizing::new(password),
+        ));
     }
     pub fn flush(&self) -> Result<(), String> {
         let (tx, rx) = mpsc::channel();
@@ -668,7 +715,7 @@ pub fn cached_page(cache_key: &str) -> Option<Page> {
     if fs::metadata(&path).ok()?.len() > 32 * 1024 * 1024 {
         return None;
     }
-    let bytes = fs::read(path).ok()?;
+    let bytes = crate::vault::read(&path).ok()?;
     let c: CachedPage = serde_json::from_slice(&bytes).ok()?;
     (c.key == cache_key
         && c.page.items.len() <= 10_000
@@ -684,7 +731,7 @@ pub fn save_page(cache_key: &str, page: &Page) -> Result<(), String> {
         page: page.clone(),
         saved: now(),
     };
-    atomic_write(
+    crate::vault::write(
         &session::data_dir()
             .join("pages")
             .join(format!("{}.json", key(cache_key))),

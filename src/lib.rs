@@ -1,5 +1,6 @@
 pub mod account;
 pub mod achievement_sound;
+pub mod backup_crypto;
 pub mod badge_art;
 pub mod badges;
 pub mod notifications;
@@ -25,6 +26,7 @@ pub mod storage;
 pub mod sync;
 pub mod theme;
 pub mod traffic;
+pub mod vault;
 
 pub mod calendar;
 pub mod help;

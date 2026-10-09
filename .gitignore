@@ -24,7 +24,14 @@ Thumbs.db
 /coverage/
 *.session.json
 *.cookies.json
+*.whakoom
+/whakoom-biblioteca.json
+/whakoom-coleccion.csv
 /support-webview/
 
 /updates/
 *.update-backup
+/web/node_modules/
+/web/dist/
+/web/.astro/
+/.netlify/

@@ -212,6 +212,33 @@ pub fn all(library: &Library) -> Vec<Badge> {
             250,
         ),
         (
+            "owned-1000",
+            "Biblioteca monumental",
+            "Añadí 1000 tomos",
+            Icon::Shelf,
+            Prism,
+            stats.owned,
+            1000,
+        ),
+        (
+            "owned-2000",
+            "Archivo de historias",
+            "Añadí 2000 tomos",
+            Icon::Trophy,
+            Prism,
+            stats.owned,
+            2000,
+        ),
+        (
+            "owned-4000",
+            "Universo de papel",
+            "Añadí 4000 tomos",
+            Icon::Trophy,
+            Prism,
+            stats.owned,
+            4000,
+        ),
+        (
             "owned-500",
             "Archivo legendario",
             "Añadí 500 tomos",
@@ -335,7 +362,7 @@ mod tests {
         restored.badges.validate().unwrap();
     }
     #[test]
-    fn cached_editions_arent_owned_or_complete_and_ten_extra_badges_are_unique() {
+    fn cached_editions_arent_owned_or_complete_and_badges_are_unique() {
         let mut library = Library::default();
         let item = Item {
             key: "comic-one".into(),
@@ -350,10 +377,10 @@ mod tests {
             },
         );
         let badges = all(&library);
-        assert_eq!(badges.len(), 18);
+        assert_eq!(badges.len(), 21);
         assert_eq!(
             badges.iter().map(|b| b.id).collect::<BTreeSet<_>>().len(),
-            18
+            21
         );
         assert_eq!(
             badges

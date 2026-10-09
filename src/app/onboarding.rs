@@ -6,6 +6,13 @@ pub(super) struct Wizard {
     first_run: bool,
 }
 impl Wizard {
+    pub fn tutorial(policy: &whakoom_desktop::covers::CachePolicy) -> Self {
+        Self {
+            step: 2,
+            policy: policy.clone(),
+            first_run: true,
+        }
+    }
     pub fn new(policy: &whakoom_desktop::covers::CachePolicy, first_run: bool) -> Self {
         let mut policy = policy.clone();
         if first_run {
@@ -20,6 +27,9 @@ impl Wizard {
     fn advance(&mut self) -> Option<whakoom_desktop::covers::CachePolicy> {
         if self.step == 0 && self.policy.enabled {
             self.step = 1;
+            None
+        } else if self.first_run && self.step < 4 {
+            self.step = if self.step < 2 { 2 } else { self.step + 1 };
             None
         } else {
             Some(self.policy.clone())
@@ -40,7 +50,7 @@ impl App {
             .show(ctx, |ui| {
                 ui.set_width((ctx.content_rect().width() - 100.).clamp(320., 480.));
                 ui.label(RichText::new(tr("TU APP, A TU MANERA")).size(11.).color(p.accent));
-                ui.label(RichText::new(tr(if wizard.step == 0 { "¿Guardamos las miniaturas?" } else { "Elegí la calidad de las portadas" })).size(24.).strong());
+                ui.label(RichText::new(tr(match wizard.step { 0 => "¿Guardamos las miniaturas?", 1 => "Elegí la calidad de las portadas", 2 => "Dos valoraciones, dos colores", 3 => "Tu comunidad, a tu manera", _ => "Conocé tus ritmos" })).size(24.).strong());
                 ui.add_space(16.);
                 if wizard.step == 0 {
                     ui.radio_value(&mut wizard.policy.enabled, true, tr("Guardar en caché en este equipo"));
@@ -48,19 +58,30 @@ impl App {
                     ui.add_space(14.);
                     ui.radio_value(&mut wizard.policy.enabled, false, tr("Descargar de nuevo al abrir la app"));
                     ui.label(RichText::new(tr("No se guardan en disco. Se reutilizan en memoria mientras la app está abierta y necesitan conexión.")).size(13.).color(p.muted));
-                } else {
+                } else if wizard.step == 1 {
                     quality_choices(ui, &mut wizard.policy.quality);
                     ui.add_space(12.);
                     ui.label(RichText::new(tr("A mayor calidad, mejor se ven las portadas, pero tardan más en descargarse y usan más espacio y memoria. Primero mostramos una miniatura rápida; después mejora la nitidez.")).size(13.).color(p.muted));
+                }
+                if wizard.step >= 2 {
+                    let (symbol, color, text) = match wizard.step {
+                        2 => (Icon::Star, egui::Color32::from_rgb(245,199,80), "Las estrellas doradas son la valoración de la comunidad. Las violetas son tu puntuación: podés votar desde la ficha del tomo o la serie."),
+                        3 => (Icon::Heart, p.accent, "Seguidos muestra a quienes seguís en Whakoom; Seguidores, a quienes te siguen. Tus personas favoritas forman una lista local que organizás con el corazón."),
+                        _ => (Icon::Chart, p.accent, "Las estadísticas usan tus tomos y las fechas de compra y lectura disponibles. Podés completar las fechas desde las fichas. Las insignias y las notas son locales; este cliente no incluye todas las funciones Pro ni cambia tu suscripción de Whakoom."),
+                    };
+                    let (rect, _) = ui.allocate_exact_size(Vec2::splat(48.), egui::Sense::hover());
+                    icons::paint(ui.painter(), rect, symbol, color);
+                    ui.add_space(14.);
+                    ui.label(RichText::new(tr(text)).size(17.));
                 }
                 ui.add_space(18.);
                 ui.label(RichText::new(tr("Podés cambiar estas opciones después en Ajustes → Almacenamiento.")).size(12.).color(p.muted));
                 ui.add_space(18.);
                 ui.horizontal(|ui| {
-                    if ui.add_enabled(wizard.step > 0, egui::Button::new(tr("Atrás"))).clicked() { wizard.step = 0; }
+                    if ui.add_enabled(wizard.step > 0, egui::Button::new(tr("Atrás"))).clicked() { wizard.step = if wizard.step == 2 && !wizard.policy.enabled { 0 } else { wizard.step - 1 }; }
                     if !wizard.first_run && ui.button(tr("Cancelar")).clicked() { cancelled = true; }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let label = if wizard.step == 0 && wizard.policy.enabled { "Siguiente" } else { "Comenzar" };
+                        let label = if (wizard.first_run && wizard.step < 4) || (wizard.step == 0 && wizard.policy.enabled) { "Siguiente" } else { "Comenzar" };
                         if ui.button(RichText::new(tr(label)).color(p.accent).strong()).clicked() { finished = wizard.advance(); }
                     });
                 });
@@ -74,6 +95,9 @@ impl App {
             }
             self.prefs.cover_cache = policy;
             self.prefs.setup_complete = true;
+            if wizard.first_run {
+                self.prefs.tutorial_complete = true;
+            }
             self.save_prefs();
             self.failed.clear();
             self.next_cache = Instant::now();
@@ -175,9 +199,27 @@ pub(super) fn quality_choices(ui: &mut egui::Ui, selected: &mut whakoom_desktop:
 mod tests {
     use super::*;
     #[test]
+    fn first_run_includes_the_tutorial_without_changing_existing_quality() {
+        let policy = whakoom_desktop::covers::CachePolicy {
+            enabled: false,
+            quality: whakoom_desktop::covers::Quality::Low,
+            ..Default::default()
+        };
+        let mut first = Wizard::new(&policy, true);
+        assert!(first.advance().is_none());
+        assert_eq!(first.step, 2);
+        assert!(first.advance().is_none());
+        assert!(first.advance().is_none());
+        assert!(first.advance().is_some());
+        let mut tour = Wizard::tutorial(&policy);
+        assert!(tour.advance().is_none());
+        assert!(tour.advance().is_none());
+        assert_eq!(tour.advance().unwrap().quality, policy.quality);
+    }
+    #[test]
     fn choices_commit_only_on_finish_and_back_keeps_quality() {
         let original = whakoom_desktop::covers::CachePolicy::default();
-        let mut wizard = Wizard::new(&original, true);
+        let mut wizard = Wizard::new(&original, false);
         assert_eq!(
             wizard.policy.quality,
             whakoom_desktop::covers::Quality::High
@@ -191,7 +233,7 @@ mod tests {
             whakoom_desktop::covers::Quality::Low
         );
         assert_eq!(original.quality, whakoom_desktop::covers::Quality::High);
-        let mut no_cache = Wizard::new(&original, true);
+        let mut no_cache = Wizard::new(&original, false);
         no_cache.policy.enabled = false;
         assert!(!no_cache.advance().unwrap().enabled);
     }

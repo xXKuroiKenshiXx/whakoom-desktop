@@ -110,14 +110,15 @@ impl App {
                             self.queue_change(&item, sync::Change::Rating(value));
                         }
                         ui.add_space(14.);
-                        let response = ui.add_enabled(
-                            !self.busy && self.library_valid && saved.complete,
-                            egui::Button::new(tr(if owned > 0 {
+                        let response = icons::centered_button(
+                            ui,
+                            if owned > 0 {
                                 "Quitar colección de mi biblioteca"
                             } else {
                                 "Añadir colección a la biblioteca"
-                            }))
-                            .min_size(Vec2::new(280., 46.)),
+                            },
+                            Vec2::new(280., 46.),
+                            !self.busy && self.library_valid && saved.complete,
                         );
                         #[cfg(test)]
                         self.ui_rects.insert(
@@ -144,8 +145,12 @@ impl App {
                             }
                         }
                         ui.add_space(10.);
-                        let opinions = ui
-                            .add_sized([280., 46.], egui::Button::new(tr("Opiniones de la serie")));
+                        let opinions = icons::centered_button(
+                            ui,
+                            "Opiniones de la serie",
+                            Vec2::new(280., 46.),
+                            true,
+                        );
                         #[cfg(test)]
                         self.ui_rects
                             .insert("series-opinions".into(), opinions.rect);
@@ -173,10 +178,11 @@ impl App {
                             self.queue_change(&item, sync::Change::Wanted(wanted));
                         }
                         if owned > 0 && owned < volumes.len() {
-                            let add = ui.add_enabled(
+                            let add = icons::centered_button(
+                                ui,
+                                "Completar colección",
+                                Vec2::new(280., 46.),
                                 !self.busy && self.library_valid && saved.complete,
-                                egui::Button::new(tr("Completar colección"))
-                                    .min_size(Vec2::new(280., 46.)),
                             );
                             #[cfg(test)]
                             self.ui_rects.insert("add-edition".into(), add.rect);

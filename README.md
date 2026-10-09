@@ -18,7 +18,7 @@ Mi biblioteca abre en **Tomos faltantes**, mostrando el tomo de menor numeració
 | Windows portable | `Whakoom-Desktop-3.2.0.exe` o ZIP | Mismos requisitos; no requiere instalación |
 | Linux | `Whakoom-Desktop-3.2.0-x86_64.AppImage` | x86_64, glibc 2.39 o posterior, OpenGL, X11/Wayland |
 
-En Linux: `chmod +x Whakoom-Desktop-3.2.0-x86_64.AppImage` y ejecutá el archivo. Si FUSE no está disponible, usá `./Whakoom-Desktop-3.2.0-x86_64.AppImage --appimage-extract-and-run`. Para recordar la sesión necesitás un servicio Secret Service desbloqueado, como GNOME Keyring o KWallet compatible. La verificación adicional mediante navegador integrado está disponible únicamente en Windows y requiere WebView2; el inicio con credenciales usa HTTPS en ambos sistemas.
+En Linux: `chmod +x Whakoom-Desktop-3.2.0-x86_64.AppImage` y ejecutá el archivo. Si FUSE no está disponible, usá `./Whakoom-Desktop-3.2.0-x86_64.AppImage --appimage-extract-and-run`. Para guardar la sesión y los datos privados cifrados necesitás un servicio Secret Service desbloqueado, como GNOME Keyring o KWallet compatible. La verificación adicional mediante navegador integrado está disponible únicamente en Windows y requiere WebView2; el inicio con credenciales usa HTTPS en ambos sistemas.
 
 Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA256SUMS.txt` de la misma publicación. Portable significa que no necesita instalador: los datos siguen en la carpeta de usuario, separados del ejecutable.
 
@@ -26,7 +26,7 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 
 - Colaborar con el catálogo real: Crear ficha desde Catálogo; Modificar ficha y Sugerir un cambio en series y tomos; Añadir tomos en series. Los formularios originales conservan las validaciones y permisos de Whakoom. En Windows se integran con la sesión conectada; en Linux se abren en el navegador predeterminado, donde necesitás tu sesión de Whakoom. Sólo se publica al confirmar en el formulario oficial. [Creación de fichas](https://whakoom.zendesk.com/hc/es/articles/205934241), [correcciones](https://whakoom.zendesk.com/hc/es/articles/205934431) y [sugerencias](https://whakoom.zendesk.com/hc/es/articles/205934441).
 
-- Insignias: 18 logros locales con medallas, progreso, aviso y sonido al desbloquear. Se guardan por cuenta y en el respaldo; no se repiten al reiniciar. El sonido tiene una opción propia en Ajustes y los destellos respetan Animaciones. En Linux el sonido usa `paplay` o `aplay`, si están instalados.
+- Insignias: 21 logros locales con medallas, progreso, aviso y sonido al desbloquear. Se guardan por cuenta y en el respaldo; no se repiten al reiniciar. El sonido tiene una opción propia en Ajustes y los destellos respetan Animaciones. En Linux el sonido usa `paplay` o `aplay`, si están instalados.
 - Etiqueta Pro para tu cuenta y otras personas cuando aparece la marca de suscripción en los datos de Whakoom. No depende de las insignias locales ni habilita servicios de pago.
 
 - Catálogo ordenado en Buscar, Explorar, Listas y Usuarios; historial de búsquedas y visitas.
@@ -42,10 +42,12 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 - Historial local de búsquedas y títulos visitados. Miniaturas rápidas que mejoran su resolución en segundo plano.
 - Biblioteca por tomos o series; añadir y quitar series completas. Actualización automática al entrar y al abrir fichas.
 - Colección, deseados, lectura y valoración personal con cola persistente y reintentos online.
-- Búsqueda de usuarios y perfiles con Actividad, Comicteca, Buscados y Listas; seguidos, seguidores y ajustes de cuenta conectados a Whakoom.
+- Búsqueda de usuarios y perfiles con Actividad, Comicteca, Buscados, Listas, Seguidos y Seguidores; seguidos, seguidores y ajustes de cuenta conectados a Whakoom.
 - Estrellas doradas de comunidad y, debajo, estrellas violetas interactivas con tu puntaje; votos visibles en las fichas.
 - Tema claro/oscuro, transiciones y portadas holográficas con marco iridiscente. Animaciones desactivables.
-- Inicio guiado para elegir caché y calidad de las imágenes; alta calidad por defecto. Configuración por espacio, cantidad, resolución y uso de memoria, con ejemplos visuales de calidad.
+- Lecturas muestra tomos leídos o marcados como Leyendo; ese último estado se guarda localmente.
+- Datos privados cifrados con DPAPI en Windows y AES-256-GCM con clave en Secret Service en Linux. Respaldos cifrados con contraseña propia y migración automática de archivos anteriores. [Seguridad y privacidad](SECURITY.md).
+- Inicio guiado con explicación de las valoraciones, personas, estadísticas y límites de las funciones Pro, además de elegir caché y calidad de las imágenes; alta calidad por defecto. Configuración por espacio, cantidad, resolución y uso de memoria, con ejemplos visuales de calidad.
 - Ajustes separados en General, Almacenamiento, Respaldo y Actualizaciones. Optimización de imágenes sin pérdida en segundo plano, conservando el original cuando ocupa menos.
 - Notas, calendario, emojis, etiquetas, objetivos, estadísticas y respaldos JSON/CSV.
 - Destacar o relegar opiniones para tu propia biblioteca.
@@ -129,3 +131,10 @@ Las fuentes incluyen licencias propias, detalladas en [avisos de terceros](THIRD
 ![Tomos faltantes de una colección de ejemplo](assets/missing-volumes.png)
 
 ![Cuenta y navegación de perfil](assets/account.png)
+
+
+## Biblioteca web para Netlify
+
+[`web/`](web/README.md) contiene una aplicación Astro independiente: importa respaldos cifrados o JSON, muestra biblioteca, lecturas, deseados y estadísticas, permite notas y estados de lectura y exporta un respaldo cifrado compatible con Desktop. La biblioteca queda cifrada en IndexedDB; no se envía a un servidor.
+
+Es una compañera local: no inicia sesión en Whakoom ni sincroniza directamente con esa cuenta. Netlify necesita un servidor adicional para ofrecer esa conexión. Conectá este repositorio en tu cuenta Netlify usando `netlify.toml`. No se publica una GitHub Page.

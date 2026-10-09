@@ -1,5 +1,14 @@
 # Cambios
 
+## Cambios pendientes de publicación
+
+- Lecturas muestra sólo leídos y tomos en lectura; se añade el estado local Leyendo.
+- Cifrado de biblioteca, preferencias y páginas privadas, migración de datos anteriores y respaldos cifrados portables. Se documenta qué datos se protegen y los límites del cifrado.
+- Insignias de 1000, 2000 y 4000 tomos; brillo según dificultad, holografía y zoom al pasar el mouse. Pro usa un indicador violeta más grande.
+- Los perfiles permiten consultar Seguidos y Seguidores cuando son visibles en Whakoom.
+- Tutorial sobre valoraciones, personas y estadísticas; se puede repetir desde Ajustes. Novedades usa filtros Todas/Mis series y las acciones de colección centran su contenido.
+- Biblioteca web Astro separada, preparada para Netlify con almacenamiento local cifrado y respaldos compatibles. No incluye login ni sincronización online con Whakoom.
+
 ## 3.2.0
 
 - Catálogo incorpora Crear ficha; las series y los tomos permiten Modificar ficha y Sugerir un cambio. Las series también ofrecen Añadir tomos. Usan los formularios oficiales de Whakoom, conservando validaciones, permisos y revisión de sugerencias.

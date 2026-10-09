@@ -1,0 +1,21 @@
+[build]
+base = "web"
+command = "npm run build"
+publish = "dist"
+
+[build.environment]
+NODE_VERSION = "24"
+ASTRO_TELEMETRY_DISABLED = "1"
+
+[[headers]]
+for = "/*"
+[headers.values]
+Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://*.whakoom.com https://whakoom.com data:; connect-src 'self'; font-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+Referrer-Policy = "no-referrer"
+X-Content-Type-Options = "nosniff"
+Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+for = "/sw.js"
+[headers.values]
+Cache-Control = "no-cache"

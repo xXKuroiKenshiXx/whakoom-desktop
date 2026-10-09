@@ -2,7 +2,19 @@
 
 Revisión: 9 de octubre de 2026. Los resultados describen las plataformas y rutas comprobadas; no constituyen una garantía de ausencia de errores.
 
-## Comprobaciones de 3.2.0
+## Cambios posteriores a la publicación
+
+La revisión mantiene el número 3.2.0 y no reemplaza la release pública existente. En esta revisión: 151 pruebas aprobadas en Windows; 150 pruebas normales en Linux y la prueba adicional de archivos cifrados ejecutada con Secret Service en una sesión D-Bus y un llavero temporales aislados. Formato y Clippy comprobados en ambos sistemas.
+
+Se verifica que la biblioteca privada no quede en texto plano, que se rechacen archivos alterados o intercambiados, la contraseña incorrecta y parámetros KDF no permitidos, la aleatoriedad de los respaldos y que el cliente Rust restaure un vector de respaldo generado con WebCrypto. La migración no modifica archivos ajenos a sus carpetas de datos; los errores se conservan para recuperación.
+
+La prueba de interfaz de Lecturas incluye un leído, un tomo en lectura y un pendiente, y excluye ese último. El tutorial se completa una sola vez y conserva la calidad configurada al abrir una guía posterior. Se revisan los controles centrados de las series, el indicador Pro violeta y las 21 insignias con datos ficticios. La AppImage final arranca sin conexión bajo Xvfb y produce una captura a 760 × 650 px.
+
+La web Astro compila y pasa tres pruebas de modelo/cifrado más un recorrido Chromium: importar, editar notas con texto parecido a HTML, comprobar que IndexedDB no contiene esas notas en texto plano, exportar cifrado, bloquear, recargar, rechazar una contraseña incorrecta, recuperar notas y comprobar el ancho móvil a 390 px. No se publica en Netlify ni GitHub Pages y no se prueba un login online desde esta web, que no lo implementa.
+
+`npm audit` no reporta vulnerabilidades. `cargo audit` mantiene tres advertencias documentadas en SECURITY.md (mantenimiento y GLib fuera de los árboles compilados); no se añaden reglas para ocultarlas. El canal de reporte privado, el escaneo de secretos y la protección de push del repositorio están habilitados.
+
+## Comprobaciones de la release 3.2.0
 
 147 pruebas aprobadas en Windows x64/MSVC y 147 en Linux x86_64, con formato y Clippy sin advertencias. Las pruebas nuevas comprueban la codificación del título al crear fichas, la correspondencia entre URL e identificador antes de editar, el rechazo de enlaces externos y cookies malformadas, que abrir un formulario no cambie la biblioteca ni publique contenido, y las dimensiones ampliadas de los controles de cuenta.
 

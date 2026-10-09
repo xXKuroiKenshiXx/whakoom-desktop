@@ -660,6 +660,25 @@ pub fn action(
     action_with_min_size(ui, icon, label, p, Vec2::ZERO)
 }
 
+pub fn centered_button(
+    ui: &mut egui::Ui,
+    label: &str,
+    size: Vec2,
+    enabled: bool,
+) -> egui::Response {
+    ui.allocate_ui_with_layout(
+        size,
+        egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
+        |ui| {
+            ui.add_enabled(
+                enabled,
+                egui::Button::new(crate::i18n::tr(label)).min_size(size),
+            )
+        },
+    )
+    .inner
+}
+
 pub fn action_with_min_size(
     ui: &mut egui::Ui,
     icon: Icon,
@@ -770,6 +789,7 @@ pub fn toggle_sized(
     let text = ui
         .painter()
         .layout_no_wrap(label.into(), egui::FontId::proportional(14.), p.text);
+    let centered = size.is_some();
     let size = size.unwrap_or_else(|| Vec2::new((text.size().x + 58.).max(130.), 42.));
     let (rect, mut response) = ui.allocate_exact_size(size, egui::Sense::click());
     if response.clicked() {
@@ -819,14 +839,22 @@ pub fn toggle_sized(
         egui::Stroke::new(1., if *value { color } else { p.border }),
         egui::StrokeKind::Inside,
     );
+    let start = if centered {
+        (rect.width() - text.size().x - 27.) / 2.
+    } else {
+        12.
+    };
     paint(
         ui.painter(),
-        egui::Rect::from_min_size(rect.min + Vec2::new(12., 12.), Vec2::splat(18.)),
+        egui::Rect::from_min_size(
+            rect.min + Vec2::new(start, (rect.height() - 18.) / 2.),
+            Vec2::splat(18.),
+        ),
         if heart { Icon::HeartFilled } else { icon },
         color,
     );
     ui.painter().galley(
-        rect.min + Vec2::new(39., (rect.height() - text.size().y) / 2.),
+        rect.min + Vec2::new(start + 27., (rect.height() - text.size().y) / 2.),
         text,
         if *value { p.text } else { p.muted },
     );

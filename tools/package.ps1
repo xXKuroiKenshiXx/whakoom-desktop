@@ -25,7 +25,7 @@ if (Test-Path -LiteralPath $exePath) {
         (Get-FileHash -LiteralPath $exePath -Algorithm SHA256).Hash
 }
 if ($needsCopy) { Copy-Item -LiteralPath $built -Destination $exePath -Force }
-$docs = @('README.md','LICENSE','THIRD_PARTY_NOTICES.md','CHANGELOG.md','VALIDATION.md')
+$docs = @('README.md','LICENSE','THIRD_PARTY_NOTICES.md','CHANGELOG.md','VALIDATION.md','SECURITY.md')
 foreach ($file in $docs) { Copy-Item -LiteralPath (Join-Path $projectRoot $file) -Destination (Join-Path $distRoot $file) -Force }
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -44,7 +44,9 @@ function Write-Package([string]$zipPath, [string]$basePath, [string[]]$files, [s
 $sourceFiles = @(git -c core.quotepath=false ls-files --cached --others --exclude-standard)
 if ($LASTEXITCODE -ne 0 -or $sourceFiles.Count -eq 0) { throw 'No se pudo listar el código fuente' }
 foreach ($file in $sourceFiles) {
-    if ($file -match '(^|/)(target|dist|\.git|libraries|covers|pages|webview|support-webview|updates)/|\.dpapi$|^settings\.json$|^preview.*\.png$') { throw "Dato privado o artefacto incluido: $file" }
+    # Astro routes are source files; they are not the native private page cache.
+    $astroRoute = $file -match '^web/src/pages/[a-zA-Z0-9_\[\]/.-]+\.astro$'
+    if (!$astroRoute -and $file -match '(^|/)(target|dist|\.git|libraries|covers|pages|webview|support-webview|updates)/|\.dpapi$|^settings\.json$|^preview.*\.png$') { throw "Dato privado o artefacto incluido: $file" }
 }
 Write-Package (Join-Path $distRoot "$prefix-source.zip") $projectRoot $sourceFiles 'whakoom-desktop/'
 Write-Package (Join-Path $distRoot "$prefix-portable.zip") $distRoot (@($exe) + $docs) ''

@@ -297,9 +297,31 @@ impl App {
                                         );
                                     });
                                     ui.vertical_centered(|ui| {
-                                        let (rect, _) = ui.allocate_exact_size(
-                                            Vec2::splat(78.),
+                                        let (slot, response) = ui.allocate_exact_size(
+                                            Vec2::splat(112.),
                                             egui::Sense::hover(),
+                                        );
+                                        let hover = ui.ctx().animate_bool_with_time(
+                                            ui.id().with(badge.id),
+                                            response.hovered(),
+                                            if app.prefs.animations { 0.18 } else { 0. },
+                                        );
+                                        let zoom = if app.prefs.animations {
+                                            1. + 0.48 * hover
+                                        } else {
+                                            1.
+                                        };
+                                        let offset = if app.prefs.animations {
+                                            ui.input(|i| i.pointer.hover_pos())
+                                                .map_or(Vec2::ZERO, |pos| {
+                                                    (pos - slot.center()) * (0.08 * hover)
+                                                })
+                                        } else {
+                                            Vec2::ZERO
+                                        };
+                                        let rect = egui::Rect::from_center_size(
+                                            slot.center() + offset,
+                                            Vec2::splat(78. * zoom),
                                         );
                                         badge_art::medal(
                                             ui.painter(),
@@ -310,6 +332,35 @@ impl App {
                                             p,
                                             dark,
                                         );
+                                        if unlocked
+                                            && app.prefs.animations
+                                            && ui.is_rect_visible(slot)
+                                        {
+                                            let strength = match badge.tier {
+                                                badges::Tier::Bronze => 0.25,
+                                                badges::Tier::Silver => 0.4,
+                                                badges::Tier::Gold => 0.65,
+                                                badges::Tier::Prism => {
+                                                    if badge.target >= 4000 {
+                                                        1.0
+                                                    } else if badge.target >= 2000 {
+                                                        0.95
+                                                    } else if badge.target >= 1000 {
+                                                        0.88
+                                                    } else {
+                                                        0.8
+                                                    }
+                                                }
+                                            };
+                                            badge_art::hologram(
+                                                ui.painter(),
+                                                rect,
+                                                ui.input(|i| i.time) as f32,
+                                                strength + hover * 0.25,
+                                            );
+                                            ui.ctx()
+                                                .request_repaint_after(Duration::from_millis(33));
+                                        }
                                         ui.allocate_ui_with_layout(
                                             Vec2::new(width - 28., 38.),
                                             egui::Layout::top_down(egui::Align::Center),

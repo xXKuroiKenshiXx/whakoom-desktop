@@ -90,7 +90,7 @@ pub fn medal(
 }
 
 pub fn pro_at(painter: &egui::Painter, rect: Rect, p: Palette) {
-    let c = p.accent;
+    let c = color(Tier::Prism, p.bg.r() < 100);
     painter.rect_filled(rect, 6, c.linear_multiply(0.12));
     painter.rect_stroke(
         rect,
@@ -113,15 +113,42 @@ pub fn pro_at(painter: &egui::Painter, rect: Rect, p: Palette) {
         rect.center() + Vec2::new(5., 0.),
         egui::Align2::CENTER_CENTER,
         "PRO",
-        egui::FontId::proportional(10.),
+        egui::FontId::proportional(13.),
         c,
     );
 }
 
 pub fn pro(ui: &mut egui::Ui, p: Palette) {
-    let (rect, response) = ui.allocate_exact_size(Vec2::new(44., 22.), egui::Sense::hover());
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(60., 28.), egui::Sense::hover());
     pro_at(ui.painter(), rect, p);
     response.on_hover_text(crate::i18n::tr("Suscripción Pro de Whakoom"));
+}
+
+/// A translucent moving facet overlay. Only visible, earned medals animate.
+pub fn hologram(painter: &egui::Painter, rect: Rect, time: f32, strength: f32) {
+    let radius = rect.width() * 0.35;
+    let center = rect.center() - Vec2::new(0., rect.height() * 0.08);
+    let mut mesh = egui::Mesh::default();
+    mesh.colored_vertex(center, Color32::from_white_alpha((30. * strength) as u8));
+    for n in 0..8 {
+        let angle = TAU * n as f32 / 8. - PI / 8.;
+        let phase = (time * 0.8 + angle).sin() * 0.5 + 0.5;
+        let color = egui::ecolor::Hsva::new(phase, 0.55, 1., 0.22 * strength);
+        mesh.colored_vertex(center + Vec2::angled(angle) * radius, color.into());
+    }
+    for n in 0..8 {
+        mesh.add_triangle(0, n + 1, (n + 1) % 8 + 1);
+    }
+    painter.add(egui::Shape::mesh(mesh));
+    for n in 0..(1 + (strength * 4.) as usize) {
+        let angle = time * 0.35 + TAU * n as f32 / 5.;
+        let at = center + Vec2::angled(angle) * (radius + 5.);
+        let brightness = (time * 1.2 + n as f32).sin().abs();
+        let c = Color32::from_white_alpha((brightness * strength * 130.) as u8);
+        for axis in [Vec2::new(2.5, 0.), Vec2::new(0., 2.5)] {
+            painter.line_segment([at - axis, at + axis], Stroke::new(1., c));
+        }
+    }
 }
 
 pub fn sparks(painter: &egui::Painter, center: Pos2, age: f32, c: Color32) {

@@ -1,0 +1,28 @@
+---
+import '../styles/app.css';
+---
+<!doctype html>
+<html lang="es">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="referrer" content="no-referrer" /><meta name="description" content="Tu biblioteca de cómics, cifrada en este navegador. Compañera local de Whakoom Desktop." /><title>Whakoom · Tu biblioteca</title><link rel="icon" href="/logo.svg" /></head>
+  <body>
+    <aside>
+      <a class="brand" href="/"><img src="/logo.svg" alt="" width="40" height="40" /><span>Whakoom<small>Tu biblioteca · Web no oficial</small></span></a>
+      <nav aria-label="Secciones"><button data-section="library" class="active">▤ <span>Mi biblioteca</span></button><button data-section="reading">◇ <span>Lecturas</span></button><button data-section="wanted">♡ <span>Deseados</span></button><button data-section="statistics">▥ <span>Estadísticas</span></button></nav>
+      <div class="aside-bottom"><a href="https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/latest" target="_blank" rel="noopener noreferrer">Descargar Desktop ↗</a><span>Sin sesión de Whakoom · datos locales</span></div>
+    </aside>
+    <main>
+      <header><div><p class="eyebrow">UN LUGAR PARA TUS HISTORIAS</p><h1 id="heading">Mi biblioteca</h1><p id="subtitle">Tu colección, en este navegador.</p></div><button id="lock" hidden>Bloquear ◈</button></header>
+      <section id="locked" class="welcome"><div class="vault-symbol">◈</div><h2>Tu espacio privado</h2><p>Importá un respaldo de Whakoom Desktop y seguí tus lecturas. La biblioteca se guarda cifrada en este navegador; la contraseña nunca se envía a un servidor.</p><form id="unlock-form"><label for="password">Contraseña de tu biblioteca local</label><input id="password" type="password" autocomplete="off" minlength="12" required placeholder="Al menos 12 caracteres" /><button class="primary" type="submit">Abrir mi biblioteca →</button></form><p class="hint">Si es tu primera vez, elegí una contraseña nueva. Si la olvidás, necesitás un respaldo para recuperar tus datos.</p></section>
+      <section id="workspace" hidden>
+        <div class="toolbar"><label class="search"><span>⌕</span><input id="search" type="search" placeholder="Buscar en tus tomos…" aria-label="Buscar en tus tomos" /></label><label class="button" for="import-file">Importar respaldo</label><input id="import-file" type="file" accept=".json,.whakoom" hidden /><button id="export">Exportar cifrado ↗</button></div>
+        <p class="hint">Los cambios de esta web son locales. Para llevarlos a Whakoom, restaurá el respaldo desde Desktop.</p>
+        <div id="statistics" hidden></div><div id="books" class="books"></div><button id="more" hidden>Ver más tomos</button><p id="empty" class="empty" hidden>Acá empiezan tus próximas historias. Importá tu biblioteca desde Ajustes → Respaldo de Desktop.</p>
+        <footer><span id="owner"></span><button id="remove">Borrar biblioteca de este navegador</button></footer>
+      </section>
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+    <dialog id="detail"><form method="dialog"><button class="close" aria-label="Cerrar ficha">×</button></form><div id="detail-content"></div></dialog>
+    <dialog id="import-dialog"><h2>Abrí tu respaldo cifrado</h2><p>Es la contraseña que elegiste al exportarlo desde Desktop.</p><form id="import-form"><label for="import-password">Contraseña del archivo</label><input id="import-password" type="password" required autocomplete="off" /><button class="primary" type="submit">Importar</button><button id="cancel-import" type="button">Cancelar</button></form></dialog>
+    <script>import '../scripts/app.mjs';</script>
+  </body>
+</html>

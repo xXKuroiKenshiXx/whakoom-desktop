@@ -46,6 +46,24 @@ impl App {
         });
         ui.add_space(16.);
         match self.profile_section {
+            profile_sections::Section::Following | profile_sections::Section::Followers => {
+                egui::ScrollArea::vertical().id_salt("profile-people").show(ui, |ui| {
+                    for person in self.profile_content.people.clone() {
+                        ui.horizontal(|ui| {
+                            let (rect, response) = ui.allocate_exact_size(Vec2::splat(64.), egui::Sense::click());
+                            self.avatar_at(ui, &person.avatar, rect);
+                            if response.clicked() || ui.add_sized([240., 64.], egui::Button::new(RichText::new(&person.name).size(18.))).clicked() {
+                                self.open_profile(person.clone());
+                            }
+                            if person.pro { whakoom_desktop::badge_art::pro(ui, self.p()); }
+                        });
+                        ui.add_space(12.);
+                    }
+                    if self.profile_content.people.is_empty() && !self.busy {
+                        ui.label(tr("No hay personas visibles en esta sección. La privacidad de la cuenta puede restringirla."));
+                    }
+                });
+            }
             profile_sections::Section::Activity => self.activity_ui(ui, user.activity.clone()),
             profile_sections::Section::Lists if self.list_detail.is_some() => self.lists_ui(ui),
             profile_sections::Section::Lists => {

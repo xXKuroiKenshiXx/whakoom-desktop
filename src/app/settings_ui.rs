@@ -60,6 +60,12 @@ impl App {
                 });
 
                     });
+                    self.setting_card(ui, Icon::Shield, "Privacidad en este equipo", |app, ui| {
+                        ui.label(tr(if cfg!(windows) { "Sesión, biblioteca y datos privados cifrados con el usuario de Windows (DPAPI)." } else { "Sesión en Secret Service; biblioteca y datos privados con AES-256-GCM y clave en el llavero del sistema. Desbloqueá el llavero para guardarlos." }));
+                        ui.label(RichText::new(tr("Las portadas públicas usan una caché de imágenes normal. Los respaldos cifrados usan una contraseña propia; JSON y CSV se exportan sin cifrar.")).size(13.).color(p.muted));
+                        ui.add_space(10.);
+                        if icons::action(ui, Icon::Help, "Ver tutorial", p).clicked() { app.onboarding = Some(onboarding::Wizard::tutorial(&app.prefs.cover_cache)); }
+                    });
                 }
                 SettingsSection::Storage => self.cache_settings(ui),
                 SettingsSection::Backup => self.backup_settings(ui),
@@ -72,12 +78,27 @@ impl App {
         let p = self.p();
         self.setting_card(ui, Icon::Download, "Respaldo", |app, ui| {
                     ui.label(RichText::new(tr("Incluye biblioteca, notas, corazones, dislikes, favoritos y cambios pendientes. No incluye la contraseña ni las cookies.")).size(12.).color(p.muted));
+                    ui.add_space(12.);
+                    ui.label(tr("Contraseña del respaldo · distinta a tu contraseña de Whakoom"));
+                    ui.add(egui::TextEdit::singleline(&mut *app.backup_password).password(true).hint_text(tr("Al menos 12 caracteres")).desired_width(360.));
+                    let export = ui.add_enabled(app.backup_password.chars().count() >= 12, egui::Button::new(tr("Guardar respaldo cifrado")).min_size(Vec2::new(240., 44.)));
+                    if export.clicked() && let Some(path) = rfd::FileDialog::new().set_file_name("whakoom-biblioteca.whakoom").add_filter("Respaldo cifrado", &["whakoom"]).save_file() {
+                        match serde_json::to_vec(&app.library) {
+                            Ok(bytes) => { app.writer.encrypted_export(path, bytes, (*app.backup_password).clone()); zeroize::Zeroize::zeroize(&mut *app.backup_password); app.status = "Guardando respaldo cifrado…".into(); }
+                            Err(error) => app.error = error.to_string(),
+                        }
+                    }
+                    ui.label(RichText::new(tr("Si perdés esta contraseña no se puede recuperar el respaldo. Para restaurarlo, escribila antes de elegir el archivo.")).small().color(p.muted));
+                    ui.add_space(16.);
+                    ui.label(RichText::new(tr("JSON y CSV son exportaciones sin cifrar: contienen tus notas y datos de colección.")).color(p.muted));
                     if icons::action(ui, Icon::Download, "Guardar JSON", p).clicked() && let Some(path) = rfd::FileDialog::new().set_file_name("whakoom-biblioteca.json").add_filter("JSON", &["json"]).save_file() {
                         match serde_json::to_vec_pretty(&app.library) { Ok(bytes) => { app.writer.file(path, bytes); app.status = "Guardando respaldo…".into(); }, Err(error) => app.error = error.to_string() }
                     }
                     if icons::action(ui, Icon::Chart, "Exportar CSV", p).clicked() && let Some(path) = rfd::FileDialog::new().set_file_name("whakoom-coleccion.csv").add_filter("CSV", &["csv"]).save_file() { app.writer.file(path, app.library.csv().into_bytes()); }
-                    if ui.button(tr("Restaurar respaldo")).clicked() && let Some(path) = rfd::FileDialog::new().add_filter("JSON", &["json"]).pick_file() {
-                        match Library::import(&path, &app.library.owner) { Ok(lib) => {
+                    if ui.button(tr("Restaurar respaldo")).clicked() && let Some(path) = rfd::FileDialog::new().add_filter("Respaldo", &["json", "whakoom"]).pick_file() {
+                        let restored = Library::import_with_password(&path, &app.library.owner, &app.backup_password);
+                        zeroize::Zeroize::zeroize(&mut *app.backup_password);
+                        match restored { Ok(lib) => {
                             let old = app.library.entries.clone();
                             let old_editions = app.library.editions.clone();
                             let mut merged=app.library.clone();

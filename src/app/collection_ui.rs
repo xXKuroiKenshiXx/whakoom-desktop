@@ -215,7 +215,12 @@ impl App {
     }
     pub(super) fn reading_queue(&mut self, ui: &mut egui::Ui) {
         let p = self.p();
-        ui.label(RichText::new(tr("Ordená tus próximas lecturas con las flechas.")).color(p.muted));
+        ui.label(
+            RichText::new(tr(
+                "Tus tomos leídos y en lectura · el orden se guarda en este equipo.",
+            ))
+            .color(p.muted),
+        );
         let items = self.items.clone();
         let mut shift = None;
         let mut open = None;
@@ -266,6 +271,22 @@ impl App {
                                         .clicked()
                                     {
                                         open = Some(item.clone());
+                                    }
+                                    if let Some(entry) = self.library.entries.get(&item.key) {
+                                        ui.label(
+                                            RichText::new(tr(if entry.read {
+                                                "Leído"
+                                            } else {
+                                                "Leyendo"
+                                            }))
+                                            .color(
+                                                if entry.read {
+                                                    egui::Color32::from_rgb(105, 221, 155)
+                                                } else {
+                                                    egui::Color32::from_rgb(202, 164, 255)
+                                                },
+                                            ),
+                                        );
                                     }
                                     if let Some((read, total)) = progress.get(&item.key) {
                                         ui.add(

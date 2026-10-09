@@ -12,15 +12,26 @@ pub enum Section {
     Collection,
     Wanted,
     Lists,
+    Following,
+    Followers,
 }
 impl Section {
-    pub const ALL: [Self; 4] = [Self::Activity, Self::Collection, Self::Wanted, Self::Lists];
+    pub const ALL: [Self; 6] = [
+        Self::Activity,
+        Self::Collection,
+        Self::Wanted,
+        Self::Lists,
+        Self::Following,
+        Self::Followers,
+    ];
     pub fn title(self) -> &'static str {
         match self {
             Self::Activity => "Actividad",
             Self::Collection => "Comicteca",
             Self::Wanted => "Buscados",
             Self::Lists => "Listas",
+            Self::Following => "Seguidos",
+            Self::Followers => "Seguidores",
         }
     }
     fn suffix(self) -> &'static str {
@@ -29,6 +40,8 @@ impl Section {
             Self::Collection => "/collection",
             Self::Wanted => "/wanted",
             Self::Lists => "/lists",
+            Self::Following => "/following",
+            Self::Followers => "/followers",
         }
     }
 }
@@ -36,6 +49,7 @@ impl Section {
 pub struct Content {
     pub comics: Page,
     pub lists: lists::ListPage,
+    pub people: Vec<social::User>,
 }
 pub fn parse_comics(html: &str) -> Result<Page, String> {
     let doc = Html::parse_document(html);
@@ -67,6 +81,17 @@ impl Api {
         if section == Section::Lists {
             return Ok(Content {
                 lists: self.lists(lists::Section::Mine, user, page)?,
+                ..Default::default()
+            });
+        }
+        if matches!(section, Section::Following | Section::Followers) {
+            if page != 1 {
+                return Err("Esta sección no admite esa página".into());
+            }
+            let path = format!("{}{}", social::user_path(user)?, section.suffix());
+            let html = self.html(&path)?;
+            return Ok(Content {
+                people: social::friends(&html),
                 ..Default::default()
             });
         }

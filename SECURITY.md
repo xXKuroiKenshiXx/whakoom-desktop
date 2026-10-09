@@ -1,6 +1,12 @@
 # Seguridad y privacidad
 
-La contraseña no se persiste. Windows DPAPI protege la sesión con el usuario local de Windows; Linux la guarda en Secret Service. Estos mecanismos no protegen frente a otros programas que ya controlen ese mismo usuario. Los respaldos JSON excluyen la sesión, pero contienen biblioteca, notas, perfiles y cambios pendientes. Las escrituras usan archivos temporales únicos y reemplazo atómico; en Linux los archivos creados tienen permisos 0600.
+La contraseña de Whakoom no se persiste. Windows DPAPI protege la sesión, biblioteca, notas, perfiles, cola de sincronización, preferencias y páginas privadas con el usuario local de Windows. Linux guarda la sesión y una clave de archivos privados en Secret Service; los archivos usan AES-256-GCM con un nonce aleatorio por escritura. Secret Service debe estar desbloqueado: ante un fallo se informa el error y no se guarda una copia en texto plano.
+
+Los archivos JSON anteriores de `libraries`, `pages` y `settings.json` se migran en segundo plano mediante reemplazo atómico. Un error detiene la migración y se muestra en la app; los archivos que aún no se migraron permanecen como estaban. No se recorren enlaces simbólicos ni archivos de más de 64 MB. Los archivos cifrados se vinculan a su sección/nombre lógico; un archivo dañado o una clave distinta no se sobrescribe con valores por defecto. El cifrado no borra copias anteriores que hayan quedado en respaldos del sistema, papelera, sincronizadores o sectores libres del disco.
+
+Estos mecanismos protegen datos en reposo, no frente a malware, otro programa con control del mismo usuario, capturas de pantalla ni datos presentes en memoria mientras la app está abierta. Las portadas y avatares públicos mantienen una caché de imágenes normal. Las escrituras usan archivos temporales únicos y reemplazo atómico; en Linux los archivos creados tienen permisos 0600.
+
+Los respaldos `.whakoom` usan AES-256-GCM autenticado y PBKDF2-HMAC-SHA256 con 600 000 iteraciones, una sal de 16 bytes y nonce de 12 bytes generados con el sistema operativo. Su contraseña es independiente de Whakoom y no se guarda. El formato permite restaurar en otro sistema operativo o en la web. No existe recuperación de contraseña. JSON y CSV son exportaciones **sin cifrar**, identificadas como tales en la interfaz; no contienen sesión pero sí biblioteca, notas, perfiles y cambios pendientes.
 
 Las cookies sólo acompañan solicitudes HTTPS al dominio exacto `www.whakoom.com`. Las portadas y avatares usan un cliente separado sin cookies. Se comprueban redirecciones, límites de respuesta, tamaño de imágenes y enlaces importados. Las fotos personales se normalizan y se almacenan dentro del respaldo; sus referencias no son rutas arbitrarias. Crear listas y cambiar sus favoritos requiere verificar la identidad de la sesión antes de escribir.
 
@@ -12,7 +18,7 @@ Reportá vulnerabilidades por el [canal privado del repositorio](https://github.
 
 ## Dependencias revisadas
 
-RustSec se consulta con `cargo audit`. En la revisión de 3.0.0 no se reportaron vulnerabilidades clasificadas como tales. El lockfile conserva avisos que se explican sin ocultarlos:
+RustSec se consulta con `cargo audit`. En la revisión del 9 de octubre de 2026 no se reportaron vulnerabilidades clasificadas como tales. El lockfile conserva avisos que se explican sin ocultarlos:
 
 - `fxhash 0.2.1` (RUSTSEC-2025-0057): aviso de mantenimiento, dependencia de `scraper`/`selectors`, sí utilizada.
 - `glib 0.18.5` (RUSTSEC-2024-0429): aviso de unsoundness; `proc-macro-error 1.0.4` (RUSTSEC-2024-0370): mantenimiento. Llegan al lockfile por las dependencias Linux de Wry. Wry está declarado sólo para Windows y utiliza WebView2 allí: GLib y esas macros **no están en el árbol compilado de Windows ni en el de Linux**. No se habilita Wry en Linux.
@@ -28,3 +34,10 @@ La comunidad Zendesk usa un cliente sin credenciales y un dominio exacto distint
 El actualizador consulta las releases estables de `xXKuroiKenshiXx/whakoom-desktop` por HTTPS. Exige el nombre exacto del paquete, URL del repositorio, tamaño limitado y SHA-256 de la publicación; verifica el archivo de nuevo antes de instalar. No ejecuta instrucciones de las notas de una release ni instala al comprobar novedades. Las conexiones de actualización y Listado Manga no usan cookies de Whakoom. El hash verifica integridad respecto de GitHub, no sustituye una firma de código.
 
 Listado Manga se muestra como texto y enlaces permitidos en la vista nativa. La página original Windows usa un WebView2 separado, sin IPC ni sesión del conector de Whakoom. El selector de compra sólo abre enlaces HTTPS permitidos y búsquedas codificadas; no envía credenciales ni realiza pagos.
+
+
+## Biblioteca web
+
+La aplicación separada de `web/` está preparada para Netlify. No inicia sesión en Whakoom ni envía contraseñas/cookies a un proxy. IndexedDB contiene solamente la biblioteca cifrada; la clave no exportable queda en memoria al desbloquear. El service worker guarda sólo la interfaz pública. Netlify aplica CSP, `nosniff`, una política sin referer y bloqueo de incrustaciones. No hay scripts de terceros ni analítica.
+
+El cifrado del navegador no protege de un servidor que entregue JavaScript comprometido ni de extensiones maliciosas. Importar un archivo no ejecuta HTML: títulos y notas se representan con `textContent`, y las portadas están restringidas a HTTPS de Whakoom. Los cambios web son locales; se exportan para restaurarlos desde Desktop. No se ofrece sincronización cloud ni un login de Whakoom en esta web.
