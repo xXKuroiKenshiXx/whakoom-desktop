@@ -83,8 +83,7 @@ impl App {
         ui.painter().rect_filled(ui.max_rect(), 0, p.bg);
         ui.add_space(24.);
         let width = (ui.available_width() - 48.).clamp(280., 900.);
-        ui.horizontal(|ui| {
-            ui.add_space(((ui.available_width() - width) / 2.).max(0.));
+        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             egui::Frame::new().fill(p.surface).corner_radius(16).inner_margin(24).show(ui, |ui| {
                 ui.set_width(width - 48.);
                 ui.vertical(|ui| {
@@ -100,7 +99,7 @@ impl App {
                 if self.suggestion_form.is_none() && !self.suggestion_busy { retry = ui.button(tr("Reintentar")).clicked(); }
             }
             if self.suggestion_busy { ui.spinner(); ui.label(tr("Consultando Whakoom…")); }
-            egui::ScrollArea::vertical().id_salt("native-suggestion").show(ui, |ui| {
+            egui::ScrollArea::vertical().id_salt("native-suggestion").max_height((ui.ctx().content_rect().height() - 210.).max(120.)).auto_shrink([false, false]).show(ui, |ui| {
                 if let Some(form) = &mut self.suggestion_form {
                     ui.add_enabled_ui(!self.suggestion_busy, |ui| {
                         ui.label(tr("Tipo de corrección"));
@@ -110,7 +109,9 @@ impl App {
                         });
                         ui.add_space(12.);
                         ui.label(tr("Explicá qué dato es incorrecto y cuál es la corrección"));
-                        ui.add(egui::TextEdit::multiline(&mut form.comment).desired_width(f32::INFINITY).desired_rows(8).font(egui::FontId::proportional(16.)).char_limit(10000));
+                        let comment = ui.add(egui::TextEdit::multiline(&mut form.comment).desired_width(f32::INFINITY).desired_rows(8).font(egui::FontId::proportional(16.)).char_limit(10000));
+                        #[cfg(test)] self.ui_rects.insert("suggestion-comment".into(), comment.rect);
+                        #[cfg(not(test))] let _ = comment;
                         ui.label(tr("Información adicional (opcional)"));
                         ui.add(egui::TextEdit::singleline(&mut form.extra).desired_width(f32::INFINITY).char_limit(2000));
                         ui.add_space(16.);

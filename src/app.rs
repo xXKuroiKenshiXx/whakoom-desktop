@@ -6351,6 +6351,33 @@ mod ui_tests {
         assert!(!app.ui_rects.contains_key("account-summary"));
     }
     #[test]
+    fn native_suggestion_comment_is_visible_without_scrolling_on_desktop() {
+        use whakoom_desktop::contributions::{Action, Request, Suggestion};
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        let request = Request::for_item(
+            Action::Suggest,
+            &Item {
+                key: "edicion123".into(),
+                url: "/ediciones/123/test".into(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        app.suggestion_form = Some(Suggestion::parse(request.clone(), r##"<div id="bugReport" data-item-id="123" data-item-type="e"><div class="bug-type"><a href="#br-2">Título</a></div></div>"##).unwrap());
+        app.suggestion = Some(request);
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let comment = app.ui_rects["suggestion-comment"];
+        assert!(comment.height() > 100.);
+        assert!(comment.bottom() < 900.);
+        assert!(comment.left() > 20.);
+    }
+    #[test]
     fn suggestion_replies_are_bound_to_owner_and_form_request() {
         use whakoom_desktop::contributions::{Action, Request, Suggestion};
         let ctx = egui::Context::default();

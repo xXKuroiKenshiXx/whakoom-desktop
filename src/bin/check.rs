@@ -33,6 +33,18 @@ fn main() {
                 form.kind,
                 form.types.len()
             );
+            let volumes = api.edition(&item, 1)?;
+            let comic = volumes.items.first().ok_or("Serie sin tomos")?;
+            let volume_form =
+                api.suggestion_form(whakoom_desktop::contributions::Request::for_item(
+                    whakoom_desktop::contributions::Action::Suggest,
+                    comic,
+                )?)?;
+            println!(
+                "Formulario de tomo: tipo {}, {} categorías",
+                volume_form.kind,
+                volume_form.types.len()
+            );
             println!("Sólo lectura: no se envió ninguna sugerencia ni modificación");
             Ok(())
         })();

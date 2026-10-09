@@ -1,6 +1,6 @@
 # Validación de 3.4.0
 
-155 pruebas aprobadas en Windows; formato y Clippy sin advertencias.
+156 pruebas aprobadas en Windows; formato y Clippy sin advertencias.
 
 Formulario de sugerencias contrastado con el JavaScript público de Whakoom y una consulta autenticada de sólo lectura: cinco categorías y tipo de ficha `e`. No se publicó ninguna corrección ni se modificó una ficha real para probarlo. Las pruebas comprueban rechazo de destinos externos, categorías no ofrecidas por el servidor, formularios sin permiso y alineación del control Crear ficha.
 
