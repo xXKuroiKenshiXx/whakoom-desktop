@@ -7,8 +7,13 @@ on:
         type: choice
         default: all
         options: [all, linux, windows]
+      linux_artifact_run:
+        description: Reuse a Linux package artifact for a graphical smoke test
+        type: string
+        default: ''
 permissions:
   contents: read
+  actions: read
 jobs:
   packages:
     strategy:
@@ -27,6 +32,7 @@ jobs:
       - name: Install Rust
         run: rustup update stable --no-self-update
       - name: Compile
+        if: inputs.linux_artifact_run == ''
         run: cargo build --locked --release --bins
       - name: Windows packages
         if: runner.os == 'Windows'
@@ -35,12 +41,29 @@ jobs:
           & "${env:ProgramFiles(x86)}\NSIS\makensis.exe" "-DBUILD_DIR=$env:GITHUB_WORKSPACE\target\release" tools\installer.nsi
           if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
           ./tools/package.ps1 -SkipBuild
+      - name: Reuse Linux package
+        if: runner.os == 'Linux' && inputs.linux_artifact_run != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ inputs.linux_artifact_run }}
+        run: |
+          [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]] || exit 1
+          gh run download "$SOURCE_RUN" --name desktop-packages-Linux --dir dist
       - name: Linux AppImage and interface smoke test
         if: runner.os == 'Linux'
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
+          SOURCE_RUN: ${{ inputs.linux_artifact_run }}
         run: |
-          bash tools/package-linux.sh --skip-build
+          if [ -z "$SOURCE_RUN" ]; then
+            bash tools/package-linux.sh --skip-build
+            export APP_BINARY="$PWD/target/release/whakoom-desktop"
+          else
+            version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')
+            export APP_BINARY="$PWD/dist/Whakoom-Desktop-$version-x86_64.AppImage"
+            chmod +x "$APP_BINARY"
+            export APPIMAGE_EXTRACT_AND_RUN=1
+          fi
           export WHAKOOM_DESKTOP_DATA_DIR="$RUNNER_TEMP/smoke-data"
           export XDG_DATA_HOME="$RUNNER_TEMP/keyring-data"
           export XDG_RUNTIME_DIR="$RUNNER_TEMP/keyring-runtime"
@@ -48,7 +71,7 @@ jobs:
           chmod 700 "$XDG_RUNTIME_DIR"
           dbus-run-session -- bash -c '
             printf "%s" "isolated-smoke-fixture" | gnome-keyring-daemon --unlock
-            timeout 90s xvfb-run -a target/release/whakoom-desktop --offline --headless-preview --preview-account-sync --preview-size 1280x1440 --smoke "$RUNNER_TEMP/account-sync.png"
+            timeout 90s xvfb-run -a "$APP_BINARY" --offline --headless-preview --preview-visible --preview-account-sync --preview-size 1280x1440 --smoke "$RUNNER_TEMP/account-sync.png"
           '
           test -s "$RUNNER_TEMP/account-sync.png"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
