@@ -30,6 +30,7 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install nsis --yes --no-progress --limit-output
       - name: Install Rust
+        if: inputs.linux_artifact_run == ''
         run: rustup update stable --no-self-update
       - name: Compile
         if: inputs.linux_artifact_run == ''
@@ -48,7 +49,12 @@ jobs:
           SOURCE_RUN: ${{ inputs.linux_artifact_run }}
         run: |
           [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]] || exit 1
-          gh run download "$SOURCE_RUN" --name desktop-packages-Linux --dir dist
+          gh run download "$SOURCE_RUN" --name desktop-packages-Linux --dir "$RUNNER_TEMP/package-download"
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')
+          package=$(find "$RUNNER_TEMP/package-download" -type f -name "Whakoom-Desktop-$version-x86_64.AppImage" -print -quit)
+          test -s "$package"
+          mkdir -p dist
+          cp "$package" "dist/Whakoom-Desktop-$version-x86_64.AppImage"
       - name: Linux AppImage and interface smoke test
         if: runner.os == 'Linux'
         env:
@@ -84,4 +90,9 @@ jobs:
             dist/*.zip
             dist/*.AppImage
             dist/SHA256SUMS.txt
-            ${{ runner.temp }}/account-sync.png
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: runner.os == 'Linux' && always()
+        with:
+          name: package-preview-Linux
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/account-sync.png
