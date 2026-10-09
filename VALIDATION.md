@@ -1,8 +1,10 @@
 # Validación de 3.1.0
 
-Revisión: 8 de octubre de 2026. Los resultados describen las plataformas y rutas comprobadas; no constituyen una garantía de ausencia de errores.
+Revisión: 9 de octubre de 2026. Los resultados describen las plataformas y rutas comprobadas; no constituyen una garantía de ausencia de errores.
 
 ## Comprobaciones de 3.1.0
+
+Insignias y Pro: 144 pruebas aprobadas en Windows, incluidos desbloqueo único, persistencia tras reiniciar, cambios de cuenta, apertura desde el aviso, igualdad de tarjetas, conteo de series realmente adquiridas y compatibilidad con respaldos anteriores. El indicador Pro se reconoce en el ámbito del usuario; los enlaces a upgrade y los textos de biografías/comentarios no lo activan. La hoja de estilos pública `/css/950/screen.global.min.css` confirma `#public-profile-h .pro-badge`; los perfiles públicos consultados sin ese marcador no se etiquetan como Pro. El sonido PCM generado tiene una cabecera válida, amplitud limitada y desvanecimiento. El aviso y los iconos se verifican con capturas de datos ficticios; esta revisión no añade una nueva prueba interactiva de audio Linux.
 
 Revisión adicional de solicitudes: 139 pruebas aprobadas en Windows x64/MSVC, formato y Clippy sin advertencias. Las pruebas comprueban la pausa compartida ante 429, las dos formas de `Retry-After`, la conservación del plazo frente a respuestas simultáneas y la carga de sólo dos previews visibles sin repetirlas. Las portadas resueltas sobreviven a la llegada de nuevas variantes de búsqueda. La geometría de las cuatro acciones de serie se comprueba por igualdad de ancho y alto. Las comprobaciones Linux siguientes corresponden a la revisión anterior.
 

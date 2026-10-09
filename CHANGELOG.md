@@ -2,6 +2,9 @@
 
 ## 3.1.0
 
+- Insignias: 18 logros con medallas vectoriales, niveles de bronce, plata, oro y prisma, progreso y desbloqueos persistentes por cuenta. Se añaden diez logros de lecturas, colección, series completas, notas, relecturas, organización y valoraciones.
+- Aviso de desbloqueo con destellos, sonido breve y acceso a Insignias. Los logros anteriores no vuelven a celebrarse al abrir la app. El sonido se desactiva en Ajustes y los efectos respetan la opción de animaciones.
+- Marca Pro junto al nombre de la cuenta y de otras personas cuando Whakoom la identifica en el perfil, resultados o comentarios. Se reutilizan las consultas existentes, sin atribuir Pro a usuarios por sus medallas locales.
 - Las cuatro acciones de una serie tienen el mismo ancho y alto, incluido «Completar colección».
 - Menos solicitudes: las portadas sin caché se descargan una sola vez en la calidad elegida, las tarjetas reutilizan valoraciones guardadas y Listado Manga consulta portadas sólo de resultados visibles, sin repetir la primera búsqueda.
 - Las conexiones de catálogo, cuenta y portadas comparten un límite de dos solicitudes simultáneas y una separación mínima entre solicitudes. Ante HTTP 429 respetan `Retry-After` y conservan los cambios pendientes y los datos guardados durante la pausa.

@@ -24,6 +24,9 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 
 ## Funciones
 
+- Insignias: 18 logros locales con medallas, progreso, aviso y sonido al desbloquear. Se guardan por cuenta y en el respaldo; no se repiten al reiniciar. El sonido tiene una opción propia en Ajustes y los destellos respetan Animaciones. En Linux el sonido usa `paplay` o `aplay`, si están instalados.
+- Etiqueta Pro para tu cuenta y otras personas cuando aparece la marca de suscripción en los datos de Whakoom. No depende de las insignias locales ni habilita servicios de pago.
+
 - Catálogo ordenado en Buscar, Explorar, Listas y Usuarios; historial de búsquedas y visitas.
 - Actualizaciones desde la aplicación: aviso de nuevas versiones, descarga verificada por SHA-256 e instalación con reinicio.
 - Listado Manga dentro de la app: búsqueda por variantes del título, resultados con portadas, fichas y enlaces por serie/tomo. Vista nativa en ambos sistemas y página original integrada en Windows.
@@ -60,6 +63,10 @@ Los binarios no tienen firma de código comercial. Compará su SHA-256 con `SHA2
 ![Listas públicas](assets/lists.png)
 
 ![Personas y actividad de ejemplo](assets/friends.png)
+
+![Insignias con una biblioteca de ejemplo](assets/badges.png)
+
+La vista de insignias utiliza una cuenta y progresos ficticios; no muestra una suscripción ni una sesión real.
 
 ![Ajustes de almacenamiento](assets/settings.png)
 

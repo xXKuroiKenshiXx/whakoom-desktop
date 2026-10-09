@@ -16,6 +16,8 @@ pub struct Review {
     pub date: String,
     pub rating: f32,
     pub body: String,
+    #[serde(default)]
+    pub pro: bool,
 }
 fn sel(s: &str) -> Selector {
     Selector::parse(s).unwrap()
@@ -49,6 +51,7 @@ pub fn parse(html: &str) -> Discussion {
             .filter(|n| n.is_finite() && (0.0..=5.0).contains(n))
             .unwrap_or_default();
         result.reviews.push(Review {
+            pro: crate::social::pro_marker(row),
             id: row.value().attr("data-item-id").unwrap_or_default().into(),
             author,
             body,

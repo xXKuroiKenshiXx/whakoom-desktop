@@ -1,3 +1,4 @@
+mod badges_ui;
 mod catalog_ui;
 mod collection_ui;
 mod cover_viewer;
@@ -6,6 +7,7 @@ mod help_ui;
 mod manga_ui;
 mod missing_ui;
 mod onboarding;
+mod person_badges;
 mod profile_editor;
 mod profile_ui;
 mod reviews_ui;
@@ -918,6 +920,11 @@ struct App {
     account_page: account::Page,
     account_loaded: bool,
     account_badges: bool,
+    badge_dirty: bool,
+    badge_owner: String,
+    badge_next_check: Instant,
+    badge_queue: VecDeque<badges::Badge>,
+    badge_celebration: Option<badges_ui::Celebration>,
     profile_editor: bool,
     confirm_cancellation: bool,
     next_activity: Instant,
@@ -1069,7 +1076,7 @@ impl App {
             None => Library::load(username.as_deref().unwrap_or("local")),
         };
         let library_valid = loaded.is_ok();
-        let (library, error) = match loaded {
+        let (mut library, error) = match loaded {
             Ok(l) => (l, String::new()),
             Err(e) => (
                 Library {
@@ -1079,6 +1086,12 @@ impl App {
                 e,
             ),
         };
+        let baseline = (library.badges.known.len(), library.badges.earned.len());
+        let initial_badges = badges::all(&library);
+        library.badges.update(&initial_badges, storage::now());
+        let baseline_changed =
+            baseline != (library.badges.known.len(), library.badges.earned.len());
+        let badge_owner = library.owner.clone();
         let stats = library.stats();
         let arg = |flag: &str| {
             std::env::args()
@@ -1141,6 +1154,11 @@ impl App {
             account_page: account::Page::default(),
             account_loaded: false,
             account_badges: false,
+            badge_dirty: false,
+            badge_owner,
+            badge_next_check: Instant::now(),
+            badge_queue: VecDeque::new(),
+            badge_celebration: None,
             profile_editor: false,
             confirm_cancellation: false,
             next_activity: Instant::now(),
@@ -1159,7 +1177,11 @@ impl App {
             failed: HashMap::new(),
             prefs,
             library,
-            library_dirty: None,
+            library_dirty: if baseline_changed && !preview && library_valid {
+                Some(Instant::now())
+            } else {
+                None
+            },
             library_valid,
             persist: !preview,
             writer: Writer::new(),
@@ -1405,6 +1427,16 @@ impl App {
         if std::env::args().any(|a| a == "--preview-profile-editor") {
             app.profile_editor = true;
         }
+        if std::env::args().any(|a| a == "--headless-preview")
+            && std::env::args().any(|a| a == "--preview-badges")
+        {
+            app.generation += 1;
+            app.busy = false;
+            app.error.clear();
+            app.status.clear();
+            app.tab = Tab::Account;
+            app.account_badges = true;
+        }
         if let Some(filter) = arg("--preview-edition-filter") {
             app.edition_filter = match filter.to_string_lossy().as_ref() {
                 "owned" => missing::Filter::Owned,
@@ -1482,6 +1514,7 @@ impl App {
         }
     }
     fn save_library(&mut self) {
+        self.badge_dirty = true;
         if !self.persist {
             self.stats = self.library.stats();
             return;
@@ -2297,6 +2330,7 @@ impl App {
                     self.busy = false;
                 }
                 Ok(Data::Profile(profile)) if relevant => {
+                    self.cache_person_pro(&profile);
                     if self.username.as_deref() == Some(&profile.username) {
                         self.library.account = Some(profile.clone());
                         self.save_library();
@@ -2943,13 +2977,27 @@ impl App {
                 rect.max - Vec2::new(4., 4.),
             );
             let painter = ui.painter().with_clip_rect(label_rect);
-            painter.text(
-                label_rect.min,
-                egui::Align2::LEFT_TOP,
+            let pro = self.library.account.as_ref().is_some_and(|u| u.pro);
+            let name_width = (label_rect.width() - if pro { 52. } else { 0. }).max(24.);
+            let name = painter.layout(
                 self.username.clone().unwrap_or_else(|| tr("Cuenta")),
                 egui::FontId::proportional(14.),
                 p.text,
+                name_width,
             );
+            painter
+                .with_clip_rect(egui::Rect::from_min_size(
+                    label_rect.min,
+                    Vec2::new(name_width, 22.),
+                ))
+                .galley(label_rect.min, name, p.text);
+            if pro {
+                let badge = egui::Rect::from_min_size(
+                    egui::Pos2::new(label_rect.right() - 44., label_rect.top()),
+                    Vec2::new(44., 20.),
+                );
+                whakoom_desktop::badge_art::pro_at(&painter, badge, p);
+            }
             painter.text(
                 label_rect.min + Vec2::new(0., 23.),
                 egui::Align2::LEFT_TOP,
@@ -4288,7 +4336,12 @@ impl App {
                             ui.allocate_exact_size(Vec2::splat(96.), egui::Sense::hover());
                         self.avatar_at(ui, &user.avatar, rect);
                         ui.vertical(|ui| {
-                            ui.label(RichText::new(&user.name).size(26.).strong());
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label(RichText::new(&user.name).size(26.).strong());
+                                if user.pro {
+                                    whakoom_desktop::badge_art::pro(ui, p);
+                                }
+                            });
                             ui.label(RichText::new(format!("@{}", user.username)).color(p.accent));
                             ui.horizontal_wrapped(|ui| {
                                 if !user.comics.is_empty() {
@@ -4478,6 +4531,16 @@ impl App {
                             );
                             ui.painter()
                                 .galley(rect.min + Vec2::new(85., 31.), galley, p.text);
+                            if friend.pro {
+                                whakoom_desktop::badge_art::pro_at(
+                                    ui.painter(),
+                                    egui::Rect::from_min_size(
+                                        rect.min + Vec2::new(85., 82.),
+                                        Vec2::new(44., 22.),
+                                    ),
+                                    p,
+                                );
+                            }
                             ui.painter().text(
                                 rect.min + Vec2::new(16., 113.),
                                 egui::Align2::LEFT_CENTER,
@@ -4622,6 +4685,9 @@ impl App {
                                 {
                                     self.open_profile(user);
                                 }
+                                if self.person_pro(&entry.user) {
+                                    whakoom_desktop::badge_art::pro(ui, p);
+                                }
                                 ui.label(&entry.message);
                             });
                             ui.horizontal_top(|ui| {
@@ -4737,17 +4803,20 @@ impl App {
                     if page.section==section {palette.surface=p.selected;palette.text=p.accent;palette.muted=p.accent;}
                     let button=icons::action(ui,Self::account_section_icon(section),section.title(),palette).on_hover_cursor(egui::CursorIcon::PointingHand);
                     #[cfg(test)] self.ui_rects.insert(format!("account-section-{section:?}"),button.rect);
-                    if button.clicked() && page.section!=section {next_section=Some(section); self.account_badges=false;}
+                    if button.clicked() {self.account_badges=false; if page.section!=section {next_section=Some(section);}}
                 }
             });ui.add_space(20.);
-            if page.section==account::Section::Profile {
+            if page.section==account::Section::Profile && !self.account_badges {
             self.setting_card(ui, Icon::User, "Tu cuenta de Whakoom", |app, ui| {
                 if let Some(user) = app.library.account.clone() {
                     ui.horizontal(|ui| {
                         let (rect, _) = ui.allocate_exact_size(Vec2::splat(64.), egui::Sense::hover());
                         app.avatar_at(ui, &user.avatar, rect);
                         ui.vertical(|ui| {
-                            ui.label(RichText::new(if user.name.is_empty() { &user.username } else { &user.name }).size(22.).strong());
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label(RichText::new(if user.name.is_empty() { &user.username } else { &user.name }).size(22.).strong());
+                                if user.pro { whakoom_desktop::badge_art::pro(ui,p); }
+                            });
                             ui.label(RichText::new(format!("@{}", user.username)).color(p.muted));
                             if !user.bio.is_empty(){ui.label(&user.bio);}
                             ui.label(RichText::new(if app.verified { "Sesión conectada" } else { "Sesión sin verificar" }).color(p.green));
@@ -4767,21 +4836,12 @@ impl App {
                     let edit=ui.add_enabled_ui(app.verified&&!app.prefs.offline,|ui|icons::action(ui,Icon::User,"Cambiar foto, nombre público y biografía",p)).inner;
                     #[cfg(test)] app.ui_rects.insert("profile-edit-open".into(),edit.rect);
                     if edit.clicked(){app.profile_editor=true;}
-                    ui.add_space(8.);
-                    ui.horizontal(|ui| {
-                        let all_badges = badges::all(&app.library);
-                        let earned = all_badges.iter().filter(|badge| badge.unlocked()).count();
-                        let badge = icons::action(ui, Icon::Star, "Insignias", p)
-                            .on_hover_text(tr("Logros locales calculados desde tu biblioteca"));
-                        #[cfg(test)] app.ui_rects.insert("account-badges-open".into(),badge.rect);
-                        if badge.clicked() { app.account_badges = true; }
-                        ui.label(RichText::new(format!("{earned}/{} desbloqueadas", all_badges.len())).color(p.muted));
-                    });
 
                 } else {
                     ui.label(tr("Conectá tu cuenta para administrar tu perfil y tus preferencias."));
                 }
                 if !app.verified && icons::action(ui, Icon::Cloud, "Iniciar sesión", p).clicked() { app.show_login = true; }
+                app.badges_entry(ui);
                 if !app.library.outbox.is_empty() {
                     ui.add_space(10.);
                     ui.label(RichText::new(format!("{} cambios pendientes de confirmar", app.library.outbox.len())).color(p.accent));
@@ -4958,63 +5018,6 @@ impl App {
         }
         self.account_page = page;
     }
-    fn badges_ui(&mut self, ui: &mut egui::Ui) {
-        let p = self.p();
-        self.setting_card(ui, Icon::Star, "Insignias", |app, ui| {
-            ui.label(RichText::new(tr("Logros locales de tu biblioteca")).color(p.muted));
-            ui.label(
-                RichText::new(tr(
-                    "Se calculan sin conexión y no modifican tu cuenta de Whakoom.",
-                ))
-                .small()
-                .color(p.muted),
-            );
-            ui.add_space(10.);
-            let earned = badges::all(&app.library);
-            let columns: usize = if ui.available_width() >= 720. {
-                3
-            } else if ui.available_width() >= 460. {
-                2
-            } else {
-                1
-            };
-            let width = ((ui.available_width() - (columns.saturating_sub(1) as f32 * 12.))
-                / columns as f32)
-                .max(180.);
-            for row in earned.chunks(columns) {
-                ui.horizontal_top(|ui| {
-                    for badge in row {
-                        let fill = if badge.unlocked() { p.selected } else { p.bg };
-                        egui::Frame::new()
-                            .fill(fill)
-                            .stroke(egui::Stroke::new(1., p.border))
-                            .corner_radius(10)
-                            .inner_margin(12.)
-                            .show(ui, |ui| {
-                                ui.set_min_width(width - 24.);
-                                ui.horizontal(|ui| {
-                                    ui.label(RichText::new(badge.icon).size(25.));
-                                    ui.vertical(|ui| {
-                                        ui.label(RichText::new(tr(badge.title)).strong());
-                                        ui.label(
-                                            RichText::new(tr(badge.description))
-                                                .small()
-                                                .color(p.muted),
-                                        );
-                                    });
-                                });
-                                ui.add_space(7.);
-                                ui.add(
-                                    egui::ProgressBar::new(badge.progress())
-                                        .text(format!("{}/{}", badge.current, badge.target)),
-                                );
-                            });
-                    }
-                });
-                ui.add_space(10.);
-            }
-        });
-    }
     fn account_field(
         ui: &mut egui::Ui,
         page: &mut account::Page,
@@ -5102,8 +5105,12 @@ impl App {
                                 username: review.author.clone(),
                                 name: review.author.clone(),
                                 avatar: review.avatar.clone(),
+                                pro: review.pro || self.person_pro(&review.author),
                                 ..Default::default()
                             });
+                        }
+                        if review.pro || self.person_pro(&review.author) {
+                            whakoom_desktop::badge_art::pro(ui, p);
                         }
                         ui.label(RichText::new(&review.date).small().color(p.muted));
                         rating::display(ui, review.rating, self.prefs.dark, 16.);
@@ -5183,6 +5190,9 @@ impl App {
                 }
                 for activity in activities {
                     self.setting_card(ui, Icon::Bell, &activity.user, |app, ui| {
+                        if app.person_pro(&activity.user) {
+                            whakoom_desktop::badge_art::pro(ui, p);
+                        }
                         ui.label(&activity.message);
                         if ui.button(tr("Ver perfil")).clicked() {
                             app.open_profile(social::User {
@@ -5688,6 +5698,7 @@ impl eframe::App for App {
             });
         self.sidebar(ui);
         self.body(ui);
+        self.achievement_ui(&ctx);
         self.cover_viewer_ui(&ctx);
         self.shop_dialog(&ctx);
         self.profile_editor_dialog(&ctx);
@@ -5767,6 +5778,88 @@ fn item_rows(
 
 #[cfg(test)]
 mod ui_tests {
+    #[test]
+    fn achievement_notice_opens_badges_and_does_not_repeat_after_restart_or_account_switch() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(library()),
+        );
+        app.prefs.animations = false;
+        app.prefs.achievement_sounds = false;
+        app.select(Tab::Account);
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let entry = app.ui_rects["account-badges-open"].center();
+        click(&mut app, &ctx, entry);
+        assert!(app.account_badges);
+        let profile = app.ui_rects["account-section-Profile"].center();
+        click(&mut app, &ctx, profile);
+        assert!(!app.account_badges);
+        assert!(app.badge_celebration.is_none());
+        for index in 0..10 {
+            let item = Item {
+                key: format!("comic-new-{index}"),
+                ..Default::default()
+            };
+            app.library.entries.insert(
+                item.key.clone(),
+                storage::Entry {
+                    item,
+                    read: true,
+                    ..Default::default()
+                },
+            );
+        }
+        app.save_library();
+        app.badge_next_check = Instant::now();
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        assert!(app.library.badges.earned.contains_key("read-10"));
+        assert_eq!(
+            app.badge_celebration.as_ref().unwrap().badges[0].id,
+            "read-10"
+        );
+        let pos = app.ui_rects["achievement-open"].center();
+        click(&mut app, &ctx, pos);
+        assert_eq!(app.tab, Tab::Account);
+        assert!(app.account_badges);
+        app.ui_rects.clear();
+        for _ in 0..3 {
+            frame(&mut app, &ctx, vec![]);
+        }
+        let first = app.ui_rects["badge-read-10"];
+        let section = app.ui_rects["setting-Insignias"];
+        for id in ["read-50", "read-100"] {
+            assert_eq!(app.ui_rects[&format!("badge-{id}")].size(), first.size());
+            assert_eq!(app.ui_rects[&format!("badge-{id}")].top(), first.top());
+            assert!(section.contains_rect(app.ui_rects[&format!("badge-{id}")]));
+        }
+        assert!(!app.ui_rects.contains_key("account-summary"));
+        let restored: Library =
+            serde_json::from_str(&serde_json::to_string(&app.library).unwrap()).unwrap();
+        let mut restarted = App::new(
+            &eframe::CreationContext::_new_kittest(ctx.clone()),
+            Some(restored),
+        );
+        frame(&mut restarted, &ctx, vec![]);
+        assert!(restarted.badge_celebration.is_none());
+        assert!(restarted.badge_queue.is_empty());
+        app.badge_celebration = Some(badges_ui::Celebration {
+            badges: vec![badges::all(&app.library)[0].clone()],
+            started: Instant::now(),
+        });
+        app.library = Library {
+            owner: "other".into(),
+            ..Default::default()
+        };
+        frame(&mut app, &ctx, vec![]);
+        assert!(app.badge_celebration.is_none());
+        assert!(app.library.badges.earned.is_empty());
+    }
+
     #[test]
     fn manga_previews_load_only_visible_results_and_survive_search_enrichment() {
         let ctx = egui::Context::default();

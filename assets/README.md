@@ -7,3 +7,5 @@ El nombre y la marca Whakoom pertenecen a sus titulares; la licencia MIT del có
 `whakoom-desktop.png` rasteriza el icono del programa para integración Linux. `preview.png` es una captura nativa con una biblioteca de ejemplo y portadas públicas: no incluye una cuenta autenticada. Las portadas mantienen los derechos de sus titulares.
 
 `onboarding.png` muestra el asistente inicial sobre la misma biblioteca de ejemplo, sin datos de una sesión real.
+
+`badges.png` muestra las medallas vectoriales con una biblioteca y cuenta ficticias. El indicador Pro de esa captura es un dato de la vista de prueba; no corresponde a una suscripción real. El sonido de logro se sintetiza en `src/achievement_sound.rs`, sin muestras de terceros.

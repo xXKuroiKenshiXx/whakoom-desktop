@@ -34,6 +34,7 @@ pub struct User {
     pub followers: String,
     pub bio: String,
     pub activity: Vec<Activity>,
+    pub pro: bool,
 }
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Activity {
@@ -83,6 +84,12 @@ pub fn identity(html: &str) -> Result<User, String> {
         name: username.clone(),
         username,
         avatar: attr(&h, "#user-avatar img", "src"),
+        pro: h
+            .select(&selector(
+                "#user-avatar .pro-badge, #uz-info .mn-user-prof .pro-badge",
+            ))
+            .next()
+            .is_some(),
         ..Default::default()
     })
 }
@@ -100,6 +107,10 @@ pub fn profile(html: &str, username: &str) -> Result<User, String> {
         comics: value(&h, "#public-profile-h .comic-count strong"),
         followers: value(&h, "#public-profile-h .followers a"),
         bio: value(&h, "#public-profile-h .bio, #public-profile-h .about"),
+        pro: h
+            .select(&selector("#public-profile-h"))
+            .next()
+            .is_some_and(pro_marker),
         ..Default::default()
     };
     result.activity = activity(html, Some(username));
@@ -128,6 +139,7 @@ pub fn friends(html: &str) -> Vec<User> {
                 .filter(|n| !n.is_empty())
                 .unwrap_or_else(|| username.clone());
             Some(User {
+                pro: pro_marker(entry),
                 name,
                 username,
                 url,
@@ -141,6 +153,23 @@ pub fn friends(html: &str) -> Vec<User> {
             })
         })
         .collect()
+}
+
+/// The public stylesheet identifies a subscriber with .pro-badge. Only inspect
+/// the specific person's DOM scope, never the global /upgrade menu or bio text.
+pub fn pro_marker(scope: ElementRef<'_>) -> bool {
+    scope.select(&selector(".pro-badge")).any(|badge| {
+        !badge
+            .ancestors()
+            .filter_map(ElementRef::wrap)
+            .any(|parent| {
+                parent.value().attr("itemprop") == Some("reviewBody")
+                    || parent
+                        .value()
+                        .classes()
+                        .any(|class| matches!(class, "bio" | "about"))
+            })
+    })
 }
 
 pub fn activity(html: &str, username: Option<&str>) -> Vec<Activity> {

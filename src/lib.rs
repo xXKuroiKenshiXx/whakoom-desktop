@@ -1,4 +1,6 @@
 pub mod account;
+pub mod achievement_sound;
+pub mod badge_art;
 pub mod badges;
 pub mod notifications;
 

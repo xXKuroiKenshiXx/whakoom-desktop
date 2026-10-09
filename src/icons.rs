@@ -32,6 +32,11 @@ pub enum Icon {
     Blocked,
     Catalog,
     Bookmark,
+    Medal,
+    OpenBook,
+    Shelf,
+    Trophy,
+    Quill,
 }
 pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
     let s = Stroke::new(1.6, c);
@@ -40,6 +45,118 @@ pub fn paint(p: &egui::Painter, r: egui::Rect, icon: Icon, c: Color32) {
         p.line_segment([at(a.0, a.1), at(b.0, b.1)], s);
     };
     match icon {
+        Icon::OpenBook => {
+            p.add(egui::Shape::closed_line(
+                vec![
+                    at(0.08, 0.16),
+                    at(0.3, 0.12),
+                    at(0.5, 0.22),
+                    at(0.7, 0.12),
+                    at(0.92, 0.16),
+                    at(0.92, 0.82),
+                    at(0.7, 0.78),
+                    at(0.5, 0.88),
+                    at(0.3, 0.78),
+                    at(0.08, 0.82),
+                ],
+                s,
+            ));
+            line((0.5, 0.22), (0.5, 0.88));
+            for y in [0.34, 0.48, 0.62] {
+                line((0.2, y), (0.37, y + 0.02));
+                line((0.63, y + 0.02), (0.8, y));
+            }
+        }
+        Icon::Shelf => {
+            line((0.06, 0.84), (0.94, 0.84));
+            for (x, top) in [(0.12, 0.23), (0.37, 0.13), (0.62, 0.28)] {
+                p.rect_stroke(
+                    egui::Rect::from_min_max(at(x, top), at(x + 0.19, 0.84)),
+                    1,
+                    s,
+                    egui::StrokeKind::Inside,
+                );
+                line((x + 0.04, top + 0.13), (x + 0.15, top + 0.13));
+            }
+            line((0.16, 0.84), (0.16, 0.96));
+            line((0.85, 0.84), (0.85, 0.96));
+        }
+        Icon::Trophy => {
+            p.add(egui::Shape::closed_line(
+                vec![
+                    at(0.27, 0.1),
+                    at(0.73, 0.1),
+                    at(0.7, 0.43),
+                    at(0.6, 0.59),
+                    at(0.4, 0.59),
+                    at(0.3, 0.43),
+                ],
+                s,
+            ));
+            p.add(egui::Shape::line(
+                vec![
+                    at(0.28, 0.18),
+                    at(0.12, 0.18),
+                    at(0.13, 0.36),
+                    at(0.21, 0.47),
+                    at(0.34, 0.49),
+                ],
+                s,
+            ));
+            p.add(egui::Shape::line(
+                vec![
+                    at(0.72, 0.18),
+                    at(0.88, 0.18),
+                    at(0.87, 0.36),
+                    at(0.79, 0.47),
+                    at(0.66, 0.49),
+                ],
+                s,
+            ));
+            line((0.5, 0.6), (0.5, 0.8));
+            line((0.33, 0.8), (0.67, 0.8));
+            line((0.27, 0.94), (0.73, 0.94));
+            line((0.33, 0.8), (0.27, 0.94));
+            line((0.67, 0.8), (0.73, 0.94));
+        }
+        Icon::Quill => {
+            p.add(egui::Shape::closed_line(
+                vec![
+                    at(0.27, 0.68),
+                    at(0.23, 0.44),
+                    at(0.42, 0.19),
+                    at(0.81, 0.06),
+                    at(0.84, 0.41),
+                    at(0.58, 0.68),
+                ],
+                s,
+            ));
+            line((0.13, 0.93), (0.73, 0.21));
+            line((0.32, 0.67), (0.6, 0.61));
+            line((0.42, 0.53), (0.68, 0.47));
+        }
+        Icon::Medal => {
+            line((0.2, 0.06), (0.4, 0.4));
+            line((0.37, 0.06), (0.54, 0.35));
+            line((0.63, 0.06), (0.46, 0.35));
+            line((0.8, 0.06), (0.6, 0.4));
+            p.circle_stroke(at(0.5, 0.62), r.width() * 0.29, s);
+            p.add(egui::Shape::closed_line(
+                vec![
+                    at(0.5, 0.43),
+                    at(0.55, 0.55),
+                    at(0.68, 0.58),
+                    at(0.58, 0.66),
+                    at(0.61, 0.79),
+                    at(0.5, 0.72),
+                    at(0.39, 0.79),
+                    at(0.42, 0.66),
+                    at(0.32, 0.58),
+                    at(0.45, 0.55),
+                ],
+                s,
+            ));
+        }
         Icon::Catalog => {
             p.rect_stroke(
                 egui::Rect::from_min_max(at(0.1, 0.12), at(0.62, 0.83)),

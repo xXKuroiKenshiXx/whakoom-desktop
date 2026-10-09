@@ -141,7 +141,10 @@ impl App {
                                 )
                                 .clicked()
                         {
-                            self.open_profile(user);
+                            self.open_profile(user.clone());
+                        }
+                        if user.pro {
+                            whakoom_desktop::badge_art::pro(ui, self.p());
                         }
                     });
                     ui.add_space(12.);

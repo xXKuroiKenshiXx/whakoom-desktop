@@ -48,6 +48,7 @@ pub struct Preferences {
     pub animations: bool,
     pub series_view: bool,
     pub desktop_notifications: bool,
+    pub achievement_sounds: bool,
     pub cover_cache: crate::covers::CachePolicy,
     pub language: crate::i18n::Language,
     pub friends_carousel: bool,
@@ -66,6 +67,7 @@ impl Default for Preferences {
             animations: true,
             series_view: true,
             desktop_notifications: true,
+            achievement_sounds: true,
             cover_cache: Default::default(),
             language: Default::default(),
             friends_carousel: true,
@@ -167,6 +169,8 @@ pub struct Library {
     pub attachments: BTreeMap<String, String>,
     #[serde(default)]
     pub online_readings: Option<crate::statistics::OnlineReadings>,
+    #[serde(default)]
+    pub badges: crate::badges::Progress,
 }
 impl Default for Library {
     fn default() -> Self {
@@ -186,6 +190,7 @@ impl Default for Library {
             reading_order: Vec::new(),
             attachments: BTreeMap::new(),
             online_readings: None,
+            badges: Default::default(),
         }
     }
 }
@@ -365,6 +370,7 @@ impl Library {
         s
     }
     pub fn validate(&self) -> Result<(), String> {
+        self.badges.validate()?;
         if self.favorite_people.len() > 10_000
             || self.favorite_people.iter().any(|(key, user)| {
                 key != &user.username.to_ascii_lowercase()

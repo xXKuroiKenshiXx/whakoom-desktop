@@ -2,6 +2,52 @@ use whakoom_desktop::{
     api::{self, Item},
     social,
 };
+
+#[test]
+fn pro_labels_belong_to_the_person_not_the_upgrade_menu_or_bio() {
+    let header = "<a class='mmn-unlimited' href='/upgrade'>Pro</a>";
+    let profile = "<div id='public-profile-h'><h1>Lectora</h1><p class='bio'>Soy Pro</p></div>";
+    assert!(
+        !social::profile(&format!("{header}{profile}"), "lectora")
+            .unwrap()
+            .pro
+    );
+    let pro = profile.replace("<h1>", "<div class='pro-badge'><span>Pro</span></div><h1>");
+    assert!(social::profile(&pro, "lectora").unwrap().pro);
+    let people = social::friends(
+        "<ul class='users-list'><li><a class='avatar' href='/lectora'><img></a><span class='pro-badge'>Pro</span></li><li><a class='avatar' href='/otro'><img></a><p class='bio'><span class='pro-badge'>Pro</span></p></li></ul>",
+    );
+    assert!(people[0].pro);
+    assert!(!people[1].pro);
+    assert!(
+        !social::identity(&format!(
+            "{header}<a id='user-avatar'><img alt='lectora'></a>"
+        ))
+        .unwrap()
+        .pro
+    );
+    let old: social::User = serde_json::from_str("{\"username\":\"lectora\"}").unwrap();
+    assert!(!old.pro);
+    let restored: social::User =
+        serde_json::from_str(&serde_json::to_string(&people[0]).unwrap()).unwrap();
+    assert!(restored.pro);
+}
+
+#[test]
+fn review_pro_is_scoped_to_author_and_survives_old_backups() {
+    let markup = "<div class='review' data-item-id='1' itemprop='review'><a itemprop='author'>lectora</a><span class='pro-badge'>Pro</span><p itemprop='reviewBody'>Buena</p></div>";
+    let parsed = whakoom_desktop::discussion::parse(markup);
+    assert!(parsed.reviews[0].pro);
+    let old = serde_json::to_value(&parsed.reviews[0]).unwrap();
+    let mut old = old.as_object().unwrap().clone();
+    old.remove("pro");
+    let restored: whakoom_desktop::discussion::Review = serde_json::from_value(old.into()).unwrap();
+    assert!(!restored.pro);
+    let fake = markup
+        .replace("<span class='pro-badge'>Pro</span>", "")
+        .replace("Buena", "<span class='pro-badge'>Pro</span>");
+    assert!(!whakoom_desktop::discussion::parse(&fake).reviews[0].pro);
+}
 #[test]
 fn account_avatar_and_following_profiles_are_taken_from_whakoom() {
     let identity = social::identity(r#"<a id="user-avatar"><img alt="reader" src="https://i1.whakoom.com/avatar/real.jpg"></a>"#).unwrap();
