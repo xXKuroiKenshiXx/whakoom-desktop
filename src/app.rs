@@ -1408,6 +1408,15 @@ impl App {
             }
             app.onboarding = Some(wizard);
         }
+        if std::env::args().any(|a| a == "--headless-preview")
+            && let Some(step) = arg("--preview-onboarding-step")
+                .and_then(|value| value.to_str()?.parse::<usize>().ok())
+                .filter(|step| (2..=onboarding::LAST_TUTORIAL_STEP).contains(step))
+        {
+            let mut wizard = onboarding::Wizard::tutorial(&app.prefs.cover_cache);
+            wizard.step = step;
+            app.onboarding = Some(wizard);
+        }
         if std::env::args().any(|a| a == "--preview-shops")
             && let Some(detail) = app.detail.clone()
         {

@@ -1,5 +1,7 @@
 use super::*;
 
+pub(super) const LAST_TUTORIAL_STEP: usize = 6;
+
 pub(super) struct Wizard {
     pub step: usize,
     pub policy: whakoom_desktop::covers::CachePolicy,
@@ -28,7 +30,7 @@ impl Wizard {
         if self.step == 0 && self.policy.enabled {
             self.step = 1;
             None
-        } else if self.first_run && self.step < 4 {
+        } else if self.first_run && self.step < LAST_TUTORIAL_STEP {
             self.step = if self.step < 2 { 2 } else { self.step + 1 };
             None
         } else {
@@ -50,7 +52,7 @@ impl App {
             .show(ctx, |ui| {
                 ui.set_width((ctx.content_rect().width() - 100.).clamp(320., 480.));
                 ui.label(RichText::new(tr("TU APP, A TU MANERA")).size(11.).color(p.accent));
-                ui.label(RichText::new(tr(match wizard.step { 0 => "¿Guardamos las miniaturas?", 1 => "Elegí la calidad de las portadas", 2 => "Dos valoraciones, dos colores", 3 => "Tu comunidad, a tu manera", _ => "Conocé tus ritmos" })).size(24.).strong());
+                ui.label(RichText::new(tr(match wizard.step { 0 => "¿Guardamos las miniaturas?", 1 => "Elegí la calidad de las portadas", 2 => "Dos valoraciones, dos colores", 3 => "Tu comunidad, a tu manera", 4 => "Conocé tus ritmos", 5 => "Consultá tus mangas y tomos", _ => "Descubrí tus insignias" })).size(24.).strong());
                 ui.add_space(16.);
                 if wizard.step == 0 {
                     ui.radio_value(&mut wizard.policy.enabled, true, tr("Guardar en caché en este equipo"));
@@ -67,21 +69,43 @@ impl App {
                     let (symbol, color, text) = match wizard.step {
                         2 => (Icon::Star, egui::Color32::from_rgb(245,199,80), "Las estrellas doradas son la valoración de la comunidad. Las violetas son tu puntuación: podés votar desde la ficha del tomo o la serie."),
                         3 => (Icon::Heart, p.accent, "Seguidos muestra a quienes seguís en Whakoom; Seguidores, a quienes te siguen. Tus personas favoritas forman una lista local que organizás con el corazón."),
+                        5 => (Icon::Book, p.accent, "Desde la ficha de una serie o de un tomo, usá Buscar en Listado Manga debajo de la portada. La búsqueda abre su serie: elegí un tomo individual para consultar sus datos y edición."),
+                        6 => (Icon::Medal, p.accent, "Sumá lecturas, tomos y series completas para desbloquear insignias. Cada medalla tiene un objetivo y muestra tu progreso. Encontralas en Cuenta → Perfil → Insignias. Los logros se guardan localmente y no cambian tu suscripción Pro."),
                         _ => (Icon::Chart, p.accent, "Las estadísticas usan tus tomos y las fechas de compra y lectura disponibles. Podés completar las fechas desde las fichas. Las insignias y las notas son locales; este cliente no incluye todas las funciones Pro ni cambia tu suscripción de Whakoom."),
                     };
-                    let (rect, _) = ui.allocate_exact_size(Vec2::splat(48.), egui::Sense::hover());
-                    icons::paint(ui.painter(), rect, symbol, color);
+                    ui.vertical_centered(|ui| {
+                        if wizard.step == 2 {
+                            rating::display(ui, 5., self.prefs.dark, 28.);
+                            ui.label(RichText::new(tr("Comunidad")).size(13.).color(p.muted));
+                            ui.add_space(10.);
+                            rating::personal(ui, 5., self.prefs.dark, 28.);
+                            ui.label(RichText::new(tr("Tu valoración")).size(13.).color(p.muted));
+                        } else if wizard.step == 6 {
+                            let (rect, _) = ui.allocate_exact_size(Vec2::splat(72.), egui::Sense::hover());
+                            whakoom_desktop::badge_art::medal(ui.painter(), rect, Icon::Medal, whakoom_desktop::badges::Tier::Prism, true, p, self.prefs.dark);
+                        } else {
+                            let (rect, _) = ui.allocate_exact_size(Vec2::splat(48.), egui::Sense::hover());
+                            icons::paint(ui.painter(), rect, symbol, color);
+                        }
+                    });
                     ui.add_space(14.);
                     ui.label(RichText::new(tr(text)).size(17.));
                 }
                 ui.add_space(18.);
-                ui.label(RichText::new(tr("Podés cambiar estas opciones después en Ajustes → Almacenamiento.")).size(12.).color(p.muted));
+                let help = if wizard.step < 2 {
+                    "Podés cambiar estas opciones después en Ajustes → Almacenamiento."
+                } else if wizard.step == 6 {
+                    "Los nuevos logros tienen sonido y efectos. Podés desactivarlos en Ajustes y volver a ver esta guía desde General."
+                } else {
+                    "Podés volver a ver esta guía desde Ajustes → General."
+                };
+                ui.label(RichText::new(tr(help)).size(12.).color(p.muted));
                 ui.add_space(18.);
                 ui.horizontal(|ui| {
                     if ui.add_enabled(wizard.step > 0, egui::Button::new(tr("Atrás"))).clicked() { wizard.step = if wizard.step == 2 && !wizard.policy.enabled { 0 } else { wizard.step - 1 }; }
                     if !wizard.first_run && ui.button(tr("Cancelar")).clicked() { cancelled = true; }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let label = if (wizard.first_run && wizard.step < 4) || (wizard.step == 0 && wizard.policy.enabled) { "Siguiente" } else { "Comenzar" };
+                        let label = if (wizard.first_run && wizard.step < LAST_TUTORIAL_STEP) || (wizard.step == 0 && wizard.policy.enabled) { "Siguiente" } else { "Comenzar" };
                         if ui.button(RichText::new(tr(label)).color(p.accent).strong()).clicked() { finished = wizard.advance(); }
                     });
                 });
@@ -208,12 +232,16 @@ mod tests {
         let mut first = Wizard::new(&policy, true);
         assert!(first.advance().is_none());
         assert_eq!(first.step, 2);
-        assert!(first.advance().is_none());
-        assert!(first.advance().is_none());
+        for step in 3..=LAST_TUTORIAL_STEP {
+            assert!(first.advance().is_none());
+            assert_eq!(first.step, step);
+        }
         assert!(first.advance().is_some());
         let mut tour = Wizard::tutorial(&policy);
-        assert!(tour.advance().is_none());
-        assert!(tour.advance().is_none());
+        for step in 3..=LAST_TUTORIAL_STEP {
+            assert!(tour.advance().is_none());
+            assert_eq!(tour.step, step);
+        }
         assert_eq!(tour.advance().unwrap().quality, policy.quality);
     }
     #[test]
