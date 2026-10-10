@@ -1,28 +1,39 @@
 ---
 import '../styles/app.css';
+import '../styles/features.css';
 ---
 <!doctype html>
 <html lang="es">
-  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="referrer" content="no-referrer" /><meta name="description" content="Tu biblioteca de cómics, cifrada en este navegador. Compañera local de Whakoom Desktop." /><title>Whakoom · Tu biblioteca</title><link rel="icon" href="/logo.svg" /></head>
-  <body>
-    <aside>
-      <a class="brand" href="/"><img src="/logo.svg" alt="" width="40" height="40" /><span>Whakoom<small>Tu biblioteca · Web no oficial</small></span></a>
-      <nav aria-label="Secciones"><button data-section="library" class="active">▤ <span>Mi biblioteca</span></button><button data-section="reading">◇ <span>Lecturas</span></button><button data-section="wanted">♡ <span>Deseados</span></button><button data-section="statistics">▥ <span>Estadísticas</span></button></nav>
-      <div class="aside-bottom"><a href="https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/latest" target="_blank" rel="noopener noreferrer">Descargar Desktop ↗</a><span>Sin sesión de Whakoom · datos locales</span></div>
-    </aside>
-    <main>
-      <header><div><p class="eyebrow">UN LUGAR PARA TUS HISTORIAS</p><h1 id="heading">Mi biblioteca</h1><p id="subtitle">Tu colección, en este navegador.</p></div><button id="lock" hidden>Bloquear ◈</button></header>
-      <section id="locked" class="welcome"><div class="vault-symbol">◈</div><h2>Tu espacio privado</h2><p>Importá un respaldo de Whakoom Desktop y seguí tus lecturas. La biblioteca se guarda cifrada en este navegador; la contraseña nunca se envía a un servidor.</p><form id="unlock-form"><label for="password">Contraseña de tu biblioteca local</label><input id="password" type="password" autocomplete="off" minlength="12" required placeholder="Al menos 12 caracteres" /><button class="primary" type="submit">Abrir mi biblioteca →</button></form><p class="hint">Si es tu primera vez, elegí una contraseña nueva. Si la olvidás, necesitás un respaldo para recuperar tus datos.</p></section>
-      <section id="workspace" hidden>
-        <div class="toolbar"><label class="search"><span>⌕</span><input id="search" type="search" placeholder="Buscar en tus tomos…" aria-label="Buscar en tus tomos" /></label><label class="button" for="import-file">Importar respaldo</label><input id="import-file" type="file" accept=".json,.whakoom" hidden /><button id="export">Exportar cifrado ↗</button></div>
-        <p class="hint">Los cambios de esta web son locales. Para llevarlos a Whakoom, restaurá el respaldo desde Desktop.</p>
-        <div id="statistics" hidden></div><div id="books" class="books"></div><button id="more" hidden>Ver más tomos</button><p id="empty" class="empty" hidden>Acá empiezan tus próximas historias. Importá tu biblioteca desde Ajustes → Respaldo de Desktop.</p>
-        <footer><span id="owner"></span><button id="remove">Borrar biblioteca de este navegador</button></footer>
-      </section>
-      <p id="status" role="status" aria-live="polite"></p>
-    </main>
-    <dialog id="detail"><form method="dialog"><button class="close" aria-label="Cerrar ficha">×</button></form><div id="detail-content"></div></dialog>
-    <dialog id="import-dialog"><h2>Abrí tu respaldo cifrado</h2><p>Es la contraseña que elegiste al exportarlo desde Desktop.</p><form id="import-form"><label for="import-password">Contraseña del archivo</label><input id="import-password" type="password" required autocomplete="off" /><button class="primary" type="submit">Importar</button><button id="cancel-import" type="button">Cancelar</button></form></dialog>
-    <script>import '../scripts/app.mjs';</script>
-  </body>
-</html>
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="referrer" content="no-referrer"/><meta name="description" content="Whakoom Web: tu colección, lecturas, personas e insignias en un mismo lugar."/><title>Whakoom · Web</title><link rel="icon" href="/logo.svg"/></head>
+<body>
+<aside>
+  <a class="brand" href="/"><img src="/logo.svg" alt="" width="42" height="42"/><span>Whakoom<small>WEB · CLIENTE NO OFICIAL</small></span></a>
+  <nav aria-label="Secciones">
+    <button data-section="catalog" data-icon="compass"><span>Catálogo</span></button>
+    <button data-section="library" data-icon="shelf" class="active"><span>Mi biblioteca</span></button>
+    <button data-section="reading" data-icon="book"><span>Lecturas</span></button>
+    <button data-section="wanted" data-icon="heart"><span>Deseados</span></button>
+    <button data-section="people" data-icon="people"><span>Personas</span></button>
+    <button data-section="statistics" data-icon="chart"><span>Estadísticas</span></button>
+    <button data-section="badges" data-icon="trophy"><span>Insignias</span></button>
+    <button data-section="settings" data-icon="settings"><span>Ajustes</span></button>
+  </nav>
+  <div class="aside-bottom"><button id="account" class="account-button" disabled><span id="account-avatar"></span><span id="account-name">Tu cuenta<small>Iniciá sesión para comenzar</small></span></button><a href="https://github.com/xXKuroiKenshiXx/whakoom-desktop/releases/latest" target="_blank" rel="noopener noreferrer">Descargar Desktop ↗</a></div>
+</aside>
+<main>
+  <header><div><p class="eyebrow">UN LUGAR PARA TUS HISTORIAS</p><h1 id="heading">Tus historias, donde estés.</h1><p id="subtitle">Entrá con tu cuenta de Whakoom y continuá tu colección.</p></div><button id="lock" hidden>Bloquear ◈</button></header>
+  <section id="login" class="welcome"><div class="vault-symbol">W</div><p class="eyebrow">BIENVENIDO A WHAKOOM WEB</p><h2>Tu colección empieza con vos.</h2><p>Conectá tu cuenta para consultar tu biblioteca y guardar tus cambios en Whakoom. Después podés importar un respaldo de Desktop.</p><form id="login-form"><label for="username">Usuario o correo de Whakoom</label><input id="username" autocomplete="username" required maxlength="254" placeholder="Tu usuario o correo"/><label for="login-password">Contraseña de Whakoom</label><input id="login-password" type="password" autocomplete="current-password" required maxlength="1024"/><button type="submit" class="primary">Iniciar sesión →</button></form><p class="hint">Cliente independiente. Tu contraseña se usa sólo para iniciar sesión y no se guarda. Algunas verificaciones de Whakoom pueden impedir la conexión web.</p></section>
+  <section id="locked" class="welcome" hidden><div class="vault-symbol">◈</div><h2>Elegí cómo guardar tus historias</h2><p>Podés mantener un respaldo cifrado en este navegador, con una contraseña diferente a la de tu cuenta. Tu clave local nunca sale del navegador.</p><form id="unlock-form"><label for="password">Contraseña de tu biblioteca local</label><input id="password" type="password" autocomplete="off" minlength="12" required placeholder="Al menos 12 caracteres"/><button class="primary" type="submit">Abrir mi biblioteca →</button></form><button id="memory-only">Continuar sin guardar en este dispositivo</button><button id="disconnect">Desconectar cuenta</button><p class="hint">Sin guardado local, tus notas e insignias de esta sesión se pierden al cerrar. Si olvidás la contraseña local, necesitás un respaldo.</p></section>
+  <section id="workspace" hidden>
+    <div class="toolbar"><label class="search"><span id="search-icon"></span><input id="search" type="search" placeholder="Buscar en tus tomos…" aria-label="Buscar"/></label><button id="refresh" class="icon-button" aria-label="Actualizar" title="Actualizar">⟳</button><button id="view" class="icon-button" aria-label="Cambiar vista" title="Cambiar vista"></button></div>
+    <div id="tabs" class="tabs"></div><div id="section-intro"></div><div id="statistics" hidden></div><div id="books" class="books"></div><div id="panel" hidden></div><button id="more" hidden>Ver más</button><p id="empty" class="empty" hidden>Todavía no hay resultados acá.</p>
+    <footer><span id="owner"></span><span id="sync-state"></span></footer>
+  </section>
+  <p id="status" role="status" aria-live="polite"></p>
+</main>
+<dialog id="gallery"><form method="dialog"><button class="close" aria-label="Cerrar imagen">×</button></form><img id="gallery-image" alt="Portada ampliada"/></dialog>
+<dialog id="import-dialog"><h2>Abrí tu respaldo cifrado</h2><p>Es la contraseña que elegiste al exportarlo desde Desktop.</p><form id="import-form"><label for="import-password">Contraseña del archivo</label><input id="import-password" type="password" required autocomplete="off"/><button class="primary" type="submit">Importar</button><button id="cancel-import" type="button">Cancelar</button></form></dialog>
+<dialog id="tutorial"><div id="tutorial-content"></div><div class="dialog-actions"><button id="tutorial-back">Atrás</button><button id="tutorial-next" class="primary">Siguiente →</button></div></dialog>
+<div id="achievement" class="achievement" role="status" hidden></div>
+<script>import '../scripts/app.mjs';</script>
+</body></html>
