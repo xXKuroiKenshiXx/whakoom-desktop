@@ -38,6 +38,7 @@ let results = [],
   relation = "following",
   listMode = "discover";
 let libraryMode = "volumes";
+const changedDuringSync = new Set();
 let prefs;
 try {
   prefs = JSON.parse(localStorage.getItem("whakoom-appearance"));
@@ -126,6 +127,7 @@ async function begin(cache) {
 async function sync() {
   if (syncing || !library) return;
   syncing = true;
+  changedDuringSync.clear();
   const gen = generation,
     target = library;
   try {
@@ -141,6 +143,7 @@ async function sync() {
         if (gen !== generation) return;
         for (const item of data.items) {
           seen.add(item.key);
+          if (changedDuringSync.has(item.key)) continue;
           target.entries[item.key] ??= { item, notes: "" };
           target.entries[item.key].item = item;
           target.entries[item.key][kind] = true;
@@ -156,7 +159,7 @@ async function sync() {
       }
       if (gen !== generation) return;
       for (const [key, e] of Object.entries(target.entries))
-        if (!seen.has(key)) e[kind] = false;
+        if (!seen.has(key) && !changedDuringSync.has(key)) e[kind] = false;
     }
     if (gen !== generation) return;
     award(true);
@@ -537,6 +540,7 @@ async function mutate(entry, field, value) {
   status("Confirmando en Whakoom…");
   const fresh = await api("change", {}, { url: entry.item.url, field, value });
   if (gen !== generation) return;
+  if (syncing) changedDuringSync.add(entry.item.key);
   Object.assign(entry, {
     item: fresh.item,
     owned: fresh.item.owned,

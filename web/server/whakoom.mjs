@@ -354,7 +354,10 @@ export class Whakoom {
             lm: true,
           },
     );
-    if (typeof data.Html !== "string")
+    if (
+      typeof data.Html !== "string" ||
+      (!data.Html.trim() && Array.isArray(data.C) && data.C.length > 0)
+    )
       throw new ServiceError(
         "Whakoom no devolvió la colección en un formato compatible.",
       );

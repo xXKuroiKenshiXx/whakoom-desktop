@@ -170,6 +170,16 @@ test("failed remote confirmations never report success", async () => {
     (error) => error.status === 409,
   );
 });
+test("an unsupported gallery response cannot erase the cached collection", async () => {
+  const api = new Whakoom(
+    "",
+    async () =>
+      new Response(
+        JSON.stringify({ d: { Html: "", C: [{ id: "ABC" }], ExtraInfo: "1" } }),
+      ),
+  );
+  await assert.rejects(api.collection("owned", 1), /formato compatible/);
+});
 test("all 21 achievements match Desktop IDs and persist after removing comics", () => {
   const library = { entries: {} };
   updateBadges(library, 1);

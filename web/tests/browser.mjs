@@ -209,8 +209,79 @@ try {
   if (output)
     await page.screenshot({ path: `${output}/web-mobile.png`, fullPage: true });
   assert.deepEqual(errors, []);
+  const progressive = await context.newPage();
+  let changed = false;
+  await progressive.route("**/api/whakoom/**", async (route) => {
+    const url = new URL(route.request().url()),
+      action = url.pathname.split("/").pop();
+    let data;
+    if (action === "session")
+      data = {
+        authenticated: true,
+        configured: true,
+        user: { username: library.owner },
+      };
+    else if (action === "collection") {
+      if (url.searchParams.get("kind") === "wanted")
+        data = { items: [], next: null };
+      else if (url.searchParams.get("page") === "1")
+        data = {
+          items: [{ ...library.entries.comica.item, owned: true }],
+          next: 2,
+        };
+      else {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        data = {
+          items: [
+            { ...library.entries.comica.item, owned: true },
+            { ...library.entries.comicb.item, owned: true },
+          ],
+          next: null,
+        };
+      }
+    } else if (action === "detail" || action === "change") {
+      if (action === "change") changed = true;
+      data = {
+        item: { ...library.entries.comica.item, owned: !changed },
+        read: false,
+        wanted: false,
+        personal_rating: 0,
+        comments: [],
+        isbn: [],
+      };
+    } else data = {};
+    await route.fulfill({ json: data });
+  });
+  await progressive.goto(process.env.WEB_TEST_URL ?? "http://127.0.0.1:4321");
+  await progressive.locator("#locked").waitFor({ state: "visible" });
+  await progressive.locator("#memory-only").click();
+  await progressive.locator(".book").first().click();
+  assert.equal(
+    await progressive.locator("#sync-state").textContent(),
+    "Sincronizando biblioteca · 1 fichas",
+  );
+  await progressive.locator("#panel .owned").click();
+  await progressive.waitForFunction(() =>
+    document.querySelector("#status").textContent.includes("Cambio confirmado"),
+  );
+  await progressive.waitForFunction(
+    () =>
+      document.querySelector("#sync-state").textContent ===
+      "Conectado con Whakoom",
+  );
+  await progressive
+    .locator("#panel button")
+    .filter({ hasText: "← Volver" })
+    .first()
+    .click();
+  assert.equal(await progressive.locator(".book").count(), 1);
+  assert.match(
+    await progressive.locator(".book").textContent(),
+    /Historia de ejemplo b/,
+  );
+  await progressive.close();
   console.log(
-    "Browser: import, encrypted persistence/export, lock, wrong password, reading states and mobile layout passed.",
+    "Browser: required login, encrypted persistence/export, lock, badges, carousel, mobile and navigation/mutations during progressive sync passed.",
   );
 } finally {
   await browser.close();
