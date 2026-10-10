@@ -61,6 +61,8 @@ export function libraryFrom(data) {
     "attachments",
     "online_readings",
     "badges",
+    "web_favorite_people",
+    "web_reactions",
   ]) {
     if (Object.hasOwn(data, field))
       result[field] = structuredClone(data[field]);
@@ -100,4 +102,33 @@ export function totals(library) {
     reading: entries.filter((e) => e.reading && !e.read).length,
     currencies,
   };
+}
+export function editionViews(library, missingOnly = false, query = "") {
+  const comparator = new Intl.Collator("es", {
+    numeric: true,
+    sensitivity: "base",
+  });
+  return Object.values(library.editions ?? {})
+    .filter(
+      (e) =>
+        e.item &&
+        Array.isArray(e.volumes) &&
+        e.volumes.some((v) => library.entries[v.key]?.owned),
+    )
+    .map((e) => {
+      const missing = e.volumes
+        .filter((v) => !library.entries[v.key]?.owned)
+        .sort((a, b) => comparator.compare(a.issue || "", b.issue || ""));
+      if (missingOnly && !missing.length) return null;
+      return {
+        item: missingOnly ? missing[0] : e.item,
+        series: e,
+        missing: missing.length,
+      };
+    })
+    .filter(
+      (e) =>
+        e &&
+        e.item.title.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+    );
 }

@@ -12,6 +12,17 @@
   background: var(--bg);
   color: var(--text);
 }
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --border: #d5deea;
+  --text: #243246;
+  --muted: #607089;
+  --accent: #147583;
+  --gold: #94600b;
+  --violet: #7b42bc;
+}
 * {
   box-sizing: border-box;
 }
@@ -80,7 +91,7 @@ aside {
   padding: 28px 18px;
   display: flex;
   flex-direction: column;
-  background: #101925;
+  background: var(--surface);
 }
 .brand {
   display: flex;
@@ -100,7 +111,7 @@ aside {
 nav {
   display: grid;
   gap: 8px;
-  margin-top: 52px;
+  margin-top: 32px;
 }
 nav button {
   display: flex;

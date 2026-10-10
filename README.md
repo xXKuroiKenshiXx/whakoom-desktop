@@ -133,11 +133,11 @@ Las fuentes incluyen licencias propias, detalladas en [avisos de terceros](THIRD
 ![Cuenta y navegación de perfil](assets/account.png)
 
 
-## Biblioteca web para Netlify
+## Versión web
 
-[`web/`](web/README.md) contiene una aplicación Astro independiente: importa respaldos cifrados o JSON, muestra biblioteca, lecturas, deseados y estadísticas, permite notas y estados de lectura y exporta un respaldo cifrado compatible con Desktop. La biblioteca queda cifrada en IndexedDB; no se envía a un servidor.
+[`web/`](web/README.md) contiene Whakoom Web: inicia sesión con tu cuenta, consulta biblioteca y deseados por páginas, busca cómics y muestra catálogo, listas y personas. Las fichas permiten cambiar los estados, valorar y publicar opiniones con confirmación de Whakoom. Incluye 21 insignias locales, estadísticas, notas, temas claro y oscuro y respaldos cifrados compatibles con Desktop.
 
-Es una compañera local: no inicia sesión en Whakoom ni sincroniza directamente con esa cuenta. Netlify necesita un servidor adicional para ofrecer esa conexión. Conectá este repositorio en tu cuenta Netlify usando `netlify.toml`. No se publica una GitHub Page.
+La sesión online permanece en una cookie cifrada HttpOnly. El respaldo local utiliza una contraseña independiente que nunca se envía al servidor. La web necesita desplegar tanto el frontend como su función de servidor; las instrucciones y las limitaciones están en su README. No se publica una GitHub Page.
 
 ### Colaboración con el catálogo
 

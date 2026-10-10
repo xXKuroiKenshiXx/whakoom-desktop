@@ -1,4 +1,4 @@
-const NAME = "whakoom-shell-v1";
+const NAME = "whakoom-shell-v2";
 self.addEventListener("install", (event) =>
   event.waitUntil(
     caches.open(NAME).then((cache) => cache.addAll(["/", "/logo.svg"])),
