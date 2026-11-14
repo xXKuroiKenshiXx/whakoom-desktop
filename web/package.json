@@ -10,7 +10,7 @@
     "test:browser": "node tests/run-browser.mjs"
   },
   "dependencies": {
-    "astro": "7.3.8",
+    "astro": "7.4.7",
     "cheerio": "1.2.0"
   },
   "engines": {
